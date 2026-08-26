@@ -1,0 +1,25 @@
+---
+name: Improvement
+description: A closer match, another effect, another lamp, a better measurement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is off, or missing
+      description: The preset, effect or step and how it falls short today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: A parameter set, a palette, a measurement, a new subcommand — a rough shape is fine.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: What you measured
+      description: "`analyse`/`compare` output or a `make verify` table, if you have lamps to test on."
+      render: text

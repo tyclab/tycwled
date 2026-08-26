@@ -23,7 +23,6 @@ with `light.gc` off every preset uses one of these custom palettes.
 import colorsys
 import json
 import os
-import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PALX = os.path.join(HERE, "factory-0.14.4-GLORB.1.3", "palx.json")
