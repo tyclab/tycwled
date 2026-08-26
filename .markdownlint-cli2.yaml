@@ -1,0 +1,11 @@
+# Markdownlint config.
+config:
+  # Line length: disabled (tables, URLs, measurement output)
+  MD013: false
+  # First line heading: off
+  MD041: false
+  # Duplicate headings: allowed under different parents
+  MD024:
+    siblings_only: true
+  # Code fence language: off
+  MD040: false
