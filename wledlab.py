@@ -22,6 +22,14 @@ Subcommands
   verify           acceptance gate: every preset on both lamps, ABL current
                    estimate ratio target/ref must stay within --tolerance
 
+Metrics printed by analyse/compare: bri_* from all lit cells (0-255, liveview
+is pre-brightness), sat/hue from cells above 20 % brightness (black has no
+hue), hue_spread = mean angular deviation across the raster per frame,
+raster_r2 = variance explained by the best sinusoid per cell ordering (1.0 =
+pure wave; may exceed 1 on sparse rows), wavelength in cells, drift in
+cells/s (sign = direction), hue_cycle_autocorr = (lag s, correlation) peaks
+of the mean hue, i.e. candidate colour-cycle periods.
+
 Recorded knowledge (GLORB, WLED 16.0.1):
   * WLED 16 validates ledmap.json as JSON, then scans the raw bytes for
     `"map":[` to read the array. A space after the colon silently yields an
@@ -242,9 +250,13 @@ def metrics(frames, w=W, h=H, row=None):
     vals, sats, hmean, spread, contr = [], [], [], [], []
     for _, leds in frames:
         hs = [hsv(leds[i]) for i in lit]
-        v = [x[2] * 255 for x in hs]; hh = [x[0] * 360 for x in hs]
-        vals += v; sats += [x[1] for x in hs]; hmean.append(sum(hh) / len(hh))
-        spread.append(max(hh) - min(hh)); contr.append(max(v) - min(v))
+        v = [x[2] * 255 for x in hs]
+        vals += v; contr.append(max(v) - min(v))
+        bright = [x for x in hs if x[2] > 0.2] or hs  # black cells have no hue
+        sats += [x[1] for x in bright]
+        cx = sum(math.cos(x[0] * 2 * math.pi) for x in bright); cy = sum(math.sin(x[0] * 2 * math.pi) for x in bright)
+        mh = math.atan2(cy, cx); hmean.append((mh / (2 * math.pi)) % 1 * 360)
+        spread.append(sum(abs(math.atan2(math.sin(x[0] * 2 * math.pi - mh), math.cos(x[0] * 2 * math.pi - mh))) for x in bright) / len(bright) * 180 / math.pi)
     sv = sorted(vals)
     m.update(bri_mean=sum(vals) / len(vals), bri_p10=sv[len(sv) // 10], bri_p90=sv[len(sv) * 9 // 10],
              contrast_mean=sum(contr) / len(contr), sat_mean=sum(sats) / len(sats),
@@ -289,14 +301,19 @@ def print_metrics(*named):
 # ----------------------------------------------------------------------------- commands
 def cmd_capture(a):
     fr = live(a.host, a.seconds)
+    if not fr:
+        sys.exit(f"no frames from {a.host} — lamp busy or liveview refused; retry")
+    os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     json.dump(fr, open(a.out, "w"))
     print(f"{len(fr)} frames ({len(fr) / a.seconds:.1f} Hz) -> {a.out}")
 
 
 def cmd_analyse(a):
-    fr = json.load(open(a.file))
-    fr = [(f[0], f[-1]) for f in fr]
-    print_metrics((os.path.basename(a.file), metrics(fr, a.width, a.height)))
+    named = []
+    for f in a.file:
+        fr = [(x[0], x[-1]) for x in json.load(open(f))]
+        named.append((os.path.basename(f), metrics(fr, a.width, a.height)))
+    print_metrics(*named)
 
 
 def simultaneous(ref, target, seconds, preset=None):
@@ -365,6 +382,8 @@ def cmd_check_ledmap(a):
 def cmd_verify(a):
     """Output-stage check liveview cannot do: brightness after mapping, gamma, bri and ABL."""
     want = json.load(open(a.presets_file)); fails = []
+    n = sum(1 for v in want.values() if v)
+    print(f"verify: {n} presets, {a.samples * a.interval:.0f} s each (~{n * (a.samples * a.interval + 4) / 60:.0f} min); both lamps end on preset {a.restore_preset}", flush=True)
     for k, v in want.items():
         if not v:
             continue
@@ -377,7 +396,7 @@ def cmd_verify(a):
             time.sleep(a.interval)
         r = (sum(pt) / len(pt)) / max(1, sum(pr) / len(pr))
         ok = 1 - a.tolerance <= r <= 1 + a.tolerance
-        print(f"  preset {k:>2} {v.get('n', ''):<26} ref {sum(pr) / len(pr):5.0f} mA  target {sum(pt) / len(pt):5.0f} mA  ratio {r:.2f}  {'PASS' if ok else 'FAIL'}")
+        print(f"  preset {k:>2} {v.get('n', ''):<26} ref {sum(pr) / len(pr):5.0f} mA  target {sum(pt) / len(pt):5.0f} mA  ratio {r:.2f}  {'PASS' if ok else 'FAIL'}", flush=True)
         fails += [] if ok else [k]
     for ip in (a.ref, a.target):
         post(ip, "/json/state", {"on": True, "bri": 255, "ps": a.restore_preset})
@@ -464,19 +483,35 @@ def cmd_install(a):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--width", type=int, default=W); p.add_argument("--height", type=int, default=H)
+    p.add_argument("--width", type=int, default=W, help="raster width the lamp reports (GLORB 20)")
+    p.add_argument("--height", type=int, default=H, help="raster height (GLORB 6)")
     sub = p.add_subparsers(dest="cmd", required=True)
-    s = sub.add_parser("capture"); s.add_argument("--host", required=True); s.add_argument("--seconds", type=float, default=60); s.add_argument("--out", required=True); s.set_defaults(fn=cmd_capture)
-    s = sub.add_parser("analyse"); s.add_argument("file"); s.set_defaults(fn=cmd_analyse)
-    s = sub.add_parser("compare"); s.add_argument("--ref", required=True); s.add_argument("--target", required=True); s.add_argument("--seconds", type=float, default=120); s.add_argument("--preset", type=int); s.set_defaults(fn=cmd_compare)
-    s = sub.add_parser("calibrate-speed"); s.add_argument("--ref", required=True); s.add_argument("--target", required=True); s.add_argument("--seconds", type=float, default=120)
-    s.add_argument("--preset", type=int); s.add_argument("--ref-speed", type=int); s.add_argument("--start", type=int, default=4); s.add_argument("--iterations", type=int, default=3)
-    s.add_argument("--seg", type=int, default=0); s.add_argument("--row", type=int, default=2); s.add_argument("--presets-file"); s.set_defaults(fn=cmd_calibrate_speed)
-    s = sub.add_parser("check-ledmap"); s.add_argument("--ref", required=True); s.add_argument("--target", required=True); s.add_argument("--bri", type=int, default=64); s.add_argument("--restore-preset", type=int, default=1); s.set_defaults(fn=cmd_check_ledmap)
-    s = sub.add_parser("push-frame"); s.add_argument("--ref"); s.add_argument("--target"); s.add_argument("--frame")
+    s = sub.add_parser("capture", help="record liveview frames from one lamp")
+    s.add_argument("--host", required=True, help="lamp IP or hostname"); s.add_argument("--seconds", type=float, default=120, help="capture length (default 120)")
+    s.add_argument("--out", required=True, help="output JSON (directory is created)"); s.set_defaults(fn=cmd_capture)
+    s = sub.add_parser("analyse", help="fingerprint one or more captures side by side"); s.add_argument("file", nargs="+"); s.set_defaults(fn=cmd_analyse)
+    s = sub.add_parser("compare", help="capture two lamps at the same time and print metrics side by side")
+    s.add_argument("--ref", required=True, help="reference lamp (factory firmware)"); s.add_argument("--target", required=True, help="lamp under test")
+    s.add_argument("--seconds", type=float, default=120, help="window per capture (default 120)"); s.add_argument("--preset", type=int, help="recall this preset on both lamps first"); s.set_defaults(fn=cmd_compare)
+    s = sub.add_parser("calibrate-speed", help="iterate the target's sx until its drift matches the reference")
+    s.add_argument("--ref", required=True); s.add_argument("--target", required=True); s.add_argument("--seconds", type=float, default=120, help="window per iteration")
+    s.add_argument("--preset", type=int, help="preset to calibrate (recalled on both)"); s.add_argument("--ref-speed", type=int, help="set this sx on the reference first")
+    s.add_argument("--start", type=int, default=4, help="first sx to try on the target"); s.add_argument("--iterations", type=int, default=3)
+    s.add_argument("--seg", type=int, default=0, help="segment carrying the effect"); s.add_argument("--row", type=int, default=2, help="raster row to track")
+    s.add_argument("--presets-file", help="write the final sx into this presets.json"); s.set_defaults(fn=cmd_calibrate_speed)
+    s = sub.add_parser("check-ledmap", help="white fill on both lamps, compare ABL current estimates (1.0 = same LED count)")
+    s.add_argument("--ref", required=True); s.add_argument("--target", required=True); s.add_argument("--bri", type=int, default=64, help="fill brightness (default 64)")
+    s.add_argument("--restore-preset", type=int, default=1, help="preset both lamps end on"); s.set_defaults(fn=cmd_check_ledmap)
+    s = sub.add_parser("push-frame", help="push one identical frame to both lamps via the per-LED JSON API")
+    s.add_argument("--ref"); s.add_argument("--target"); s.add_argument("--frame", help="JSON list of hex colours, default: uniform grey 40")
     s.add_argument("--ref-input-gamma", action="store_true", help="ref is 0.14 (gamma-corrects per-LED input)"); s.add_argument("--target-input-gamma", action="store_true"); s.set_defaults(fn=cmd_push_frame)
-    s = sub.add_parser("verify"); s.add_argument("--ref", required=True); s.add_argument("--target", required=True); s.add_argument("--presets-file", required=True); s.add_argument("--samples", type=int, default=140); s.add_argument("--interval", type=float, default=0.5); s.add_argument("--tolerance", type=float, default=0.15); s.add_argument("--restore-preset", type=int, default=1); s.set_defaults(fn=cmd_verify)
-    s = sub.add_parser("install"); s.add_argument("--host", required=True); s.add_argument("--ledmap"); s.add_argument("--presets"); s.add_argument("--palette", action="append"); s.add_argument("--reboot", action="store_true"); s.set_defaults(fn=cmd_install)
+    s = sub.add_parser("verify", help="acceptance gate: every preset on both lamps, current-estimate ratio within tolerance")
+    s.add_argument("--ref", required=True, help="factory lamp"); s.add_argument("--target", required=True, help="ported lamp"); s.add_argument("--presets-file", required=True)
+    s.add_argument("--samples", type=int, default=140, help="current samples per preset (default 140)"); s.add_argument("--interval", type=float, default=0.5, help="seconds between samples (default 0.5 → 70 s window)")
+    s.add_argument("--tolerance", type=float, default=0.15, help="allowed deviation of target/ref (default 0.15)"); s.add_argument("--restore-preset", type=int, default=1, help="preset both lamps end on"); s.set_defaults(fn=cmd_verify)
+    s = sub.add_parser("install", help="upload files byte-exact, reload, verify every preset")
+    s.add_argument("--host", required=True); s.add_argument("--ledmap"); s.add_argument("--presets"); s.add_argument("--palette", action="append", help="palette file; paletteN.json in order, repeatable")
+    s.add_argument("--reboot", action="store_true", help="reboot after upload instead of live reload"); s.set_defaults(fn=cmd_install)
     a = p.parse_args(); a.fn(a)
 
 

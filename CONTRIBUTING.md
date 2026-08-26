@@ -16,8 +16,9 @@ Open an issue with:
 ## Change something
 
 1. Fork, branch, edit.
-2. Palettes are generated: edit `PLAN` in `glorb/mkpalettes.py` and run it,
-   do not hand-edit `paletteN.json`.
+2. Palettes are generated: edit `PLAN` in `glorb/mkpalettes.py`, run
+   `python3 glorb/mkpalettes.py` (`--check` only compares, `--report` prints
+   the residual vs the fork); do not hand-edit `paletteN.json`.
 3. `make lint` must pass (CI runs it on every pull request).
 4. If you touched presets, palettes, ledmap or cfg overrides, paste the
    `make verify` table from your lamps into the pull request — or say that
