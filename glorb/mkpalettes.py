@@ -7,10 +7,14 @@ linearly between neighbouring slots. The fork sweeps a palette over index
 needs palette+reverse for the fork's triangle cycle, so the port has 8 slots
 per direction. Packing the factory stops into 0..127 lets FastLED's loader
 round them into neighbouring slots (visible hue steps, up to 64 deg on
-Analogous). `mirror` therefore fits the 8 slot colours by least squares to the
-fork's own 16-slot trajectory and writes them at exact slot indices
-(0,16,..,240,255 = 17 stops, no loader rounding). `plain` keeps the factory
-stops (Frizzles/Black Hole index the palette like the fork does).
+Analogous). `colorwaves` and `layer` therefore fit the 8 slot colours by least squares
+to the fork's own 16-slot trajectory as the port's effect reads it
+(Colorwaves: LINEARBLEND_NOWRAP with WLED 16's 240/256 index remap; the
+Palette effect: LINEARBLEND, no remap) and write them at exact slot indices
+(0,16,..,240,255 = 17 stops, no loader rounding). All arithmetic mirrors the
+C++ (FastLED 16.16 gradient fill, WLED 16 and FastLED 3.6 blend weights,
+0.14's scale8(i,240)). `plain` keeps the factory stops (Frizzles/Black Hole
+index the palette like the fork does).
 16's built-in palettes are re-encoded for its gamma (palettes.cpp header), so
 with `light.gc` off every preset uses one of these custom palettes.
 `--check` verifies the committed files instead of writing them (make lint);
@@ -27,13 +31,13 @@ OUT = os.path.join(HERE, "wled16-port")
 MAX_STOPS = 18
 # slot -> (factory palette id, mode); custom palette ID on the lamp = 200 - slot
 PLAN = {
-    0: (18, "mirror"),  # Analogous   — Colorwaves p1
-    1: (13, "mirror"),  # Sunset      — Colorwaves p3
-    2: (51, "mirror"),  # Atlantica   — Running p4 colour layer
-    3: (18, "mirror"),  # Analogous   — Running p5 / Tartan p13 colour layer
-    4: (34, "mirror"),  # Tertiary    — Hiphotic p2 colour layer
-    5: (35, "mirror"),  # Fire        — Hiphotic p14 colour layer
-    6: (59, "mirror"),  # Fairy Reaf  — Tartan p12 colour layer
+    0: (18, "colorwaves"),  # Analogous   — Colorwaves p1 (fx 67: index 0..127, NOWRAP remap)
+    1: (13, "colorwaves"),  # Sunset      — Colorwaves p3
+    2: (51, "layer"),       # Atlantica   — Running p4 colour layer (fx 65: LINEARBLEND, no remap)
+    3: (18, "layer"),       # Analogous   — Running p5 / Tartan p13 colour layer
+    4: (34, "layer"),       # Tertiary    — Hiphotic p2 colour layer
+    5: (35, "layer"),       # Fire        — Hiphotic p14 colour layer
+    6: (59, "layer"),       # Fairy Reaf  — Tartan p12 colour layer
     7: (18, "plain"),   # Analogous   — Frizzles p7
     8: (35, "plain"),   # Fire        — Frizzles p9
     9: (34, "plain"),   # Tertiary    — Black Hole p10
@@ -42,7 +46,7 @@ PLAN = {
 
 
 def load16(stops):
-    """FastLED loadDynamicGradientPalette: 16 slots from gradient stops."""
+    """FastLED loadDynamicGradientPalette + fill_gradient_RGB (16.16 fixed point), 16 slots."""
     ent = [[0, 0, 0]] * 16; count = len(stops); last = -1
     idx0, rgb0 = stops[0][0], stops[0][1:]
     for s in stops[1:]:
@@ -53,27 +57,51 @@ def load16(stops):
                 if b < a:
                     b = a
             last = b
-        n = max(1, b - a)
-        for k in range(a, b + 1):
-            t = (k - a) / n if b > a else 0
-            ent[k] = [round(x + (y - x) * t) for x, y in zip(rgb0, rgb1)]
+        div = b - a
+        for c in range(3):
+            acc = rgb0[c] << 16
+            delta = int(((rgb1[c] - rgb0[c]) << 16) / div) if div else 0  # C division truncates toward zero
+            for k in range(a, b + 1):
+                col = list(ent[k]); col[c] = (acc >> 16) & 255; ent[k] = col; acc += delta
         idx0, rgb0 = idx1, rgb1
         if idx0 >= 255:
             break
     return ent
 
 
-def cfp(ent, idx, wrap=False):
-    """FastLED ColorFromPalette, LINEARBLEND / LINEARBLEND_NOWRAP."""
-    hi, lo = idx >> 4, idx & 15
-    e0 = ent[hi]; e1 = ent[(hi + 1) % 16] if wrap or hi < 15 else ent[15]
-    return [(x * (255 - lo * 17) + y * (lo * 17)) / 255 for x, y in zip(e0, e1)]
+def cfp16(ent, index, nowrap):
+    """WLED 16 colors.cpp ColorFromPalette: NOWRAP remaps index by 240/256; weights lo4/16."""
+    if nowrap:
+        index = (index * 0xF0) >> 8
+    hi, lo = index >> 4, index & 15
+    e0, e1 = ent[hi], ent[(hi + 1) % 16]
+    f2 = lo << 4; f1 = 256 - f2
+    return [(a * f1 + b * f2) >> 8 for a, b in zip(e0, e1)]
+
+
+def cfp014(ent, index):
+    """FastLED 3.6 ColorFromPalette LINEARBLEND with SCALE8_FIXED, as used by 0.14."""
+    hi, lo = index >> 4, index & 15
+    e0, e1 = ent[hi], ent[(hi + 1) % 16]
+    f2 = lo << 4; f1 = 255 - f2
+    return [((a * (f1 + 1)) >> 8) + ((b * (f2 + 1)) >> 8) for a, b in zip(e0, e1)]
 
 
 def fork_trajectory(stops):
-    """0.14 color_from_palette without wrap: index scaled to 0..240 over 16 slots."""
+    """0.14 color_from_palette without wrap: scale8(index, 240) = (i*241)>>8, then LINEARBLEND."""
     ent = load16(stops)
-    return [cfp(ent, t * 240 // 255) for t in range(256)]
+    return [cfp014(ent, (t * 241) >> 8) for t in range(256)]
+
+
+def port_index(t):
+    """Port palette index for fork phase t: both Colorwaves (0..127) and the Palette effect's up-sweep cover half the range."""
+    return t * 127 // 255
+
+
+def slot_position(t, mode):
+    """Index after WLED 16's blend remap: Colorwaves uses LINEARBLEND_NOWRAP (×240/256); the Palette effect LINEARBLEND (none)."""
+    p = port_index(t)
+    return ((p * 0xF0) >> 8) if mode == "colorwaves" else p
 
 
 def solve(A, b):
@@ -88,12 +116,12 @@ def solve(A, b):
     return [M[i][n] / M[i][i] for i in range(n)]
 
 
-def mirror(stops):
-    """8 slot colours fitted to the fork trajectory as seen through the port's 0..127 sweep, then mirrored."""
+def mirror(stops, mode):
+    """8 slot colours fitted to the fork trajectory as the port's effect reads them, mirrored for the down sweep."""
     T = fork_trajectory(stops)
     A = []
     for t in range(256):
-        p = t * 127 // 255; hi, lo = p >> 4, p & 15; w = lo * 17 / 255
+        q = slot_position(t, mode); hi, lo = q >> 4, q & 15; w = (lo << 4) / 256
         row = [0.0] * 8; row[hi] += 1 - w; row[min(hi + 1, 7)] += w; A.append(row)
     S = [[max(0, min(255, round(v))) for v in solve(A, [T[t][c] for t in range(256)])] for c in range(3)]
     up = [[16 * k, S[0][k], S[1][k], S[2][k]] for k in range(8)]
@@ -101,10 +129,11 @@ def mirror(stops):
     return up + down + [[255] + up[0][1:]]
 
 
-def residual(stops, new):
+def residual(stops, new, mode):
+    """Worst hue/sat/val deviation of the port (exact 16 arithmetic) from the fork over one sweep."""
     F = fork_trajectory(stops); ent = load16(new); worst = [0, 0, 0]
     for t in range(256):
-        f, p = F[t], cfp(ent, t * 127 // 255)
+        f, p = F[t], cfp16(ent, port_index(t), mode == "colorwaves")
         hf, sf, vf = colorsys.rgb_to_hsv(*[x / 255 for x in f]); hp, sp, vp = colorsys.rgb_to_hsv(*[x / 255 for x in p])
         dh = min(abs(hf - hp), 1 - abs(hf - hp)) * 360 if sf > 0.05 and sp > 0.05 else 0
         worst = [max(worst[0], dh), max(worst[1], abs(sf - sp)), max(worst[2], abs(vf - vp))]
@@ -115,7 +144,7 @@ def build(stops, mode):
     if mode == "plain":
         assert len(stops) <= MAX_STOPS, "plain palette exceeds WLED's 18 stops"
         return stops
-    return mirror(stops)
+    return mirror(stops, mode)
 
 
 def lint(flat, name):
@@ -148,8 +177,8 @@ def main():
         else:
             open(path, "w").write(body)
         extra = ""
-        if args.report and mode == "mirror":
-            h, s, v = residual(stops, new); extra = f" | residual vs fork: hue {h:.1f} deg, sat {s:.2f}, val {v:.2f}"
+        if args.report and mode != "plain":
+            h, s, v = residual(stops, new, mode); extra = f" | residual vs fork: hue {h:.1f} deg, sat {s:.2f}, val {v:.2f}"
         print(f"{name}: ID {200 - slot} {palx['names'][pid]} {mode} {len(flat) // 4} stops {'ok' if args.check else 'written'}{extra}")
 
 
