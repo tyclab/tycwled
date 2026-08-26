@@ -8,6 +8,12 @@ you see, or a pull request with what you changed.
 
 ## GLORB owners: start here
 
+You need: a computer on the same network as the lamps (Python ≥ 3.10, `make`,
+`curl`; nothing to install), the lamps' IP addresses (router DHCP list, the
+WLED app, or `http://wled-<xxxxxx>.local`), and for `verify`/`compare` a
+second GLORB still on the factory firmware with its factory presets 1–14.
+"ref" below is that factory lamp, "target" the one on stock WLED 16.
+
 Flashing stock WLED onto a GLORB keeps the hardware working but loses the
 fork's spherical effects (IDs 189–198, flag `g`) — they live in closed
 firmware, not in the ledmap. Two ways out, both in this repo:
@@ -33,10 +39,14 @@ firmware, not in the ledmap. Two ways out, both in this repo:
   remote MAC emptied) — set those in the UI, do not upload it verbatim.
 
 If you have two lamps, keep one on factory and run `make verify
-REF=<factory> TARGET=<ported>`: it checks every preset against the factory
-lamp on *your* hardware. With one lamp, `wledlab.py analyse` on your captures
-against the numbers in "GLORB facts" is the next best thing. Either way,
-tell us what you found (see `CONTRIBUTING.md`).
+REF=<factory> TARGET=<ported>`: it recalls every preset on both lamps at
+full brightness and compares their current estimates (the output stage —
+mapping, gamma, brightness, ABL — which liveview cannot see). About 15 min
+(70 s per preset); a FAIL row is worth an issue with the whole table. Motion
+and colour are checked with `compare`, not by the gate. Both lamps end on
+preset 4. With one lamp, `wledlab.py analyse` on your captures against the
+numbers in "GLORB facts" is the next best thing. Either way, tell us what
+you found (see `CONTRIBUTING.md`).
 
 Factory `presets.json`/`ledmap.json` are SNRGY's data, redistributed here so
 owners can restore their lamps; the tooling is MIT (see `LICENSE`).
@@ -54,12 +64,13 @@ owners can restore their lamps; the tooling is MIT (see `LICENSE`).
 ## The process (any lamp, any effect)
 
 1. **Fingerprint the reference** while it still runs the old firmware:
-   `wledlab.py capture --host REF --seconds 300 --out captures/ref-p1.json`
-   then `wledlab.py analyse captures/ref-p1.json`. Read the raster R² first:
-   if `rowmajor` ≈ 0.9+ the effect is a 1D algorithm run over the raster
-   (WLED "Pixels" mapping, `m12=0`); a 2D plane wave scores lower.
+   `wledlab.py capture --host REF --seconds 120 --out captures/ref-p1.json`
+   then `wledlab.py analyse captures/ref-p1.json`. Read `raster_r2` first:
+   if `rowmajor` ≈ 0.9 or above the effect is a 1D algorithm run over the
+   raster (WLED "Pixels" mapping, `m12=0`); a 2D plane wave scores lower.
    Wavelength / stripes-per-turn / drift / hue range / hue cycle are the
-   target numbers.
+   target numbers (`wledlab.py --help` explains each metric). `--width`/
+   `--height` go before the subcommand for lamps that are not 20×6.
 2. **Pick the stock effect and parameters** from the numbers and the effect
    metadata (`/json/fxdata`): `ix` on Colorwaves is the *spatial* hue
    gradient, `c3` is 5-bit, 1D-on-2D orientation is `m12` + `tp`/`rY`
@@ -114,7 +125,7 @@ write state to the lamps (white fill, `sx`, preset recall).
 | Every uploaded file is read back byte-exact; every preset is applied and all segments compared (`bm`, `o1`, `col`, `bri` included); `cpalcount` covers every custom ID used | `install` |
 | Before a current-estimate read, drop every segment but 0 (a leftover multiply layer halves the fill) | `check-ledmap` |
 | Liveview is logical and pre-output-stage: mapping, gamma, `bri` and ABL are only visible in `leds.pwr` | `verify`, `check-ledmap` |
-| Both lamps captured simultaneously over the same WS liveview path; `lit` = union over frames | `compare`, `metrics` |
+| Both lamps captured simultaneously over the same WS liveview path; `lit` = union over frames; hue/saturation only from cells bright enough to have a hue | `compare`, `analyse` |
 | Brightness is matched on `leds.pwr` above the ~120 mA standby floor (1 mA/LED), not on liveview means | `verify` |
 
 Change anything → `make verify` (lint + acceptance against both lamps, 70 s per preset).
@@ -152,15 +163,22 @@ stock algorithm already cycles hue, it only needed the 0–127 compressed palett
   200/199); `palette2..6.json` are Atlantica/Analogous/Tertiary/Fire/Fairy
   Reaf mirrored for the colour layers (IDs 198..194); `palette7..10.json`
   are the plain 0.14 Analogous/Fire/Tertiary/Sunset stops for Frizzles and
-  Black Hole (IDs 193..190). Custom palettes hold at most 18 stops; Fire is
-  resampled to 9 before mirroring.
+  Black Hole (IDs 193..190).
+- WLED keeps every palette as 16 slots and blends linearly between them. A
+  0–127 sweep therefore sees 8 slots, and FastLED's loader rounds packed
+  stops into neighbouring slots — up to 64° hue error on Analogous. The
+  mirrored palettes are instead 17 stops on exact slot indices whose colours
+  are a least-squares fit of the fork's own 16-slot trajectory
+  (`mkpalettes.py --report` prints the residual: ≤ 11° on Analogous, worst
+  33° on Tertiary's sharp transitions — the 8-slot limit itself).
 - Speed map, measured: fork 60 ↔ stock 4 (7.4 s per turn), fork 255 ↔ stock 12.
 - Frizzles/Black Hole: the fork's versions are brighter-capped and differ in
   saturation from stock with identical palette stops (p7 stock sat 0.68 vs
   fork 0.40; p10 0.44 vs 0.66) — blur/fade knobs do not close that gap, so
   the port matches brightness (`bri` 156/203/143/52) and keeps the 0.14 hues.
-- Running: fork cycles one colour over time; stock colours by position — no
-  stock equivalent, `sx 43` matches the 2.6 cells/s drift exactly.
+- Running: fork cycles one colour over time; stock colours by position —
+  hence the composite. `sx 43` matches the drift (2.6 cells/s without a
+  liveview client attached, ~2.1 with one on both lamps).
 - Rollback: OTA `firmware_gma_83.bin` with form field `skipValidation=1`
   (16 rejects unsigned images otherwise); partition table is still factory.
   `ota.same-subnet=true` in the factory cfg blocks cross-VLAN OTA.
