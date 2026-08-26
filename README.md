@@ -166,11 +166,14 @@ stock algorithm already cycles hue, it only needed the 0–127 compressed palett
   Black Hole (IDs 193..190).
 - WLED keeps every palette as 16 slots and blends linearly between them. A
   0–127 sweep therefore sees 8 slots, and FastLED's loader rounds packed
-  stops into neighbouring slots — up to 64° hue error on Analogous. The
-  mirrored palettes are instead 17 stops on exact slot indices whose colours
-  are a least-squares fit of the fork's own 16-slot trajectory
-  (`mkpalettes.py --report` prints the residual: ≤ 11° on Analogous, worst
-  33° on Tertiary's sharp transitions — the 8-slot limit itself).
+  stops into neighbouring slots — up to 34° hue error on Analogous with the
+  factory stops simply packed. The mirrored palettes are instead 17 stops on
+  exact slot indices whose colours are a least-squares fit of the fork's own
+  16-slot trajectory, computed with the firmware's integer arithmetic and per
+  effect: Colorwaves reads with `LINEARBLEND_NOWRAP` (WLED 16 remaps the
+  index by 240/256), the Palette effect with `LINEARBLEND` (no remap).
+  `mkpalettes.py --report` prints the residual: Analogous 10°, Sunset 12°,
+  worst Tertiary 29° at its sharp transitions — the 8-slot limit itself.
 - Speed map, measured: fork 60 ↔ stock 4 (7.4 s per turn), fork 255 ↔ stock 12.
 - Frizzles/Black Hole: the fork's versions are brighter-capped and differ in
   saturation from stock with identical palette stops (p7 stock sat 0.68 vs
