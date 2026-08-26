@@ -56,15 +56,26 @@ W, H = 20, 6  # GLORB raster; overridable via --width/--height
 
 
 # ----------------------------------------------------------------------------- http
+def _retry(fn, attempts=3):
+    # an ESP32 drops the odd request; one timeout must not kill a 15-minute gate run
+    for i in range(attempts):
+        try:
+            return fn()
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if i == attempts - 1:
+                raise
+            time.sleep(1.5)
+
+
 def get(ip, path, timeout=6):
-    return json.load(urllib.request.urlopen(f"http://{ip}{path}", timeout=timeout))
+    return _retry(lambda: json.load(urllib.request.urlopen(f"http://{ip}{path}", timeout=timeout)))
 
 
 def post(ip, path, obj, timeout=8):
     req = urllib.request.Request(
         f"http://{ip}{path}", data=json.dumps(obj).encode(), headers={"Content-Type": "application/json"}
     )
-    return urllib.request.urlopen(req, timeout=timeout).read()
+    return _retry(lambda: urllib.request.urlopen(req, timeout=timeout).read())
 
 
 def upload(ip, name, path):
