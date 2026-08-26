@@ -138,8 +138,10 @@ ping-pongs through the palette (index 0→255→0, ~35 s) on top of a brightness
 pattern. Stock WLED colours those effects by position instead. WLED 16 segment
 blend modes make the factory look composable without firmware code:
 
-- segment 0: the stock effect in greyscale (palette 3 "* Colors 1&2" with a
-  grey→white pair, or white for Running) — the brightness pattern;
+- segment 0: the stock effect as a brightness pattern — palette 3 "* Colors
+  1&2" with a grey→white pair for Hiphotic (floor 175/230, matched on
+  current), plain white for Running and for Tartan's lines (the fork draws
+  every line at full brightness; a gradient capped the peaks at 0.83×);
 - segment 1 on the same cells: effect `Palette` (65) with size `ix≈1..6`
   (near-uniform colour), `Animate Shift` on, `sx 8` (one traversal ≈33 s),
   blend mode `bm 6` (multiply) — the colour;
