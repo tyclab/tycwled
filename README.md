@@ -72,11 +72,11 @@ owners can restore their lamps; the tooling is MIT (see `LICENSE`).
    target numbers (`wledlab.py --help` explains each metric). `--width`/
    `--height` go before the subcommand for lamps that are not 20×6.
 2. **Pick the stock effect and parameters** from the numbers and the effect
-   metadata (`/json/fxdata`): `ix` on Colorwaves is the *spatial* hue
+   metadata (`/json/fxdata`): `ix` on Colorwaves is the _spatial_ hue
    gradient, `c3` is 5-bit, 1D-on-2D orientation is `m12` + `tp`/`rY`
-   (`rev` flips the *virtual* axis, which after transpose is physical Y).
+   (`rev` flips the _virtual_ axis, which after transpose is physical Y).
 3. **Install byte-exact** with `wledlab.py install --host TARGET --ledmap …
-   --presets … --palette … [--reboot]` (refuses ledmaps without `"map":[`,
+--presets … --palette … [--reboot]` (refuses ledmaps without `"map":[`,
    reloads the map via `{"ledmap":0}`, checks `cpalcount` against the
    uploaded palettes, then applies every preset and compares all segments).
    Palettes reload on upload and presets are read per apply, so a reboot is
@@ -84,17 +84,17 @@ owners can restore their lamps; the tooling is MIT (see `LICENSE`).
    bytes for `"map":[`; keep `width`/`height` before `map` (16.0.0 read
    trailing keys as map entries).
 4. **Prove the physical mapping**: `wledlab.py check-ledmap --ref REF
-   --target TARGET` — ratio 1.0 means the same number of physical LEDs are
+--target TARGET` — ratio 1.0 means the same number of physical LEDs are
    written; 1.5 on a GLORB means the ledmap was ignored (identity mapping).
    Liveview cannot see this; it shows logical cells on both firmwares. This
    is a smoke test (any 80-LED map passes); the correctness argument is that
    the `map` array is byte-identical to the factory file and both firmwares
    map `-1` to "unwritten".
 5. **Compare** with `wledlab.py compare --ref REF --target TARGET --preset N
-   --seconds 120` — simultaneous windows, long enough to average WLED's
+--seconds 120` — simultaneous windows, long enough to average WLED's
    `beatsin88` speed modulation (up to 104 s periods).
 6. **Calibrate speed** with `wledlab.py calibrate-speed --ref REF --target
-   TARGET --preset N --seconds 120 --presets-file glorb/wled16-port/presets.json`
+TARGET --preset N --seconds 120 --presets-file glorb/wled16-port/presets.json`
    — iterates `sx` on the target until stripe drift matches (rate ∝ 10+sx on
    frame-bound effects like Colorwaves; time-based ones such as Running are
    linear in `sx`). Then `install --presets …`. Frame-bound rates depend on
@@ -117,23 +117,23 @@ write state to the lamps (white fill, `sx`, preset recall).
 
 ## Checks (each one exists because we got it wrong once)
 
-| Rule | Enforced by |
-|---|---|
-| Never claim "by construction" — the fork's `g`-flagged effects are modified algorithms; same palette ≠ same output | `make verify` (current-estimate ratio per preset) |
-| Custom palettes: ≤18 stops, first index 0, last 255, committed file = generator output | `make lint` → `mkpalettes.py --check` |
-| Ledmap: exact bytes `"map":[`, valid JSON, `width`/`height` before `map`, `map` array byte-identical to factory | `make lint`, `install` refuses, `check-ledmap` ratio |
-| Every uploaded file is read back byte-exact; every preset is applied and all segments compared (`bm`, `o1`, `col`, `bri` included); `cpalcount` covers every custom ID used | `install` |
-| Before a current-estimate read, drop every segment but 0 (a leftover multiply layer halves the fill) | `check-ledmap` |
-| Liveview is logical and pre-output-stage: mapping, gamma, `bri` and ABL are only visible in `leds.pwr` | `verify`, `check-ledmap` |
-| Both lamps captured simultaneously over the same WS liveview path; `lit` = union over frames; hue/saturation only from cells bright enough to have a hue | `compare`, `analyse` |
-| Brightness is matched on `leds.pwr` above the ~120 mA standby floor (1 mA/LED), not on liveview means | `verify` |
+| Rule                                                                                                                                                                        | Enforced by                                          |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Never claim "by construction" — the fork's `g`-flagged effects are modified algorithms; same palette ≠ same output                                                          | `make verify` (current-estimate ratio per preset)    |
+| Custom palettes: ≤18 stops, first index 0, last 255, committed file = generator output                                                                                      | `make lint` → `mkpalettes.py --check`                |
+| Ledmap: exact bytes `"map":[`, valid JSON, `width`/`height` before `map`, `map` array byte-identical to factory                                                             | `make lint`, `install` refuses, `check-ledmap` ratio |
+| Every uploaded file is read back byte-exact; every preset is applied and all segments compared (`bm`, `o1`, `col`, `bri` included); `cpalcount` covers every custom ID used | `install`                                            |
+| Before a current-estimate read, drop every segment but 0 (a leftover multiply layer halves the fill)                                                                        | `check-ledmap`                                       |
+| Liveview is logical and pre-output-stage: mapping, gamma, `bri` and ABL are only visible in `leds.pwr`                                                                      | `verify`, `check-ledmap`                             |
+| Both lamps captured simultaneously over the same WS liveview path; `lit` = union over frames; hue/saturation only from cells bright enough to have a hue                    | `compare`, `analyse`                                 |
+| Brightness is matched on `leds.pwr` above the ~120 mA standby floor (1 mA/LED), not on liveview means                                                                       | `verify`                                             |
 
 Change anything → `make verify` (lint + acceptance against both lamps, 70 s per preset).
 A red gate is the finding; do not tune by eye on top of it.
 
 ## Composites: how the fork's "one colour that cycles" effects were rebuilt
 
-The fork's Running, Hiphotic and Tartan render a *uniform* colour that
+The fork's Running, Hiphotic and Tartan render a _uniform_ colour that
 ping-pongs through the palette (index 0→255→0, ~35 s) on top of a brightness
 pattern. Stock WLED colours those effects by position instead. WLED 16 segment
 blend modes make the factory look composable without firmware code:
