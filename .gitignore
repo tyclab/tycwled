@@ -1,0 +1,4 @@
+captures/
+*.pyc
+__pycache__/
+pushed_frame.json
