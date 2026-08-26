@@ -1,7 +1,7 @@
 .PHONY: lint check-ledmaps check-palettes verify
-# factory lamp / ported lamp — override: make verify REF=… TARGET=…
-REF ?= 10.27.4.160
-TARGET ?= 10.27.4.158
+# make verify REF=<factory lamp> TARGET=<ported lamp>
+REF ?=
+TARGET ?=
 lint: check-ledmaps check-palettes
 	python3 -m py_compile wledlab.py glorb/mkpalettes.py
 	python3 -c "import json,glob; [json.load(open(f)) for f in glob.glob('glorb/**/*.json', recursive=True)]"
@@ -13,4 +13,5 @@ check-palettes:
 	@python3 glorb/mkpalettes.py --check
 # acceptance gate against the lamps: every ported preset within 15 % of the factory lamp's current estimate
 verify: lint
+	@test -n "$(REF)" -a -n "$(TARGET)" || { echo "usage: make verify REF=<factory lamp IP> TARGET=<ported lamp IP>"; exit 2; }
 	python3 wledlab.py verify --ref $(REF) --target $(TARGET) --presets-file glorb/wled16-port/presets.json --restore-preset 4
