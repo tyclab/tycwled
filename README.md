@@ -69,7 +69,10 @@ owners can restore their lamps; the tooling is MIT (see `LICENSE`).
    if `rowmajor` ≈ 0.9 or above the effect is a 1D algorithm run over the
    raster (WLED "Pixels" mapping, `m12=0`); a 2D plane wave scores lower.
    Wavelength / stripes-per-turn / drift / hue range / hue cycle are the
-   target numbers (`wledlab.py --help` explains each metric). `--width`/
+   target numbers (`wledlab.py --help` explains each metric; on short rows
+   trust `stripe_period` over `wavelength`; `activity` is the speed measure
+   for plasma and sparkle effects — presets 4/5 read 1.00/1.02 once their
+   motion matched, Hiphotic was tuned on it). `--width`/
    `--height` go before the subcommand for lamps that are not 20×6.
 2. **Pick the stock effect and parameters** from the numbers and the effect
    metadata (`/json/fxdata`): `ix` on Colorwaves is the _spatial_ hue
@@ -139,12 +142,17 @@ pattern. Stock WLED colours those effects by position instead. WLED 16 segment
 blend modes make the factory look composable without firmware code:
 
 - segment 0: the stock effect as a brightness pattern — palette 3 "* Colors
-  1&2" with a grey→white pair for Hiphotic (floor 175/230, matched on
-  current), plain white for Running and for Tartan's lines (the fork draws
-  every line at full brightness; a gradient capped the peaks at 0.83×);
-- segment 1 on the same cells: effect `Palette` (65) with size `ix≈1..6`
-  (near-uniform colour), `Animate Shift` on, `sx 8` (one traversal ≈33 s),
-  blend mode `bm 6` (multiply) — the colour;
+  1&2" with a grey→white pair for Hiphotic (Tertiary: floor 175, speed
+  `c3 12`; Fire: floor 128 at segment `bri 188`, `c3 9` — matched on current
+  and on activity), plain white for Running and for Tartan's lines (the fork
+  draws every line at full brightness; a gradient capped the peaks at 0.83×);
+- segment 1 on the same cells: effect `Palette` (65), `Animate Shift` on,
+  blend mode `bm 6` (multiply) — the colour. Size `ix` sets the spatial hue
+  variation: 1 for Running/Tartan (the fork is uniform there), 13/24 for
+  Hiphotic (the fork shows ~7° across the raster). `sx` sets the cycle:
+  `sx 8` ≈ 33 s for Running 4, Hiphotic and Tartan (fork ~30–35 s), `sx 24`
+  ≈ 16 s for Running 5 (fork 18 s — its Running cycle follows the effect
+  speed);
 - the colour layer's palette is the factory palette **mirrored** (palette +
   reverse), so the Palette effect's sawtooth becomes the fork's triangle.
 
@@ -174,16 +182,24 @@ stock algorithm already cycles hue, it only needed the 0–127 compressed palett
   16-slot trajectory, computed with the firmware's integer arithmetic and per
   effect: Colorwaves reads with `LINEARBLEND_NOWRAP` (WLED 16 remaps the
   index by 240/256), the Palette effect with `LINEARBLEND` (no remap).
-  `mkpalettes.py --report` prints the residual: Analogous 10°, Sunset 12°,
-  worst Tertiary 29° at its sharp transitions — the 8-slot limit itself.
+  The fit weights the sweep's turning points so the anchor colours (pure red,
+  pure blue) land where the fork's do. A palette can carry a brightness floor
+  when the fork visits only part of it (Fire: the lamp's per-frame peak never
+  drops below 117, measured). `mkpalettes.py --report` prints the residual:
+  Analogous 11°, Sunset 12°, Fire 8°, worst Tertiary 29° at its sharp
+  transitions — the 8-slot limit itself.
 - Speed map, measured: fork 60 ↔ stock 4 (7.4 s per turn), fork 255 ↔ stock 12.
 - Frizzles/Black Hole: the fork's versions are brighter-capped and differ in
   saturation from stock with identical palette stops (p7 stock sat 0.68 vs
   fork 0.40; p10 0.44 vs 0.66) — blur/fade knobs do not close that gap, so
   the port matches brightness (`bri` 156/203/143/52) and keeps the 0.14 hues.
 - Running: fork cycles one colour over time; stock colours by position —
-  hence the composite. `sx 43` matches the drift (2.6 cells/s without a
-  liveview client attached, ~2.1 with one on both lamps).
+  hence the composite. Measured per preset, never scaled from another one:
+  preset 4 `sx 43`/`ix 128` (8-cell wave, ~2.2 cells/s under liveview),
+  preset 5 `sx 64`/`ix 144` (7 cells, 3.25 cells/s) — the fork's speed is
+  not linear in its `sx`, and its colour cycle follows the effect speed
+  (35 s at preset 4, 18 s at preset 5 → layer `sx 8` / `sx 24`). Hiphotic
+  and Tartan cycle in ~30 s at every speed.
 - Rollback: OTA `firmware_gma_83.bin` with form field `skipValidation=1`
   (16 rejects unsigned images otherwise); partition table is still factory.
   `ota.same-subnet=true` in the factory cfg blocks cross-VLAN OTA.
