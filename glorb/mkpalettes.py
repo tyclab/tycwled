@@ -13,8 +13,11 @@ to the fork's own 16-slot trajectory as the port's effect reads it
 Palette effect: LINEARBLEND, no remap) and write them at exact slot indices
 (0,16,..,240,255 = 17 stops, no loader rounding). All arithmetic mirrors the
 C++ (FastLED 16.16 gradient fill, WLED 16 and FastLED 3.6 blend weights,
-0.14's scale8(i,240)). `plain` keeps the factory stops (Frizzles/Black Hole
-index the palette like the fork does).
+0.14's scale8(i,240)). A layer can be fitted over the index span the fork
+actually visits, with the fork's dwell (`flat` or `sine`) and a brightness
+boost where the fork adds two line sets (Tartan). `plain` keeps
+the factory stops (Frizzles) or the first part of them (Black Hole, whose
+fork Intensity slider limits the star colours to that range).
 16's built-in palettes are re-encoded for its gamma (palettes.cpp header), so
 with `light.gc` off every preset uses one of these custom palettes.
 `--check` verifies the committed files instead of writing them (make lint);
@@ -22,6 +25,7 @@ with `light.gc` off every preset uses one of these custom palettes.
 """
 import colorsys
 import json
+import math
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -30,17 +34,18 @@ OUT = os.path.join(HERE, "wled16-port")
 MAX_STOPS = 18
 # slot -> (factory palette id, mode); custom palette ID on the lamp = 200 - slot
 PLAN = {
-    0: (18, "colorwaves"),  # Analogous   — Colorwaves p1 (fx 67: index 0..127, NOWRAP remap)
-    1: (13, "colorwaves"),  # Sunset      — Colorwaves p3
-    2: (51, "layer"),       # Atlantica   — Running p4 colour layer (fx 65: LINEARBLEND, no remap)
-    3: (18, "layer"),       # Analogous   — Running p5 / Tartan p13 colour layer
-    4: (34, "layer"),       # Tertiary    — Hiphotic p2 colour layer
-    5: (35, "layer", 117),  # Fire        — Hiphotic p14 colour layer; the fork never goes below value 117 (measured), so the black end is skipped
-    6: (59, "layer"),       # Fairy Reaf  — Tartan p12 colour layer
-    7: (18, "plain"),   # Analogous   — Frizzles p7
-    8: (35, "plain"),   # Fire        — Frizzles p9
-    9: (34, "plain"),   # Tertiary    — Black Hole p10
-    10: (13, "plain"),  # Sunset      — Black Hole p11
+    0: (18, "colorwaves"),          # Analogous   — Colorwaves p1 (fx 67: index 0..127, NOWRAP remap)
+    1: (13, "colorwaves"),          # Sunset      — Colorwaves p3
+    2: (51, "layer", "flat"),       # Atlantica   — Running p4 colour layer (fx 65: LINEARBLEND, no remap)
+    3: (18, "layer", "flat"),       # Analogous   — Running p5 colour layer
+    4: (34, "layer", "sine"),       # Tertiary    — Hiphotic p2 colour layer
+    5: (35, "layer", "flat", (112, 224)),  # Fire — Hiphotic p14 colour layer; the fork only visits indices 112..224 (hue census: 88 % red, 12 % orange, no yellow-white; flat dwell over that span predicts 88 %)
+    6: (59, "layer", "sine"),       # Fairy Reaf  — Tartan p12 colour layer
+    7: (18, "plain"),               # Analogous   — Frizzles p7
+    8: (35, "plain"),               # Fire        — Frizzles p9
+    9: (34, "layer", "sine", (0, 220)),  # Tertiary — Black Hole p10 colour layer over the fork's Intensity range 0..220 (its stars mix colours and drift through the palette)
+    10: (13, "plain", 40),          # Sunset      — Black Hole p11: first 40/255 (red/orange only, measured hue max 20 deg)
+    11: (18, "layer", "sine", (0, 255), 1.4),  # Analogous — Tartan p13 colour layer: sine dwell, and x1.4 clipped because the fork adds its two line sets (crossings reach clip(2*colour); k=2 measured +30 % too bright, 1.7 +20 %, 1.4 on the fork's per-hue brightness)
 }
 
 
@@ -86,26 +91,29 @@ def cfp014(ent, index):
     return [((a * (f1 + 1)) >> 8) + ((b * (f2 + 1)) >> 8) for a, b in zip(e0, e1)]
 
 
-def fork_trajectory(stops, min_value=0):
+def fork_trajectory(stops, span=(0, 255), boost=1.0):
     """0.14 color_from_palette without wrap: scale8(index, 240) = (i*241)>>8, then LINEARBLEND.
-    min_value > 0 restricts the sweep to the part of the palette the fork actually visits
-    (measured floor of the lamp's per-frame peak brightness), resampled to 256 steps."""
+    span restricts the sweep to the part of the palette the fork actually visits (measured on the
+    lamp: Fire never leaves 112..224 -- dark red to orange, no black, no yellow-white), resampled to 256 steps.
+    boost scales and clips the colours (Tartan adds two line sets, so its pixels sit between C and clip(2C))."""
     ent = load16(stops)
-    T = [cfp014(ent, (t * 241) >> 8) for t in range(256)]
-    if min_value:
-        t0 = next(t for t in range(256) if max(T[t]) >= min_value)
-        T = [T[t0 + (255 - t0) * t // 255] for t in range(256)]
-    return T
+    lo, hi = span
+    return [[min(255, round(boost * v)) for v in cfp014(ent, ((lo + (hi - lo) * t // 255) * 241) >> 8)] for t in range(256)]
 
 
-def port_index(t):
-    """Port palette index for fork phase t: both Colorwaves (0..127) and the Palette effect's up-sweep cover half the range."""
-    return t * 127 // 255
+def fork_phase(p, dwell):
+    """Fork palette index (0..255) visited while the port's linear up-sweep is at index p (0..127).
+    flat: the fork's index also moves linearly (Running). sine: the fork's index is sin8-driven
+    (Hiphotic, Tartan) and lingers at both palette ends, so the port's uniform time is warped by the
+    arcsine law -- the same colour share per palette region as the fork (measured dwell per eighth
+    of the palette on the factory lamp: ends 17-29 %, middle 8-12 %)."""
+    u = (p + 0.5) / 128
+    t = 127.5 * (1 - math.cos(math.pi * u)) if dwell == "sine" else 255 * u
+    return min(255, int(t))
 
 
-def slot_position(t, mode):
-    """Index after WLED 16's blend remap: Colorwaves uses LINEARBLEND_NOWRAP (×240/256); the Palette effect LINEARBLEND (none)."""
-    p = port_index(t)
+def slot_position(p, mode):
+    """Index after WLED 16's blend remap: Colorwaves uses LINEARBLEND_NOWRAP (x240/256); the Palette effect LINEARBLEND (none)."""
     return ((p * 0xF0) >> 8) if mode == "colorwaves" else p
 
 
@@ -121,37 +129,46 @@ def solve(A, b):
     return [M[i][n] / M[i][i] for i in range(n)]
 
 
-def mirror(stops, mode, min_value=0):
+def mirror(stops, mode, dwell="flat", span=(0, 255), boost=1.0):
     """8 slot colours fitted to the fork trajectory as the port's effect reads them, mirrored for the down sweep."""
-    T = fork_trajectory(stops, min_value)
-    A = []
-    for t in range(256):
-        q = slot_position(t, mode); hi, lo = q >> 4, q & 15; w = (lo << 4) / 256
-        row = [0.0] * 8; row[hi] += 1 - w; row[min(hi + 1, 7)] += w; A.append(row)
+    T = fork_trajectory(stops, span, boost)
+    A, b = [], []
+    for p in range(128):
+        q = slot_position(p, mode); hi, lo = q >> 4, q & 15; w = (lo << 4) / 256
+        row = [0.0] * 8; row[hi] += 1 - w; row[min(hi + 1, 7)] += w; A.append(row); b.append(T[fork_phase(p, dwell)])
     # the sweep's turning points are the colours the eye anchors on: weight them in the fit
-    idx = list(range(256)) + [0] * 32 + [255] * 32
-    S = [[max(0, min(255, round(v))) for v in solve([A[t] for t in idx], [T[t][c] for t in idx])] for c in range(3)]
+    idx = list(range(128)) + [0] * 16 + [127] * 16
+    S = [[max(0, min(255, round(v))) for v in solve([A[i] for i in idx], [b[i][c] for i in idx])] for c in range(3)]
     up = [[16 * k, S[0][k], S[1][k], S[2][k]] for k in range(8)]
     down = [[128 + 16 * j] + up[7 - j][1:] for j in range(8)]
     return up + down + [[255] + up[0][1:]]
 
 
-def residual(stops, new, mode, min_value=0):
+def residual(stops, new, mode, dwell="flat", span=(0, 255), boost=1.0):
     """Worst hue/sat/val deviation of the port (exact 16 arithmetic) from the fork over one sweep."""
-    F = fork_trajectory(stops, min_value); ent = load16(new); worst = [0, 0, 0]
-    for t in range(256):
-        f, p = F[t], cfp16(ent, port_index(t), mode == "colorwaves")
-        hf, sf, vf = colorsys.rgb_to_hsv(*[x / 255 for x in f]); hp, sp, vp = colorsys.rgb_to_hsv(*[x / 255 for x in p])
+    F = fork_trajectory(stops, span, boost); ent = load16(new); worst = [0, 0, 0]
+    for p in range(128):
+        f, q = F[fork_phase(p, dwell)], cfp16(ent, p, mode == "colorwaves")
+        hf, sf, vf = colorsys.rgb_to_hsv(*[x / 255 for x in f]); hp, sp, vp = colorsys.rgb_to_hsv(*[x / 255 for x in q])
         dh = min(abs(hf - hp), 1 - abs(hf - hp)) * 360 if sf > 0.05 and sp > 0.05 else 0
         worst = [max(worst[0], dh), max(worst[1], abs(sf - sp)), max(worst[2], abs(vf - vp))]
     return worst
 
 
-def build(stops, mode, min_value=0):
+def head(stops, upto):
+    """The first `upto`/255 of the fork palette stretched over 0..255, as the fork's Black Hole
+    Intensity slider limits the star colours: slot k of the port = fork colour at index k*upto/16."""
+    ent = load16(stops)
+    return [[min(255, 16 * k)] + cfp014(ent, k * upto // 16) for k in range(17)]
+
+
+def build(stops, mode, arg=None, span=(0, 255), boost=1.0):
     if mode == "plain":
+        if arg is not None:
+            return head(stops, arg)
         assert len(stops) <= MAX_STOPS, "plain palette exceeds WLED's 18 stops"
         return stops
-    return mirror(stops, mode, min_value)
+    return mirror(stops, mode, arg or "flat", span, boost)
 
 
 def lint(flat, name):
@@ -171,9 +188,9 @@ def main():
     args = ap.parse_args()
     palx = json.load(open(PALX))
     for slot, plan in PLAN.items():
-        pid, mode, min_value = (plan + (0,))[:3]
+        pid, mode = plan[:2]; arg = plan[2] if len(plan) > 2 else None; span = plan[3] if len(plan) > 3 else (0, 255); boost = plan[4] if len(plan) > 4 else 1.0
         stops = palx["palettes"][str(pid)]
-        new = build(stops, mode, min_value)
+        new = build(stops, mode, arg, span, boost)
         flat = [v for s in new for v in s]
         name = f"palette{slot}.json"
         lint(flat, name)
@@ -186,7 +203,7 @@ def main():
             open(path, "w").write(body)
         extra = ""
         if args.report and mode != "plain":
-            h, s, v = residual(stops, new, mode, min_value); extra = f" | residual vs fork: hue {h:.1f} deg, sat {s:.2f}, val {v:.2f}"
+            h, s, v = residual(stops, new, mode, arg or "flat", span, boost); extra = f" | residual vs fork: hue {h:.1f} deg, sat {s:.2f}, val {v:.2f}"
         print(f"{name}: ID {200 - slot} {palx['names'][pid]} {mode} {len(flat) // 4} stops {'ok' if args.check else 'written'}{extra}")
 
 
