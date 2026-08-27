@@ -1,0 +1,47 @@
+palette14: File Uploaded!
+palette15: File Uploaded!
+palette16: File Uploaded!
+palette17: File Uploaded!
+palette18: File Uploaded!
+palette19: File Uploaded!
+p13 current g=255 pal=189: pwr 1483/1418 ratio 0.96 | vhist ref ([2, 5, 6, 5, 5, 6, 8, 9, 8, 46], 39) tgt ([2, 5, 5, 5, 8, 10, 9, 8, 9, 39], 12)
+   hue% ref [2, 0, 0, 0, 0, 0, 0, 0, 64, 6, 5, 23]
+   hue% tgt [2, 0, 0, 0, 0, 0, 0, 0, 58, 5, 5, 31]
+   hueV ref [185, None, None, None, None, None, None, None, 203, 145, 136, 173]
+   hueV tgt [68, None, None, None, None, None, None, None, 202, 122, 100, 168]
+p13 g128-k2 g=128 pal=186: pwr 1478/1173 ratio 0.79 | vhist ref ([2, 5, 6, 5, 5, 6, 8, 8, 8, 46], 39) tgt ([4, 8, 9, 10, 18, 18, 9, 9, 8, 6], 0)
+   hue% ref [2, 0, 0, 0, 0, 0, 0, 0, 65, 6, 5, 22]
+   hue% tgt [1, 0, 0, 0, 0, 0, 0, 0, 58, 9, 9, 24]
+   hueV ref [183, None, None, None, None, None, None, None, 203, 148, 136, 171]
+   hueV tgt [29, None, None, None, None, None, None, None, 131, 119, 123, 134]
+p13 g150-k1.7 g=150 pal=185: pwr 1512/1145 ratio 0.76 | vhist ref ([2, 5, 5, 5, 5, 6, 8, 8, 8, 47], 40) tgt ([4, 8, 8, 8, 11, 17, 15, 8, 8, 15], 6)
+   hue% ref [2, 0, 0, 0, 0, 0, 0, 0, 68, 4, 5, 21]
+   hue% tgt [1, 0, 0, 0, 0, 0, 0, 0, 60, 7, 7, 24]
+   hueV ref [184, None, None, None, None, None, None, None, 204, 145, 137, 172]
+   hueV tgt [34, None, None, None, None, None, None, None, 150, 129, 126, 153]
+p13 g180-k1.42 g=180 pal=184: pwr 1470/1334 ratio 0.91 | vhist ref ([2, 5, 5, 5, 5, 6, 7, 8, 8, 48], 41) tgt ([3, 7, 6, 7, 8, 11, 15, 12, 9, 21], 7)
+   hue% ref [2, 0, 0, 0, 0, 0, 0, 0, 68, 5, 4, 21]
+   hue% tgt [1, 0, 0, 0, 0, 0, 0, 0, 57, 8, 8, 26]
+   hueV ref [183, None, None, None, None, None, None, None, 204, 143, 138, 174]
+   hueV tgt [40, None, None, None, None, None, None, None, 169, 129, 121, 165]
+p12 current g=255 pal=194: pwr 1564/1130 ratio 0.72 | vhist ref ([8, 11, 11, 12, 13, 13, 10, 7, 5, 11], 7) tgt ([8, 10, 11, 12, 12, 17, 15, 7, 5, 3], 0)
+   hue% ref [1, 0, 0, 0, 5, 24, 15, 5, 5, 8, 38, 0]
+   hue% tgt [0, 0, 0, 0, 6, 27, 15, 5, 5, 9, 32, 0]
+   hueV ref [91, None, None, None, 164, 136, 116, 114, 102, 106, 123, None]
+   hueV tgt [None, None, None, None, 176, 135, 108, 101, 100, 96, 111, None]
+p12 g128-k2 g=128 pal=183: pwr 1658/1309 ratio 0.79 | vhist ref ([7, 10, 10, 12, 13, 12, 11, 7, 5, 12], 8) tgt ([9, 15, 15, 19, 21, 7, 5, 4, 2, 2], 0)
+   hue% ref [1, 0, 0, 0, 6, 28, 13, 5, 3, 7, 38, 0]
+   hue% tgt [18, 0, 0, 0, 0, 0, 37, 3, 3, 32, 7, 0]
+   hueV ref [116, None, None, None, 164, 136, 115, 110, 105, 103, 128, None]
+   hueV tgt [95, None, None, None, None, None, 96, 93, 91, 95, 94, None]
+p12 g150-k1.7 g=150 pal=182: pwr 1647/1180 ratio 0.72 | vhist ref ([8, 10, 10, 12, 13, 13, 10, 8, 5, 12], 8) tgt ([8, 12, 14, 15, 14, 19, 5, 4, 4, 5], 2)
+   hue% ref [1, 0, 0, 0, 6, 26, 12, 4, 4, 6, 40, 0]
+   hue% tgt [6, 0, 0, 0, 0, 0, 42, 5, 5, 8, 33, 0]
+   hueV ref [113, None, None, None, 153, 139, 117, 113, 103, 102, 127, None]
+   hueV tgt [109, None, None, None, None, None, 110, 107, 109, 103, 108, None]
+p12 g180-k1.42 g=180 pal=181: pwr 1644/1319 ratio 0.80 | vhist ref ([7, 11, 10, 11, 13, 13, 10, 7, 6, 12], 8) tgt ([8, 10, 12, 12, 14, 13, 14, 5, 5, 8], 3)
+   hue% ref [1, 0, 0, 0, 7, 27, 11, 4, 4, 7, 39, 0]
+   hue% tgt [0, 0, 0, 0, 0, 0, 53, 5, 5, 7, 30, 0]
+   hueV ref [104, None, None, None, 159, 138, 115, 115, 104, 103, 128, 29]
+   hueV tgt [None, None, None, None, None, None, 126, 102, 100, 104, 120, None]
+TARTAN DONE
