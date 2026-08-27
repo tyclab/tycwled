@@ -1,0 +1,61 @@
+p 1: pwr 1062/983 ratio 0.93 | activity 0.322/0.345 | fast 0.008/0.011 | sat 1.00/1.00
+      hue% ref [2, 0, 0, 0, 0, 0, 0, 0, 60, 6, 5, 27]
+           tgt [0, 0, 0, 0, 0, 0, 0, 0, 55, 7, 9, 29]
+      hueV ref [120, None, None, None, None, None, None, None, 144, 92, 71, 104]
+           tgt [None, None, None, None, None, None, None, None, 143, 92, 78, 116]
+p 3: pwr 1139/838 ratio 0.74 | activity 0.154/0.186 | fast 0.010/0.007 | sat 0.99/0.99
+      hue% ref [37, 0, 0, 0, 0, 0, 0, 0, 35, 16, 6, 6]
+           tgt [44, 0, 0, 0, 0, 0, 0, 0, 26, 14, 8, 9]
+      hueV ref [118, None, None, None, None, None, None, None, 84, 68, 62, 87]
+           tgt [118, None, None, None, None, None, None, None, 84, 66, 67, 82]
+p 4: pwr 989/996 ratio 1.01 | activity 0.397/0.372 | fast 0.009/0.002 | sat 0.91/0.92
+      hue% ref [0, 0, 0, 0, 43, 19, 3, 35, 0, 0, 0, 0]
+           tgt [0, 0, 0, 0, 44, 22, 6, 28, 0, 0, 0, 0]
+      hueV ref [None, None, None, None, 114, 75, 109, 124, None, None, None, None]
+           tgt [None, None, None, None, 114, 79, 82, 107, None, None, None, None]
+p 5: pwr 947/983 ratio 1.04 | activity 0.519/0.542 | fast 0.041/0.014 | sat 1.00/1.00
+      hue% ref [1, 0, 0, 0, 0, 0, 0, 0, 56, 7, 6, 29]
+           tgt [1, 0, 0, 0, 0, 0, 0, 0, 59, 9, 6, 25]
+      hueV ref [95, None, None, None, None, None, None, None, 144, 90, 75, 103]
+           tgt [17, None, None, None, None, None, None, None, 145, 92, 74, 114]
+p 2: pwr 1330/1034 ratio 0.78 | activity 0.183/0.224 | fast 0.025/0.030 | sat 1.00/0.99
+      hue% ref [32, 14, 6, 19, 5, 6, 3, 14, 0, 0, 0, 0]
+           tgt [17, 6, 4, 11, 8, 4, 5, 32, 13, 0, 0, 0]
+      hueV ref [171, 97, 109, 207, 131, 65, 77, 152, 242, None, None, 245]
+           tgt [134, 75, 78, 161, 92, 59, 61, 165, 185, None, None, None]
+p14: pwr 827/1939 ratio 2.34 | activity 0.212/0.213 | fast 0.008/0.025 | sat 1.00/0.96
+      hue% ref [90, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+           tgt [61, 39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      hueV ref [123, 248, None, None, None, None, None, None, None, None, None, None]
+           tgt [145, 194, None, None, None, None, None, None, None, None, None, None]
+p12: pwr 1681/1207 ratio 0.72 | activity 0.377/0.331 | fast 0.016/0.012 | sat 0.64/0.67
+      hue% ref [1, 0, 0, 0, 5, 26, 15, 5, 5, 9, 34, 0]
+           tgt [0, 0, 0, 0, 5, 23, 19, 6, 5, 9, 32, 0]
+      hueV ref [95, None, None, None, 158, 138, 114, 112, 107, 105, 127, None]
+           tgt [None, None, None, None, 176, 135, 110, 101, 100, 97, 111, None]
+p13: pwr 1498/1490 ratio 0.99 | activity 0.306/0.259 | fast 0.010/0.008 | sat 1.00/1.00
+      hue% ref [2, 0, 0, 0, 0, 0, 0, 0, 57, 5, 6, 30]
+           tgt [1, 0, 0, 0, 0, 0, 0, 0, 68, 4, 4, 23]
+      hueV ref [183, None, None, None, None, None, None, None, 203, 139, 136, 172]
+           tgt [61, None, None, None, None, None, None, None, 203, 122, 100, 164]
+p 7: pwr 376/372 ratio 0.99 | activity 0.237/0.158 | fast 0.345/0.548 | sat 1.00/1.00
+      hue% ref [14, 0, 0, 0, 0, 0, 0, 0, 64, 4, 5, 14]
+           tgt [11, 0, 0, 0, 0, 0, 0, 0, 67, 4, 4, 13]
+      hueV ref [36, None, None, None, None, None, None, None, 69, 83, 75, 98]
+           tgt [33, None, None, None, None, None, None, None, 52, 59, 52, 68]
+p 9: pwr 456/381 ratio 0.83 | activity 0.237/0.164 | fast 0.308/0.493 | sat 0.47/0.34
+      hue% ref [62, 28, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+           tgt [65, 24, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      hueV ref [65, 89, 61, None, None, None, None, None, None, None, None, None]
+           tgt [52, 64, 50, None, None, None, None, None, None, None, None, None]
+p10: pwr 445/473 ratio 1.06 | activity 0.210/0.213 | fast 0.429/0.316 | sat 0.97/0.89
+      hue% ref [26, 12, 4, 11, 19, 6, 1, 4, 13, 1, 1, 2]
+           tgt [10, 4, 5, 35, 18, 12, 3, 9, 4, 0, 0, 0]
+      hueV ref [56, 68, 53, 88, 46, 76, 46, 85, 67, 44, 45, 79]
+           tgt [93, 69, 63, 75, 62, 61, 67, 72, 65, 66, 53, 71]
+p11: pwr 315/333 ratio 1.06 | activity 0.211/0.088 | fast 0.342/0.353 | sat 0.95/0.85
+      hue% ref [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+           tgt [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      hueV ref [62, None, None, None, None, None, None, None, None, None, None, None]
+           tgt [33, None, None, None, None, None, None, None, None, None, None, None]
+COLOUR DONE

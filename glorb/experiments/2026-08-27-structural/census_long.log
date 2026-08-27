@@ -1,0 +1,31 @@
+p 2 {'seg': [{'id': 0, 'col': [[150, 150, 150], [255, 255, 255], [255, 255, 255]]}]}: pwr 1342/1204 ratio 0.90 | act 0.187/0.191 | fast 0.009/0.017 | sat 0.99/0.99 | bri 147/136
+      hue% ref [20, 11, 4, 20, 10, 10, 4, 20, 0, 0, 0, 0]
+      hue% tgt [22, 7, 5, 16, 11, 4, 5, 23, 8, 0, 0, 0]
+      hueV ref [171, 97, 110, 212, 130, 64, 76, 156, 244, None, None, 245]
+      hueV tgt [150, 88, 90, 160, 96, 60, 64, 158, 189, None, None, None]
+p14 {'seg': [{'id': 0, 'bri': 120}]}: pwr 1317/680 ratio 0.52 | act 0.202/0.092 | fast 0.003/0.019 | sat 0.99/0.96 | bri 127/72
+      hue% ref [88, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      hue% tgt [67, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      hueV ref [125, 248, 248, None, None, None, None, None, None, None, None, None]
+      hueV tgt [63, 91, None, None, None, None, None, None, None, None, None, None]
+p12 {}: pwr 1426/1477 ratio 1.04 | act 0.372/0.336 | fast 0.011/0.012 | sat 0.66/0.65 | bri 94/90
+      hue% ref [1, 0, 0, 0, 5, 25, 13, 5, 5, 8, 38, 0]
+      hue% tgt [0, 0, 0, 0, 7, 29, 16, 5, 4, 7, 32, 0]
+      hueV ref [102, None, None, None, 166, 136, 115, 113, 104, 104, 124, 29]
+      hueV tgt [None, None, None, None, 174, 136, 108, 102, 99, 97, 112, None]
+p13 {}: pwr 1475/1360 ratio 0.92 | act 0.300/0.272 | fast 0.009/0.006 | sat 1.00/1.00 | bri 185/178
+      hue% ref [3, 0, 0, 0, 0, 0, 0, 0, 59, 6, 6, 26]
+      hue% tgt [1, 0, 0, 0, 0, 0, 0, 0, 62, 5, 5, 27]
+      hueV ref [178, None, None, None, None, None, None, None, 202, 148, 138, 175]
+      hueV tgt [65, None, None, None, None, None, None, None, 202, 122, 101, 163]
+p10 {}: pwr 445/476 ratio 1.07 | act 0.210/0.215 | fast 0.410/0.310 | sat 0.97/0.89 | bri 30/27
+      hue% ref [27, 12, 4, 11, 19, 6, 1, 4, 13, 1, 1, 2]
+      hue% tgt [10, 5, 5, 34, 18, 13, 3, 9, 3, 0, 0, 0]
+      hueV ref [57, 67, 50, 91, 45, 74, 52, 83, 68, 42, 49, 72]
+      hueV tgt [94, 65, 66, 76, 60, 60, 67, 73, 66, 54, 62, 72]
+p11 {}: pwr 326/340 ratio 1.05 | act 0.210/0.087 | fast 0.342/0.372 | sat 0.99/0.85 | bri 16/15
+      hue% ref [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      hue% tgt [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      hueV ref [62, None, None, None, None, None, None, None, None, None, None, None]
+      hueV tgt [33, None, None, None, None, None, None, None, None, None, None, None]
+CENSUS DONE

@@ -1,0 +1,13 @@
+p 1: fast_share ref 0.006 tgt 0.005 ratio 0.81
+p 3: fast_share ref 0.016 tgt 0.009 ratio 0.55
+p 4: fast_share ref 0.003 tgt 0.002 ratio 0.81
+p 5: fast_share ref 0.010 tgt 0.007 ratio 0.69
+p 2: fast_share ref 0.008 tgt 0.048 ratio 5.80
+p14: fast_share ref 0.004 tgt 0.275 ratio 65.45
+p12: fast_share ref 0.010 tgt 0.014 ratio 1.39
+p13: fast_share ref 0.011 tgt 0.007 ratio 0.62
+p 7: fast_share ref 0.337 tgt 0.548 ratio 1.63
+p 9: fast_share ref 0.323 tgt 0.478 ratio 1.48
+p10: fast_share ref 0.413 tgt 0.330 ratio 0.80
+p11: fast_share ref 0.345 tgt 0.376 ratio 1.09
+SWEEP DONE
