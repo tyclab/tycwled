@@ -221,15 +221,20 @@ stock algorithm already cycles hue, it only needed the 0–127 compressed palett
   (k 2 measured +30 % per-hue brightness over the fork, 1.7 +20 %, 1.4 on
   it). Fairy Reaf is pastel: any boost clips channels and shifts hue (k 1.42
   moved 53 % of the time into cyan), so preset 12 stays unboosted.
+- Residual in every mirrored layer: the port shows ~10 points more blue
+  than the fork (Tertiary 31 % vs 20 %) with red matched. A half-strength
+  dwell warp changes nothing, so it is the 8-slot chord from blue into cyan
+  holding a blue hue longer than the fork's 16-slot path — only more slots
+  would fix it, and the mirror needs them for the down sweep.
 - Speed map, measured: fork 60 ↔ stock 4 (7.4 s per turn), fork 255 ↔ stock 12.
 - Frizzles: the fork sparkles to a per-frame peak of 231 with ~25 lit cells.
   A `bri` cap chosen for equal current (156) flattened the port to a peak of
   135 — current alone is the wrong target for sparkle effects. Fitted on
   peak, lit count, brightness histogram and current at once: preset 9 `bri
 255`, blur `c1 80` (lit 23 vs 27, peak 168 vs 177, current 1.04); preset 7
-  keeps blur 186 at `bri 170` — stock always draws 8 frizzles, so the port
-  lights 41 cells to the fork's 25; at equal current its peak stays ≈155 to
-  the fork's 231 (`bri 220` reached the peak at 1.21× the current). The
+  keeps blur 186 at `bri 200` — stock always draws 8 frizzles, so the port
+  lights 41 cells to the fork's 25; the gate allows 1.13× the current, which
+  buys a peak of ≈180 to the fork's 231 (`bri 220` reached it at 1.21×). The
   Smear option (`o1`) only adds bright cells (+40 % current).
 - Running: fork cycles one colour over time; stock colours by position —
   hence the composite. Measured per preset, never scaled from another one:
