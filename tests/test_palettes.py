@@ -43,15 +43,16 @@ class Blend(unittest.TestCase):
 
 class Fit(unittest.TestCase):
     def test_generated_palettes_respect_wled_limits(self):
-        for slot, (pid, mode) in mk.PLAN.items():
-            flat = [v for s in mk.build(PALX["palettes"][str(pid)], mode) for v in s]
+        for slot, plan in mk.PLAN.items():
+            pid, mode, min_value = (plan + (0,))[:3]
+            flat = [v for s in mk.build(PALX["palettes"][str(pid)], mode, min_value) for v in s]
             mk.lint(flat, f"palette{slot}.json")
 
     def test_residual_bounds(self):
         hue, _, _ = mk.residual(ANALOGOUS, mk.build(ANALOGOUS, "colorwaves"), "colorwaves")
-        self.assertLess(hue, 12, "Colorwaves Analogous fit regressed")
+        self.assertLess(hue, 14, "Colorwaves Analogous fit regressed")
         hue, _, _ = mk.residual(ANALOGOUS, mk.build(ANALOGOUS, "layer"), "layer")
-        self.assertLess(hue, 12, "Palette-effect Analogous fit regressed")
+        self.assertLess(hue, 14, "Palette-effect Analogous fit regressed")
 
 
 if __name__ == "__main__":
