@@ -44,8 +44,8 @@ class Blend(unittest.TestCase):
 class Fit(unittest.TestCase):
     def test_generated_palettes_respect_wled_limits(self):
         for slot, plan in mk.PLAN.items():
-            pid, mode, min_value = (plan + (0,))[:3]
-            flat = [v for s in mk.build(PALX["palettes"][str(pid)], mode, min_value) for v in s]
+            pid, mode = plan[:2]; arg = plan[2] if len(plan) > 2 else None; span = plan[3] if len(plan) > 3 else (0, 255); boost = plan[4] if len(plan) > 4 else 1.0
+            flat = [v for s in mk.build(PALX["palettes"][str(pid)], mode, arg, span, boost) for v in s]
             mk.lint(flat, f"palette{slot}.json")
 
     def test_residual_bounds(self):
@@ -53,6 +53,35 @@ class Fit(unittest.TestCase):
         self.assertLess(hue, 14, "Colorwaves Analogous fit regressed")
         hue, _, _ = mk.residual(ANALOGOUS, mk.build(ANALOGOUS, "layer"), "layer")
         self.assertLess(hue, 14, "Palette-effect Analogous fit regressed")
+        hue, _, _ = mk.residual(ANALOGOUS, mk.build(ANALOGOUS, "layer", "sine"), "layer", "sine")
+        self.assertLess(hue, 14, "sine-dwell Analogous fit regressed")
+
+
+class Dwell(unittest.TestCase):
+    def test_flat_is_linear(self):
+        self.assertEqual([mk.fork_phase(p, "flat") for p in (0, 64, 127)], [0, 128, 254])
+
+    def test_sine_lingers_at_both_ends(self):
+        phases = [mk.fork_phase(p, "sine") for p in range(128)]
+        self.assertEqual(phases, sorted(phases))
+        ends = sum(1 for t in phases if t < 32 or t >= 224); middle = sum(1 for t in phases if 96 <= t < 160)
+        self.assertGreater(ends, 1.8 * middle, "arcsine: the ends get ~23 % each, the middle eighths ~8 %")
+
+    def test_sine_palette_ends_on_the_forks_turning_colour(self):
+        # Analogous ends on pure red (254,0,0); the sine fit lingers there, the flat fit averages it with orange
+        sine = mk.build(ANALOGOUS, "layer", "sine")[7][1:]; flat = mk.build(ANALOGOUS, "layer", "flat")[7][1:]
+        self.assertGreaterEqual(sine[0], 245); self.assertLessEqual(sine[2], 4)
+        self.assertGreater(sine[0], flat[0])
+
+
+class Head(unittest.TestCase):
+    def test_black_hole_range_maps_slot_k_to_fork_index_k_upto_over_16(self):
+        sunset = PALX["palettes"]["13"]; ent = mk.load16(sunset)
+        head = mk.head(sunset, 40)
+        self.assertEqual([s[0] for s in head], [16 * k for k in range(16)] + [255])
+        self.assertEqual(head[8][1:], mk.cfp014(ent, 20))
+        self.assertEqual(head[16][1:], mk.cfp014(ent, 40))
+        self.assertTrue(all(s[3] == 0 for s in head), "the first 40/255 of Sunset has no blue")
 
 
 if __name__ == "__main__":

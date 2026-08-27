@@ -291,6 +291,48 @@ def resample(ts, series, dt=0.5):
     return out
 
 
+def hue_census(frames, bins=12):
+    """Share of lit cell-samples per 30-degree hue bin (%), and their mean brightness (0..255).
+    Catches a palette used over the wrong range or dwelling in the wrong colours (Black Hole - Sunset:
+    fork 100 % red/orange, a whole-palette port 36 %)."""
+    n = [0] * bins; v = [0] * bins
+    for _, leds in frames[::3]:
+        for c in leds:
+            h, s_, val = hsv(c)
+            if val > 0.05:
+                k = int(h * bins) % bins; n[k] += 1; v[k] += val * 255
+    tot = sum(n) or 1
+    return [round(x * 100 / tot) for x in n], [round(v[k] / n[k]) if n[k] else None for k in range(bins)]
+
+
+def fast_share(frames, fs=10, split_hz=1.0):
+    """Share of per-cell brightness variance faster than split_hz (0..1): sub-second shimmer that activity()
+    averages away (fork Hiphotic ~0.01, 16 Hiphotic at c3 12 ~0.06 — visibly 'too fast')."""
+    t0 = frames[0][0]; n = int((frames[-1][0] - t0) * fs)
+    if n < 4 * fs:
+        return None
+    cells = sorted({i for _, leds in frames for i, c in enumerate(leds) if hsv(c)[2] > 0.05})
+    series = {c: [] for c in cells}; j = 0
+    for k in range(n):
+        t = t0 + k / fs
+        while j + 1 < len(frames) and frames[j + 1][0] <= t:
+            j += 1
+        for c in cells:
+            series[c].append(hsv(frames[j][1][c])[2])
+    cs = [[math.cos(2 * math.pi * k * i / n) for i in range(n)] for k in range(1, n // 2)]
+    sn = [[math.sin(2 * math.pi * k * i / n) for i in range(n)] for k in range(1, n // 2)]
+    slow = fast = 0.0
+    for s in series.values():
+        m = sum(s) / n; d = [x - m for x in s]
+        for k in range(1, n // 2):
+            re = sum(a * b for a, b in zip(d, cs[k - 1])); im = sum(a * b for a, b in zip(d, sn[k - 1]))
+            if k * fs / n < split_hz:
+                slow += re * re + im * im
+            else:
+                fast += re * re + im * im
+    return fast / (slow + fast) if slow + fast else None
+
+
 def metrics(frames, w=W, h=H, row=None):
     # cells that light up in any frame (a single frame misses cells at a brightness trough)
     lit = sorted({i for _, leds in frames for i, c in enumerate(leds) if hsv(c)[2] > 0.02})
@@ -328,6 +370,8 @@ def metrics(frames, w=W, h=H, row=None):
     m["stripe_period"] = stripe_period(frames, w, h)  # robust where the sinusoid fit snaps to whole stripes per ring
     m["activity"] = activity(frames)  # speed measure that also works for plasma/sparkle effects
     m["activity_rel"] = m["activity"] / max(1e-6, m["bri_mean"] / 255)  # brightness-normalised: compare lamps at different bri
+    m["fast_share"] = fast_share(frames)
+    m["hue_share"], m["hue_v"] = hue_census(frames)
     m["drift_cells_per_s"] = drift_cells_per_s(frames, row, w)
     m["turn_seconds"] = (w / abs(m["drift_cells_per_s"])) if m["drift_cells_per_s"] else None
     ts = [f[0] for f in frames]
@@ -339,7 +383,7 @@ def metrics(frames, w=W, h=H, row=None):
 def print_metrics(*named):
     keys = ["frames", "seconds", "lit_cells", "bri_mean", "bri_p10", "bri_p90", "contrast_mean", "sat_mean",
             "hue_spread_mean", "hue_min", "hue_max", "wavelength_min", "wavelength_max", "stripe_period", "stripes_per_turn",
-            "drift_cells_per_s", "turn_seconds", "activity", "activity_rel"]
+            "drift_cells_per_s", "turn_seconds", "activity", "activity_rel", "fast_share"]
     names = [n for n, _ in named]
     print(f"{'metric':<20}" + "".join(f"{n:>16}" for n in names))
     for k in keys:
@@ -350,6 +394,8 @@ def print_metrics(*named):
         print(row)
     for n, m in named:
         print(f"raster_r2 {n}: {m['raster_r2']}   hue_cycle {m.get('hue_cycle_autocorr')}")
+    for n, m in named:
+        print(f"hue_share {n}: {m['hue_share']}  hue_v {m['hue_v']}")
 
 
 # ----------------------------------------------------------------------------- commands

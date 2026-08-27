@@ -142,10 +142,16 @@ pattern. Stock WLED colours those effects by position instead. WLED 16 segment
 blend modes make the factory look composable without firmware code:
 
 - segment 0: the stock effect as a brightness pattern — palette 3 "* Colors
-  1&2" with a grey→white pair for Hiphotic (Tertiary: floor 175, speed
-  `c3 12`; Fire: floor 128 at segment `bri 188`, `c3 9` — matched on current
-  and on activity), plain white for Running and for Tartan's lines (the fork
-  draws every line at full brightness; a gradient capped the peaks at 0.83×);
+  1&2" with a grey→white pair for Hiphotic (floor 130, scales `sx`/`ix` 32,
+  speed `c3 31`), plain white for Running and for Tartan's lines (the fork
+  draws every line at full brightness; a gradient capped the peaks at 0.83×).
+  Stock Hiphotic adds a raw time term to its index (`+a`): at `c3 12` it
+  cycled every 1.8 s — `activity` matched the fork and the eye saw shimmer;
+  the variance share above 1 Hz was 6× (Tertiary) and 65× (Fire) the fork's.
+  `c3` is the only speed knob and WLED 16 stores it in 5 bits, so 31 is the
+  slowest (4.1 s); the scales and floor were then fitted on the lamp to the
+  fork's spectrum, global-vs-spatial ratio and spatial activity (`c3 54–120`
+  candidates all ran at 31 — read parameters back before trusting a search);
 - segment 1 on the same cells: effect `Palette` (65), `Animate Shift` on,
   blend mode `bm 6` (multiply) — the colour. Size `ix` sets the spatial hue
   variation: 1 for Running/Tartan (the fork is uniform there), 13/24 for
@@ -170,10 +176,11 @@ stock algorithm already cycles hue, it only needed the 0–127 compressed palett
   clock. The animation never loops in practice (five free-running clocks).
 - Stock Colorwaves sweeps palette index 0–127 only; the fork sweeps 0–255 →
   `palette0/1.json` are Analogous/Sunset mirrored into 0–127/128–255 (IDs
-  200/199); `palette2..6.json` are Atlantica/Analogous/Tertiary/Fire/Fairy
-  Reaf mirrored for the colour layers (IDs 198..194); `palette7..10.json`
-  are the plain 0.14 Analogous/Fire/Tertiary/Sunset stops for Frizzles and
-  Black Hole (IDs 193..190).
+  200/199); `palette2..6.json` and `palette11.json` are Atlantica/Analogous/
+  Tertiary/Fire/Fairy Reaf/Analogous mirrored for the colour layers (IDs
+  198..194, 189); `palette7/8.json` are the plain 0.14 Analogous/Fire stops
+  for Frizzles (IDs 193/192); `palette9/10.json` are the first 220/255 and
+  40/255 of Tertiary/Sunset for Black Hole (IDs 191/190).
 - WLED keeps every palette as 16 slots and blends linearly between them. A
   0–127 sweep therefore sees 8 slots, and FastLED's loader rounds packed
   stops into neighbouring slots — up to 34° hue error on Analogous with the
@@ -183,16 +190,47 @@ stock algorithm already cycles hue, it only needed the 0–127 compressed palett
   effect: Colorwaves reads with `LINEARBLEND_NOWRAP` (WLED 16 remaps the
   index by 240/256), the Palette effect with `LINEARBLEND` (no remap).
   The fit weights the sweep's turning points so the anchor colours (pure red,
-  pure blue) land where the fork's do. A palette can carry a brightness floor
-  when the fork visits only part of it (Fire: the lamp's per-frame peak never
-  drops below 117, measured). `mkpalettes.py --report` prints the residual:
-  Analogous 11°, Sunset 12°, Fire 8°, worst Tertiary 29° at its sharp
-  transitions — the 8-slot limit itself.
+  pure blue) land where the fork's do. A layer is fitted over the index span
+  the fork actually visits (Fire: 112–224, dark red to orange — the hue
+  census shows 88 % red, 12 % orange and no yellow-white; a flat dwell over
+  that span predicts 88 %).
+- Dwell: the Palette effect shifts its index linearly, so every palette
+  region gets equal time. The fork's Hiphotic and Tartan drive the index with
+  a sine and linger at both palette ends (measured share per eighth of the
+  palette on the factory lamp: ends 17–29 %, middle 8–12 %; Running is flat).
+  Those layers are fitted over the arcsine-warped sweep (`mkpalettes.py`
+  dwell `sine`), which is why Tartan – Analogous has its own layer palette
+  (189) next to Running – Analogous (197). `mkpalettes.py --report` prints
+  the residual: Analogous 11°, Sunset 11°, Fire 7°, Fairy Reaf 5°, worst
+  Tertiary 22° at its sharp transitions — the 8-slot limit itself.
+- Black Hole: the fork's Intensity slider limits the palette range its stars
+  use (preset 11: 40/255 of Sunset — red to orange, hue never above 20°;
+  preset 10: 220/255 of Tertiary); its other sliders keep the stock
+  positions (fade `sx`, outer Y `ix`, inner X `c2` — trail length matched at
+  19 vs 20 lit cells). Stock Black Hole indexes the whole palette (`i*32`,
+  `255-i*64`), so preset 11 uses the first 40/255 of Sunset stretched to
+  0–255 (`mkpalettes.py` mode `plain` with a range). The fork's stars also
+  mix colours within a frame (65° spread) and drift through the palette
+  together — no fixed star index reproduces that, so preset 10 is a
+  composite: white stars (`o1` Solid, palette 0) × a Palette colour layer
+  over Tertiary 0–220 with sine dwell (ID 191).
+- Tartan adds its two line sets, so where lines cross the fork shows
+  clip(2·colour) — (101,0,158) becomes (202,0,255); 39 % of its lit pixels
+  are clipped. The port's multiply composite caps every pixel at the colour,
+  so the Tartan – Analogous layer palette is boosted ×1.4 and clipped
+  (k 2 measured +30 % per-hue brightness over the fork, 1.7 +20 %, 1.4 on
+  it). Fairy Reaf is pastel: any boost clips channels and shifts hue (k 1.42
+  moved 53 % of the time into cyan), so preset 12 stays unboosted.
 - Speed map, measured: fork 60 ↔ stock 4 (7.4 s per turn), fork 255 ↔ stock 12.
-- Frizzles/Black Hole: the fork's versions are brighter-capped and differ in
-  saturation from stock with identical palette stops (p7 stock sat 0.68 vs
-  fork 0.40; p10 0.44 vs 0.66) — blur/fade knobs do not close that gap, so
-  the port matches brightness (`bri` 156/203/143/52) and keeps the 0.14 hues.
+- Frizzles: the fork sparkles to a per-frame peak of 231 with ~25 lit cells.
+  A `bri` cap chosen for equal current (156) flattened the port to a peak of
+  135 — current alone is the wrong target for sparkle effects. Fitted on
+  peak, lit count, brightness histogram and current at once: preset 9 `bri
+255`, blur `c1 80` (lit 23 vs 27, peak 168 vs 177, current 1.04); preset 7
+  keeps blur 186 at `bri 170` — stock always draws 8 frizzles, so the port
+  lights 41 cells to the fork's 25; at equal current its peak stays ≈155 to
+  the fork's 231 (`bri 220` reached the peak at 1.21× the current). The
+  Smear option (`o1`) only adds bright cells (+40 % current).
 - Running: fork cycles one colour over time; stock colours by position —
   hence the composite. Measured per preset, never scaled from another one:
   preset 4 `sx 43`/`ix 128` (8-cell wave, ~2.2 cells/s under liveview),
