@@ -35,7 +35,7 @@ PLAN = {
     2: (51, "layer"),       # Atlantica   — Running p4 colour layer (fx 65: LINEARBLEND, no remap)
     3: (18, "layer"),       # Analogous   — Running p5 / Tartan p13 colour layer
     4: (34, "layer"),       # Tertiary    — Hiphotic p2 colour layer
-    5: (35, "layer"),       # Fire        — Hiphotic p14 colour layer
+    5: (35, "layer", 117),  # Fire        — Hiphotic p14 colour layer; the fork never goes below value 117 (measured), so the black end is skipped
     6: (59, "layer"),       # Fairy Reaf  — Tartan p12 colour layer
     7: (18, "plain"),   # Analogous   — Frizzles p7
     8: (35, "plain"),   # Fire        — Frizzles p9
@@ -86,10 +86,16 @@ def cfp014(ent, index):
     return [((a * (f1 + 1)) >> 8) + ((b * (f2 + 1)) >> 8) for a, b in zip(e0, e1)]
 
 
-def fork_trajectory(stops):
-    """0.14 color_from_palette without wrap: scale8(index, 240) = (i*241)>>8, then LINEARBLEND."""
+def fork_trajectory(stops, min_value=0):
+    """0.14 color_from_palette without wrap: scale8(index, 240) = (i*241)>>8, then LINEARBLEND.
+    min_value > 0 restricts the sweep to the part of the palette the fork actually visits
+    (measured floor of the lamp's per-frame peak brightness), resampled to 256 steps."""
     ent = load16(stops)
-    return [cfp014(ent, (t * 241) >> 8) for t in range(256)]
+    T = [cfp014(ent, (t * 241) >> 8) for t in range(256)]
+    if min_value:
+        t0 = next(t for t in range(256) if max(T[t]) >= min_value)
+        T = [T[t0 + (255 - t0) * t // 255] for t in range(256)]
+    return T
 
 
 def port_index(t):
@@ -115,22 +121,24 @@ def solve(A, b):
     return [M[i][n] / M[i][i] for i in range(n)]
 
 
-def mirror(stops, mode):
+def mirror(stops, mode, min_value=0):
     """8 slot colours fitted to the fork trajectory as the port's effect reads them, mirrored for the down sweep."""
-    T = fork_trajectory(stops)
+    T = fork_trajectory(stops, min_value)
     A = []
     for t in range(256):
         q = slot_position(t, mode); hi, lo = q >> 4, q & 15; w = (lo << 4) / 256
         row = [0.0] * 8; row[hi] += 1 - w; row[min(hi + 1, 7)] += w; A.append(row)
-    S = [[max(0, min(255, round(v))) for v in solve(A, [T[t][c] for t in range(256)])] for c in range(3)]
+    # the sweep's turning points are the colours the eye anchors on: weight them in the fit
+    idx = list(range(256)) + [0] * 32 + [255] * 32
+    S = [[max(0, min(255, round(v))) for v in solve([A[t] for t in idx], [T[t][c] for t in idx])] for c in range(3)]
     up = [[16 * k, S[0][k], S[1][k], S[2][k]] for k in range(8)]
     down = [[128 + 16 * j] + up[7 - j][1:] for j in range(8)]
     return up + down + [[255] + up[0][1:]]
 
 
-def residual(stops, new, mode):
+def residual(stops, new, mode, min_value=0):
     """Worst hue/sat/val deviation of the port (exact 16 arithmetic) from the fork over one sweep."""
-    F = fork_trajectory(stops); ent = load16(new); worst = [0, 0, 0]
+    F = fork_trajectory(stops, min_value); ent = load16(new); worst = [0, 0, 0]
     for t in range(256):
         f, p = F[t], cfp16(ent, port_index(t), mode == "colorwaves")
         hf, sf, vf = colorsys.rgb_to_hsv(*[x / 255 for x in f]); hp, sp, vp = colorsys.rgb_to_hsv(*[x / 255 for x in p])
@@ -139,11 +147,11 @@ def residual(stops, new, mode):
     return worst
 
 
-def build(stops, mode):
+def build(stops, mode, min_value=0):
     if mode == "plain":
         assert len(stops) <= MAX_STOPS, "plain palette exceeds WLED's 18 stops"
         return stops
-    return mirror(stops, mode)
+    return mirror(stops, mode, min_value)
 
 
 def lint(flat, name):
@@ -162,9 +170,10 @@ def main():
     ap.add_argument("--report", action="store_true", help="print residual hue/sat/val error of each mirrored palette vs the fork")
     args = ap.parse_args()
     palx = json.load(open(PALX))
-    for slot, (pid, mode) in PLAN.items():
+    for slot, plan in PLAN.items():
+        pid, mode, min_value = (plan + (0,))[:3]
         stops = palx["palettes"][str(pid)]
-        new = build(stops, mode)
+        new = build(stops, mode, min_value)
         flat = [v for s in new for v in s]
         name = f"palette{slot}.json"
         lint(flat, name)
@@ -177,7 +186,7 @@ def main():
             open(path, "w").write(body)
         extra = ""
         if args.report and mode != "plain":
-            h, s, v = residual(stops, new, mode); extra = f" | residual vs fork: hue {h:.1f} deg, sat {s:.2f}, val {v:.2f}"
+            h, s, v = residual(stops, new, mode, min_value); extra = f" | residual vs fork: hue {h:.1f} deg, sat {s:.2f}, val {v:.2f}"
         print(f"{name}: ID {200 - slot} {palx['names'][pid]} {mode} {len(flat) // 4} stops {'ok' if args.check else 'written'}{extra}")
 
 
