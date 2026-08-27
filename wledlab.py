@@ -26,9 +26,14 @@ Metrics printed by analyse/compare: bri_* from all lit cells (0-255, liveview
 is pre-brightness), sat/hue from cells above 20 % brightness (black has no
 hue), hue_spread = mean angular deviation across the raster per frame,
 raster_r2 = variance explained by the best sinusoid per cell ordering (1.0 =
-pure wave; may exceed 1 on sparse rows), wavelength in cells, drift in
-cells/s (sign = direction), hue_cycle_autocorr = (lag s, correlation) peaks
-of the mean hue, i.e. candidate colour-cycle periods.
+pure wave; may exceed 1 on sparse rows), wavelength = that sinusoid's period
+in cells (snaps to whole stripes per ring on short rows — trust
+stripe_period, the autocorrelation peak along the full middle rows, when
+they disagree), drift in cells/s (sign = direction), hue_cycle_autocorr =
+(lag s, correlation) peaks of the mean hue as a unit vector, i.e. candidate
+colour-cycle periods, activity = mean brightness change per lit cell per
+second (speed of any effect, including plasma and sparkle; compare ratios),
+activity_rel = the same divided by mean brightness (activity scales with bri).
 
 Recorded knowledge (GLORB, WLED 16.0.1):
   * WLED 16 validates ledmap.json as JSON, then scans the raw bytes for
@@ -64,7 +69,7 @@ W, H = 20, 6  # GLORB raster; overridable via --width/--height
 
 
 # ----------------------------------------------------------------------------- http
-def _retry(fn, attempts=3):
+def _retry(fn, attempts=4):
     # an ESP32 drops the odd request; one timeout must not kill a 15-minute gate run
     for i in range(attempts):
         try:
@@ -72,7 +77,7 @@ def _retry(fn, attempts=3):
         except (urllib.error.URLError, TimeoutError, ConnectionError):
             if i == attempts - 1:
                 raise
-            time.sleep(1.5)
+            time.sleep(2)
 
 
 def get(ip, path, timeout=6):
@@ -224,6 +229,52 @@ def drift_cells_per_s(frames, row, w):
     return pos / dt if dt else 0.0
 
 
+def stripe_period(frames, w, h):
+    """Median first autocorrelation peak of brightness along the full middle rows (cells)."""
+    rows = [y for y in range(h) if h // 2 - 1 <= y <= h // 2]
+    seq_idx = [x + w * y for y in rows for x in range(w)]
+    ps = []
+    for _, leds in frames[::max(1, len(frames) // 20)]:
+        s = [hsv(leds[i])[2] for i in seq_idx]
+        m = sum(s) / len(s); d = [x - m for x in s]; den = sum(x * x for x in d) or 1
+        ac = [sum(d[i] * d[i + l] for i in range(len(d) - l)) / den for l in range(0, len(d) // 2)]
+        pk = [l for l in range(3, len(ac) - 1) if ac[l] > ac[l - 1] and ac[l] >= ac[l + 1] and ac[l] > 0.1]
+        if pk:
+            ps.append(pk[0])
+    ps.sort()
+    return ps[len(ps) // 2] if ps else None
+
+
+def activity(frames, dt=1.0):
+    """Mean |Δbrightness| per lit cell over dt seconds (0..1): how fast the pattern moves, any effect."""
+    vals, j = [], 0
+    for t, leds in frames:
+        while j < len(frames) and frames[j][0] < t + dt:
+            j += 1
+        if j >= len(frames):
+            break
+        a = [hsv(c)[2] for c in leds]; b = [hsv(c)[2] for c in frames[j][1]]
+        lit = [k for k in range(len(a)) if a[k] > 0.02 or b[k] > 0.02]
+        if lit:
+            vals.append(sum(abs(a[k] - b[k]) for k in lit) / len(lit))
+    return sum(vals) / len(vals) if vals else 0.0
+
+
+def hue_cycle_peaks(ts, hues_deg, dt=0.5, maxlag_s=90):
+    """Autocorrelation of the mean hue as a unit vector (no wrap artefacts); (lag s, correlation) peaks."""
+    n = int(ts[-1] / dt); cs, ss, j = [], [], 0
+    for k in range(n):
+        while j + 1 < len(ts) and ts[j + 1] <= k * dt:
+            j += 1
+        a = hues_deg[j] * math.pi / 180; cs.append(math.cos(a)); ss.append(math.sin(a))
+    mc, ms = sum(cs) / n, sum(ss) / n; dc = [c - mc for c in cs]; ds = [x - ms for x in ss]
+    den = sum(a * a + b * b for a, b in zip(dc, ds)) or 1
+    L = min(int(maxlag_s / dt), n // 2)
+    ac = [sum(dc[i] * dc[i + l] + ds[i] * ds[i + l] for i in range(n - l)) / den for l in range(L)]
+    return [(round(l * dt, 1), round(ac[l], 2)) for l in range(4, len(ac) - 1)
+            if ac[l] > ac[l - 1] and ac[l] >= ac[l + 1] and ac[l] > 0.15][:4]
+
+
 def autocorr_peaks(series, dt, maxlag_s):
     m = sum(series) / len(series); v = [a - m for a in series]; den = sum(a * a for a in v) or 1
     ac = [sum(v[i] * v[i + l] for i in range(len(v) - l)) / den for l in range(int(maxlag_s / dt))]
@@ -274,18 +325,21 @@ def metrics(frames, w=W, h=H, row=None):
     m["raster_r2"] = {k: round(sum(a) / len(a), 2) if a else None for k, a in acc.items()}
     if Ls:
         m.update(wavelength_min=min(Ls), wavelength_max=max(Ls), stripes_per_turn=round(w / (sum(Ls) / len(Ls)), 2))
+    m["stripe_period"] = stripe_period(frames, w, h)  # robust where the sinusoid fit snaps to whole stripes per ring
+    m["activity"] = activity(frames)  # speed measure that also works for plasma/sparkle effects
+    m["activity_rel"] = m["activity"] / max(1e-6, m["bri_mean"] / 255)  # brightness-normalised: compare lamps at different bri
     m["drift_cells_per_s"] = drift_cells_per_s(frames, row, w)
     m["turn_seconds"] = (w / abs(m["drift_cells_per_s"])) if m["drift_cells_per_s"] else None
     ts = [f[0] for f in frames]
     if ts[-1] > 20:
-        m["hue_cycle_autocorr"] = autocorr_peaks(resample(ts, hmean), 0.5, min(90, ts[-1] / 2))
+        m["hue_cycle_autocorr"] = hue_cycle_peaks(ts, hmean, 0.5, min(90, ts[-1] / 2))
     return m
 
 
 def print_metrics(*named):
     keys = ["frames", "seconds", "lit_cells", "bri_mean", "bri_p10", "bri_p90", "contrast_mean", "sat_mean",
-            "hue_spread_mean", "hue_min", "hue_max", "wavelength_min", "wavelength_max", "stripes_per_turn",
-            "drift_cells_per_s", "turn_seconds"]
+            "hue_spread_mean", "hue_min", "hue_max", "wavelength_min", "wavelength_max", "stripe_period", "stripes_per_turn",
+            "drift_cells_per_s", "turn_seconds", "activity", "activity_rel"]
     names = [n for n, _ in named]
     print(f"{'metric':<20}" + "".join(f"{n:>16}" for n in names))
     for k in keys:
