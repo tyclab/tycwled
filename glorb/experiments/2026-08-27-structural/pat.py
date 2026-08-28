@@ -1,10 +1,17 @@
-"""Pattern-layer search for Hiphotic presets: seg0 candidates scored on the fork's structure (contrast, blob size, motion)."""
-import json, sys, time, threading, wledlab
-sys.path.insert(0, ".")
-from structural import feats
+"""Pattern-layer search for Hiphotic presets: seg0 candidates scored on the fork's structure (contrast, blob size, motion).
+
+    PYTHONPATH=. python3 glorb/experiments/2026-08-27-structural/pat.py '{"14": {"name": {seg0 fields...}, ...}}'
+
+A candidate with "single": true is applied as one segment (the colour layer, seg 1, is dropped); every other
+candidate keeps the preset's seg 1. Palettes 12-15 are uploaded from this directory first (see PALETTES)."""
+import json, os, sys, threading, time, wledlab
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from structural import feats, pwr_both
 from hipsim import H, grids
 R, T = "10.27.4.160", "10.27.4.158"
-S = "."
+S = os.path.dirname(os.path.abspath(__file__))
+PALETTES = {12: "pattern-steep-188.json", 13: "pattern-linear-187.json", 14: "fire-span-112-224-plain-186.json", 15: "fire-span-64-224-plain-185.json"}
+SECONDS = 100  # >= 3 colour cycles; 10-40 s windows swing +-25 %
 
 
 def blob(frames):
@@ -21,12 +28,6 @@ def blob(frames):
     return round(sum(acs) / len(acs), 1), round(black * 100 / n)
 
 
-def pwr(ip, n=24, dt=0.5):
-    v = []
-    for _ in range(n): v.append(wledlab.get(ip, "/json/info")["leds"]["pwr"]); time.sleep(dt)
-    return sum(v) / len(v)
-
-
 def capture_both(seconds):
     res = {}
     t1 = threading.Thread(target=lambda: res.__setitem__("ref", wledlab.live(R, seconds)))
@@ -34,19 +35,29 @@ def capture_both(seconds):
     t1.start(); t2.start(); t1.join(); t2.join(); return res["ref"], res["tgt"]
 
 
-for slot in (12, 13):
-    print(f"palette{slot}:", wledlab.upload(T, f"/palette{slot}.json", f"{S}/palette{slot}.json"), flush=True)
-time.sleep(2)
-plan = json.loads(sys.argv[1])
-for ps, cands in plan.items():
-    single = any("pal" in s and s.get("pal", 0) != 3 and s.get("fx") in (180, 146) and "col" not in s for s in cands.values())
-    for name, seg in cands.items():
-        for ip in (R, T): wledlab.post(ip, "/json/state", {"on": True, "bri": 255, "ps": int(ps)})
-        time.sleep(1); over = {"seg": [dict(id=0, **seg)]}
-        if single: over["seg"].append({"id": 1, "stop": 0})  # single-segment candidate: drop the colour layer
-        wledlab.post(T, "/json/state", over); time.sleep(2)
-        fr, ft = capture_both(60); time.sleep(3)
-        fa, fb = feats(fr), feats(ft); ba, bb = blob(fr), blob(ft); pa, pb = pwr(R), pwr(T)
-        print(f"p{ps} {name} {seg}: pwr {pa:.0f}/{pb:.0f} | mean {fa['mean']}/{fb['mean']} sstd {fa['sstd']}/{fb['sstd']} tstd {fa['tstd']}/{fb['tstd']} ratio {fa['ratio']}/{fb['ratio']} | blob-len {ba[0]}/{bb[0]} black% {ba[1]}/{bb[1]}\n   bands ref {fa['bands']} tgt {fb['bands']}\n   vhist ref {fa['vhist']}\n   vhist tgt {fb['vhist']}", flush=True)
-for ip in (R, T): wledlab.post(ip, "/json/state", {"on": True, "bri": 255, "ps": 4})
-print("PAT DONE", flush=True)
+def main(plan):
+    for slot, fname in PALETTES.items():
+        wledlab.upload(T, f"/palette{slot}.json", os.path.join(S, fname))
+        have = wledlab.readback(T, f"/palette{slot}.json"); want = open(os.path.join(S, fname), "rb").read()
+        if have != want:
+            raise SystemExit(f"palette{slot}.json readback differs from {fname}")
+        print(f"palette{slot}: {fname} ok", flush=True)
+    time.sleep(2)
+    try:
+        for ps, cands in plan.items():
+            for name, seg in cands.items():
+                seg = dict(seg); single = seg.pop("single", False)
+                for ip in (R, T): wledlab.post(ip, "/json/state", {"on": True, "bri": 255, "ps": int(ps)})
+                time.sleep(1); over = {"seg": [dict(id=0, **seg)]}
+                if single: over["seg"].append({"id": 1, "stop": 0})  # single-segment candidate: drop the colour layer
+                wledlab.post(T, "/json/state", over); time.sleep(2)
+                fr, ft = capture_both(SECONDS); time.sleep(3)
+                fa, fb = feats(fr), feats(ft); ba, bb = blob(fr), blob(ft); pa, pb = pwr_both(R, T)
+                print(f"p{ps} {name}{' [single]' if single else ''} {seg}: pwr {pa:.0f}/{pb:.0f} | mean {fa['mean']}/{fb['mean']} sstd {fa['sstd']}/{fb['sstd']} tstd {fa['tstd']}/{fb['tstd']} ratio {fa['ratio']}/{fb['ratio']} | blob-len {ba[0]}/{bb[0]} black% {ba[1]}/{bb[1]}\n   bands ref {fa['bands']} tgt {fb['bands']}\n   vhist ref {fa['vhist']}\n   vhist tgt {fb['vhist']}", flush=True)
+        print("PAT DONE", flush=True)
+    finally:
+        for ip in (R, T): wledlab.post(ip, "/json/state", {"on": True, "bri": 255, "ps": 4})
+
+
+if __name__ == "__main__":
+    main(json.loads(sys.argv[1]))

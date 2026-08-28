@@ -96,6 +96,8 @@ def upload(ip, name, path):
         ["curl", "-s", "-m", "30", "-F", f"data=@{path};filename={name}", f"http://{ip}/upload"],
         capture_output=True, text=True,
     )
+    if r.returncode != 0:
+        raise RuntimeError(f"upload {path} -> {ip}{name}: curl exit {r.returncode} {r.stderr.strip()}")
     return r.stdout.strip()
 
 
