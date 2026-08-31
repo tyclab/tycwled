@@ -664,15 +664,13 @@ def cmd_verify(a):
     window = a.samples * a.interval
     fmt = lambda x: "n/a" if x is None else f"{x:.2f}"
     print(f"verify: presets.json sha256 {hashlib.sha256(raw).hexdigest()}")
-    vers = {}
     for tag, ip in (("ref", a.ref), ("target", a.target)):
-        m = lamp_meta(ip); vers[tag] = str(m["ver"] or "")
+        m = lamp_meta(ip)
         print(f"  {tag} {ip}: ver {m['ver']} fps {m['fps']} maxpwr {m['maxpwr']} cpalcount {m['cpalcount']} rssi {(m['wifi'] or {}).get('rssi')}")
-    # the lamps' own mA figures are only comparable when both run the same firmware major version
-    comparable_current = vers["ref"].split(".")[0] == vers["target"].split(".")[0]
-    if not comparable_current:
-        print(f"  current: informational only (*) -- {vers['ref']} and {vers['target']} estimate it differently;"
-              " brightness is gated on mean_r and rgbsum_r reported, both measured from the frames")
+    # Current stays a criterion across firmwares. Both estimate it from what they write to the bus,
+    # so it is the only view of the output stage -- liveview is pre-gamma on both and cannot see it.
+    # A current ratio far off 1.0 while the frame metrics match means the two lamps disagree about
+    # output gamma, which is exactly how the port's light.gc was found to be wrong.
     print(f"verify: {n} presets, {window:.0f} s each (~{n * (window + 20) / 60:.0f} min); both lamps end on preset {a.restore_preset}", flush=True)
     try:
         for k, v in want.items():
@@ -704,12 +702,8 @@ def cmd_verify(a):
                     line += "  current n/a (ABL off or dark)"
                 else:
                     r = mt / mr
-                    # WLED 16 sums gamma-corrected channels at the bus (bus_manager.cpp estimateCurrent);
-                    # 0.14.x did not, so across firmwares the two numbers are not the same quantity and
-                    # their ratio is not evidence. rgbsum_r measures the same thing from the frames instead.
-                    if comparable_current:
-                        checks.append(("current", 1 - a.tolerance <= r <= 1 + a.tolerance))
-                    line += f"  ratio {r:.3f}" + ("" if comparable_current else "*")
+                    checks.append(("current", 1 - a.tolerance <= r <= 1 + a.tolerance))
+                    line += f"  ratio {r:.3f}"
                 if not a.current_only:
                     t1.join(); t2.join()
                     fr, ft = res.get("ref") or [], res.get("tgt") or []
@@ -797,6 +791,21 @@ def cmd_install(a):
     info = get(a.host, "/json/info")
     print("rebooted:" if a.reboot else "live:", info["ver"], "matrix", info["leds"].get("matrix"),
           "ledmap", get(a.host, "/json/state").get("ledmap"), "custom palettes", info.get("cpalcount"))
+    if a.effects:
+        # the usermod registers with addEffect(255, ...), so WLED assigns the IDs at boot and a
+        # WLED update that shifts its mode table would silently point every preset at a stock
+        # effect of the same number. Check the names behind the IDs, not just that they exist.
+        want = json.load(open(a.effects)); eff = get(a.host, "/json/eff"); wrong = []
+        for fx, name in sorted(want.items(), key=lambda kv: int(kv[0])):
+            got = eff[int(fx)] if int(fx) < len(eff) else "<out of range>"
+            if got != name:
+                wrong.append(f"fx {fx}: expected {name!r}, lamp has {got!r}")
+        print("effect IDs:", "all OK" if not wrong else "MISMATCH")
+        for w in wrong:
+            print("  ", w)
+        if wrong:
+            sys.exit("effect IDs on the lamp do not match glorb/wled16-port/effects.json -- "
+                     "reread /json/eff and remap presets.json before installing")
     if a.palette and info.get("cpalcount", 0) < len(a.palette):
         sys.exit(f"custom palettes: lamp reports {info.get('cpalcount')}, uploaded {len(a.palette)}")
     if a.presets:
@@ -859,6 +868,7 @@ def main():
     s.add_argument("--restore-preset", type=int, default=1, help="preset both lamps end on"); s.set_defaults(fn=cmd_verify)
     s = sub.add_parser("install", help="upload files byte-exact, reload, verify every preset")
     s.add_argument("--host", required=True); s.add_argument("--ledmap"); s.add_argument("--presets"); s.add_argument("--palette", action="append", help="palette file; paletteN.json in order, repeatable")
+    s.add_argument("--effects", help="JSON map of fx ID -> effect name to assert against /json/eff (the usermod's IDs are assigned at boot)")
     s.add_argument("--reboot", action="store_true", help="reboot after upload instead of live reload"); s.set_defaults(fn=cmd_install)
     a = p.parse_args(); a.fn(a)
 

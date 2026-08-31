@@ -717,15 +717,69 @@ so identical stops give a byte-identical CRGBPalette16. No fitting, no re-encodi
 Note this also retires the fitting-era workaround of setting `light.gc` to 1.0: with the factory
 palettes carrying the factory's own encoding, the port runs the factory gamma 2.8.
 
-### The lamps' mA figures are not comparable across the two firmwares
+### Output gamma: the fork never gamma-corrects rendered pixels, WLED 16 does  — PROVEN
 
-The gate used to require the target's reported current within 15 % of the reference's. Preset 4
-came in at ratio 0.472 while its captured pixels were the same to within 2 % (mean_r 1.02,
-sat_d 0.000, vhist 0.02). WLED 16 sums gamma-corrected channels at the bus
-(`bus_manager.cpp` `estimateCurrent`, `_colorSum` accumulated in `BusDigital::setPixelColor`
-after `FX_fcn.cpp` applies `gamma32`); 0.14.4 did not. The two numbers are not the same quantity.
+An earlier draft of this section claimed the two lamps' mA figures were simply not comparable,
+because WLED 16 sums gamma-corrected channels at the bus and 0.14.4 does not. That was the wrong
+conclusion from a real observation, and it nearly buried a real defect.
 
-That the previews are nonetheless in the same space is provable from the captures: gamma applied
-per channel raises saturation sharply ((100,50,25) at gamma 2.8 goes from S=0.75 to S=0.98), and
-preset 4 measures S=0.910 on the fork against S=0.909 on the port. So `verify` now reports current
-but gates brightness on `mean_r`, measured identically from both lamps' frames.
+Both firmwares estimate current from what they actually write to the bus, so both estimates are
+honest. Predicting each lamp's reported mA from its own captured (pre-gamma) frames --
+`mA = colorSum * ledma/765 + nLEDs`, channels taken as captured versus raised to 2.8 -- separates
+the cases cleanly:
+
+| | measured | predicted linear | predicted gamma 2.8 |
+|---|---|---|---|
+| p4 fork | 1012 mA | **915** | 349 |
+| p4 port | 478 mA | 925 | **359** |
+| p2 fork | 1274 mA | **1177** | 553 |
+| p2 port | 750 mA | 1231 | **629** |
+
+The fork tracks the linear prediction, the port the gamma one. Confirmed independently in the
+binary: an exhaustive scan for callers of the fork's `gamma32` (0x42026b7c) finds twelve, all in
+the colour-setting region and none in the bus path, and 0.14.4 instead applies `gamma8()` to custom
+palettes at *load* time. WLED 16 gamma-corrects the whole frame in `show()` and no longer gammas
+custom palettes at load.
+
+So with the factory palettes shipped verbatim the port's `light.gc` must be **1.0**, not the
+factory's 2.8. The fork's `gc` never touches palette output, so 2.8 on the port was applying a
+transform the reference lamp does not. Setting it to 1.0 moved the current ratios from
+0.473 / 0.588 / 0.699 to **1.047 / 1.104 / 0.979** on presets 4 / 2 / 9.
+
+Why the captures could not see this: both firmwares serve the liveview pre-gamma (WLED 16 from
+`_pixels[]`, `ws.cpp:231`; 0.14.4 from a bus with `NeoGammaNullMethod`). Two lamps can match on
+every captured metric and still look very different to the eye. **Current is the only instrument
+that sees the output stage**, which is why `verify` gates it instead of merely reporting it.
+
+## 12. What WLED 16 changed underneath the effects  — PROVEN
+
+With palettes and gamma fixed, four presets still missed. All four came down to WLED 16 having
+replaced helpers the fork calls, in ways that are individually tiny and compound inside feedback
+loops.
+
+**Colorwaves (presets 1 and 3) — two bugs, both in the hue path.** The fork folds the hue over the
+*whole* palette (`0x42042f57`: `slli a4, a3, 1`, and `65535 - 2*hue16` on the other branch), where
+stock WLED folds to 0..127 and never addresses the upper half. With Analogous, whose lower half is
+entirely blue/violet, the port sat in one hue bin: measured hue census, ref 0.366/0.178 across bins
+24/25 and another 0.26 spread over the red end, port 0.733/0.267 and nothing above bin 25. The fork
+also advances `hue16` once per **row** (the `blt` at line 101 is the row loop) and writes with
+`blendPixelColorXY`, so the gradient spans 6 steps, not 120.
+
+**Frizzles and Black Hole — FastLED's rounding.** 0.14.4 scales through `nscale8x3`
+(`0x4214ea48`), which does `(v * (scale+1)) >> 8`; WLED 16's `fast_color_scale` (`colors.h:96`)
+drops the `+1`. Per blur pass the fork keeps 1.0039 of the energy and WLED 16 keeps 0.9922, and
+`blur2D` runs rows and columns, so ~2.4 % per frame -- amplified roughly twentyfold by the
+fade/inject/blur feedback loop. `fadeToBlackBy` diverges the same way, and there the fix is exact:
+the fork's `fadeToBlackBy(f)` is WLED 16's `fadeToBlackBy(f-1)`.
+
+**All six effects — trig and blend.** The fork calls FastLED `sin8_C` (table at DROM `0x3c167ab8`
+= `b_m16_interleave`) and `sin16_C` (slope table `0x3c167ac0`), not WLED 16's accurate `sin8_t`
+/`sin16_t`, which differ by up to 5/255. And 0.14.4's `color_blend` (`0x4202617c`) weights
+`c1*(255-blend) + c2*blend`, summing to 255/256, where WLED 16 uses `(256-blend)` and `(blend+1)`,
+summing to 257/256 -- the fork's version bleeds slightly toward black each iteration and WLED 16's
+is a fixed point. Simulated against Hiphotic this predicts +6.1 % mean V; the measured residual
+after the palette fix was +5.9 %.
+
+WLED 16 ships no FastLED trig at all, so `glorb_fx.cpp` now carries the originals
+(`glorb_sin8`, `glorb_sin16`, the `beatsin` family, `glorb_color_blend`, `glorb_nscale8`,
+`glorb_blur2d`) and the effects call those instead of the WLED spellings.
