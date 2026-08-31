@@ -19,8 +19,9 @@ Subcommands
   push-frame       push one identical frame to both lamps (per-LED JSON API,
                    inverse gamma for 0.14 which gamma-corrects that input)
   install          upload ledmap / presets / palettes byte-exact, reload, verify
-  verify           acceptance gate: every preset on both lamps, ABL current
-                   estimate ratio target/ref must stay within --tolerance
+  verify           acceptance gate: every preset on both lamps, current ratio
+                   plus structural criteria from a same-window capture
+  rescore          re-run the gate's criteria offline over saved captures
 
 Metrics printed by analyse/compare: bri_* from all lit cells (0-255, liveview
 is pre-brightness), sat/hue from cells above 20 % brightness (black has no
@@ -44,8 +45,9 @@ Recorded knowledge (GLORB, WLED 16.0.1):
     Custom palette IDs count down from 200 (palette0 = 200).
   * 16's built-in palettes are re-encoded for its per-pixel gamma; with
     light.gc off, use custom palettes with the 0.14 stop values instead.
-  * Colorwaves' hue triangle sweeps palette index 0-127 only; compress a
-    palette into 0-127 to get the full gradient.
+  * Stock Colorwaves' hue triangle sweeps palette index 0-127 only. The GLORB
+    fork's does NOT -- it spans the whole palette and advances per row, so the
+    port reimplements it rather than compressing a palette to compensate.
   * 16 applies gamma to every rendered pixel, 0.14 only to input colours:
     light.gc = {bri:1,col:1,val:1} for the 0.14 look with palette effects.
   * liveview load slows frame-bound effects; use long simultaneous windows.
@@ -662,7 +664,6 @@ def cmd_verify(a):
     raw = open(a.presets_file, "rb").read(); want = json.loads(raw); fails = []
     n = sum(1 for v in want.values() if v)
     window = a.samples * a.interval
-    fmt = lambda x: "n/a" if x is None else f"{x:.2f}"
     print(f"verify: presets.json sha256 {hashlib.sha256(raw).hexdigest()}")
     for tag, ip in (("ref", a.ref), ("target", a.target)):
         m = lamp_meta(ip)
