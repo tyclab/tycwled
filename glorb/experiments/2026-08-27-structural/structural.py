@@ -60,8 +60,12 @@ def pwr_both(a, b, n=200, dt=0.5):
 
 def report(ps, fr, ft, pa=None, pb=None):
     a, b = wledlab.metrics(fr), wledlab.metrics(ft); fa, fb = feats(fr), feats(ft)
+    ha, hb = wledlab.capture_health(fr, 100), wledlab.capture_health(ft, 100)
+    for tag, h in (("ref", ha), ("tgt", hb)):
+        if (h["coverage"] or 0) < 0.9 or (h["max_gap"] or 99) > 2.0:
+            print(f"  WARNING p{ps} {tag} capture unhealthy: {h}", flush=True)
     cur = "pwr n/a" if pa is None or pb is None else f"pwr {pa:.0f}/{pb:.0f} ratio {pb / pa:.2f}"
-    print(f"=== p{ps} {cur} | frames {len(fr)}/{len(ft)} cells {fa['cells']}/{fb['cells']} | mean {fa['mean']}/{fb['mean']} | swell tstd {fa['tstd']}/{fb['tstd']} sstd {fa['sstd']}/{fb['sstd']} ratio {fa['ratio']}/{fb['ratio']} | act {a['activity']:.3f}/{b['activity']:.3f} fast {a['fast_share']:.3f}/{b['fast_share']:.3f} | huespread {a['hue_spread_mean']:.1f}/{b['hue_spread_mean']:.1f} sat {a['sat_mean']:.2f}/{b['sat_mean']:.2f}", flush=True)
+    print(f"=== p{ps} {cur} | hz {ha['hz']}/{hb['hz']} gap {ha['max_gap']}/{hb['max_gap']} cells {fa['cells']}/{fb['cells']} | mean {fa['mean']}/{fb['mean']} | swell tstd {fa['tstd']}/{fb['tstd']} sstd {fa['sstd']}/{fb['sstd']} ratio {fa['ratio']}/{fb['ratio']} | act {a['activity']:.3f}/{b['activity']:.3f} fast {a['fast_share']:.3f}/{b['fast_share']:.3f} | huespread {a['hue_spread_mean']:.1f}/{b['hue_spread_mean']:.1f} sat {a['sat_mean']:.2f}/{b['sat_mean']:.2f}", flush=True)
     print(f"  bands ref {fa['bands']} tgt {fb['bands']}\n  vhist ref {fa['vhist']}\n  vhist tgt {fb['vhist']}\n  hue%  ref {a['hue_share']}\n  hue%  tgt {b['hue_share']}\n  hueV  ref {a['hue_v']}\n  hueV  tgt {b['hue_v']}\n  wave ref {fa['wave']}\n  wave tgt {fb['wave']}", flush=True)
 
 
@@ -75,9 +79,11 @@ def main(argv):
             if offline:
                 d = json.load(open(path)); report(ps, d["ref"], d["tgt"]); continue
             fr, ft = wledlab.simultaneous(R, T, 100, preset=ps); time.sleep(3)
+            meta = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "preset": ps,
+                    "ref": wledlab.lamp_meta(R), "tgt": wledlab.lamp_meta(T)}
             pa, pb = pwr_both(R, T)
             try:
-                json.dump({"ref": fr, "tgt": ft}, open(path, "w"))
+                json.dump({"meta": meta, "ref": fr, "tgt": ft}, open(path, "w"))
             except OSError as e:
                 print(f"  capture not saved: {e}", flush=True)
             report(ps, fr, ft, pa, pb)

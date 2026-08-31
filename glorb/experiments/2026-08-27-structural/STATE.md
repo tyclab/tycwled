@@ -56,6 +56,33 @@ The pre-fix p14 row (fork 18 % black / 21 % full, port 0 % black) is probably
 still directionally right — the port floors seg 0 at grey 130 — but it has to
 be re-measured before it is used.
 
+## Re-measurement + first gate artifact (2026-08-31)
+
+Full 12-preset sweep with the fixed tooling (`structural-remeasure.log`, captures
+committed as `captures/struct-pN.json.gz`) followed by the first structural
+`verify` run (`verify-remeasure.log`, presets sha256 in its header):
+
+- **verify: FAIL ['7', '10', '12', '14']** — every owner-accepted preset PASSes,
+  every known-or-suspected mismatch FAILs. Tolerances (vhist 0.25, hue EMD 0.45,
+  sstd 1.6x, act 1.4x, current 15 %) held without adjustment.
+- p1 PASSes on every criterion after the palette0 restore — closing the
+  incident above with a live measurement.
+- p7 FAIL current 1.15: the tolerance-edge `bri 200` choice plus stock's
+  8-frizzle floor (`lit_r 1.46`). Decide per the README criterion (peak/lit),
+  not by re-tuning bri to the current gate.
+- p10 FAIL hue 1.12 + act 1.46: the Black Hole colour path is really wrong —
+  the arcsine-dwell model and the port palette agree with each other but not
+  with the fork (its stars dwell far more in the red end). Needs an index-dwell
+  reconstruction from `captures/struct-p10.json.gz`, not another census fit.
+- p12 FAIL hue 0.46 (tol 0.45): borderline pastel drift on Fairy Reaf — owner
+  call whether this is the accepted no-boost residual or a defect.
+- p14 FAIL vhist 0.37 + sstd 0.43: the rejection reproduces on the corrected
+  grid. Fresh numbers: fork 20 % of samples below V 0.2 and 21 % above 0.9
+  (bimodal, peak 0.97), port 0 % below 0.2 and 8 % above 0.9 (unimodal
+  mid-grey, peak 0.68); spatial std 0.220 vs 0.094. The queued
+  single-segment candidates (`after_pat.sh`) remain the open fix.
+- Lamps were found OFF before the run and were switched off again after it.
+
 ## Preset 14 — what is known and what is not
 
 - The fork's Hiphotic slider names come from the public firmware binary
@@ -88,7 +115,38 @@ Queued candidates (files and exact commands in `after_struct.sh` for preset 2,
    plus Noise2D `ix` 35. If accepted: preset 14 becomes one segment,
    `mkpalettes.py` needs a `plain` + span mode, `make verify`, PR.
 
-## Open method flaws (review 2026-08-27, not fixed here)
+## Palette0 incident (2026-08-31)
+
+The port lamp's `/palette0.json` (ID 200, used only by preset 1) was found
+holding **palette4.json's content** (Tertiary layer); the other 11 slots were
+byte-correct. The 2026-08-27 p1 capture showed the Tertiary census and lower
+luma on the port — the "port too dark" p1 finding was this file, not the port
+design. Restored byte-exact from `glorb/wled16-port/palette0.json` (readback
+verified); the 2026-08-31 re-measurement then read p1 matched (ratio 1.02,
+hue census identical). Lesson enforced by the new gate: `verify` now records
+`cpalcount` and firmware/state provenance, and `install` remains the only
+sanctioned way to change lamp files. The pre-fix p1 capture was overwritten
+by the re-measurement; its census lives in `structural-rescore.log` and the
+review notes.
+
+## Loop closures (2026-08-31, branch loops/close-review-cycles)
+
+1. Gate: `verify` adds structural criteria (V-histogram L1/2, circular-EMD
+   hue distance, spatial-std ratio, activity ratio, peak/lit ratios reported)
+   computed from a liveview capture taken in the same window as the alternating
+   current samples; header stamps the presets.json sha256 and both lamps'
+   firmware/fps/maxpwr/cpalcount. `--current-only` keeps the legacy behaviour.
+   Tolerances are provisional until calibrated on the 2026-08-31 sweep.
+2. Searches: `pat.py` reads back every swept parameter (clamped/ignored keys
+   abort) and takes a replicate count (`pat.py '<plan>' 3`) so rankings can be
+   compared against their own spread.
+3. Captures: `captures/*.json.gz` are committable (`.gitignore` narrowed);
+   the sweep backing any committed verdict gets committed alongside it.
+4. Frizzles: acceptance restated as peak/lit vs the fork (README), frozen.
+5. Provenance: every capture now embeds firmware, fps, maxpwr, cpalcount and
+   the full segment state of both lamps.
+
+## Open method flaws (review 2026-08-27, partially addressed above)
 
 - The gate: `leds.pwr` is a post-brightness channel sum — a first moment,
   invariant to redistribution. It passed preset 14 (0.98), preset 11 with

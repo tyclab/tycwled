@@ -1,0 +1,17 @@
+verify: presets.json sha256 9c3a18c38c58a3b9a93e66dad6a440751cf22b641174680fdf169b9976da14f0
+  ref 10.27.4.160: ver 0.14.4-GLORB.1.3 fps 38 maxpwr 2800 cpalcount 0
+  target 10.27.4.158: ver 16.0.1 fps 42 maxpwr 2800 cpalcount 12
+verify: 12 presets, 100 s each (~22 min); both lamps end on preset 4
+  preset  1 Colorwaves - Analogous     ref  1105 mA  target  1142 mA  ratio 1.03  hz 16.4/22.2 cov 0.997/0.999 gap 0.335/0.16  vhist 0.06 hue 0.10 sstd_r 1.03 act_r 0.93 peak_r 1.02 lit_r 1.00  PASS
+  preset  2 Hiphotic - Tertiary        ref  1279 mA  target  1175 mA  ratio 0.92  hz 16.4/22.1 cov 0.997/0.998 gap 0.229/0.17  vhist 0.15 hue 0.28 sstd_r 1.09 act_r 1.02 peak_r 0.96 lit_r 1.00  PASS
+  preset  3 Colorwaves - Sunset        ref   916 mA  target   926 mA  ratio 1.01  hz 16.4/22.4 cov 0.997/0.999 gap 1.61/0.242  vhist 0.05 hue 0.10 sstd_r 0.98 act_r 0.94 peak_r 1.03 lit_r 1.00  PASS
+  preset  4 Running - Atlantica        ref  1015 mA  target   996 mA  ratio 0.98  hz 16.8/22.3 cov 0.999/0.999 gap 0.207/0.135  vhist 0.02 hue 0.32 sstd_r 0.99 act_r 1.00 peak_r 0.98 lit_r 0.98  PASS
+  preset  5 Running - Analogous        ref   961 mA  target   990 mA  ratio 1.03  hz 16.5/22.3 cov 0.998/0.998 gap 0.194/0.2  vhist 0.03 hue 0.25 sstd_r 1.04 act_r 1.04 peak_r 1.00 lit_r 0.99  PASS
+  preset  7 Frizzles - Analogous       ref   370 mA  target   427 mA  ratio 1.15  hz 16.4/22.5 cov 0.998/0.999 gap 0.29/0.129  vhist 0.14 hue 0.17 sstd_r 0.86 act_r 0.81 peak_r 0.75 lit_r 1.46  FAIL current
+  preset  9 Frizzles - Fire            ref   437 mA  target   441 mA  ratio 1.01  hz 16.5/22.5 cov 0.998/0.999 gap 0.306/0.269  vhist 0.03 hue 0.05 sstd_r 0.93 act_r 1.11 peak_r 1.01 lit_r 0.85  PASS
+  preset 10 Black Hole - Tertiary      ref   445 mA  target   490 mA  ratio 1.10  hz 16.4/22.4 cov 0.997/0.999 gap 0.278/0.126  vhist 0.11 hue 1.12 sstd_r 1.27 act_r 1.46 peak_r 1.14 lit_r 0.80  FAIL hue,act
+  preset 11 Black Hole - Sunset        ref   325 mA  target   351 mA  ratio 1.08  hz 16.6/22.4 cov 0.997/0.999 gap 0.219/0.189  vhist 0.10 hue 0.00 sstd_r 0.89 act_r 1.05 peak_r 0.53 lit_r 0.82  PASS
+  preset 12 Tartan - Fairy Reaf        ref  1411 mA  target  1356 mA  ratio 0.96  hz 16.9/22.0 cov 0.997/0.998 gap 0.295/0.159  vhist 0.09 hue 0.46 sstd_r 0.90 act_r 0.90 peak_r 0.70 lit_r 0.99  FAIL hue
+  preset 13 Tartan - Analogous         ref  1490 mA  target  1526 mA  ratio 1.02  hz 16.6/21.8 cov 0.997/0.998 gap 0.398/0.149  vhist 0.04 hue 0.11 sstd_r 0.99 act_r 0.96 peak_r 0.98 lit_r 1.00  PASS
+  preset 14 Hiphotic - Fire            ref  1240 mA  target  1174 mA  ratio 0.95  hz 16.4/22.3 cov 0.997/0.999 gap 0.202/0.11  vhist 0.37 hue 0.05 sstd_r 0.43 act_r 0.82 peak_r 0.69 lit_r 1.08  FAIL vhist,sstd
+verify: FAIL ['7', '10', '12', '14']
