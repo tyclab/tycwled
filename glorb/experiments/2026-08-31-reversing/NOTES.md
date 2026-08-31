@@ -677,3 +677,55 @@ not switched by a runtime string in this binary. LED count is not a compile-time
 by model here; it comes from `cfg.json`/NVS (WLED bus config). `movi` immediates of 80 (19×),
 82 (3×), 83 (4×), 120 (67×) exist but none could be tied to the strip length with confidence
 (120 is common/unrelated). No reliable static per-model count constant to report.
+
+## 11. The palettes, not the effects — why five presets still missed  — CONFIDENCE: PROVEN
+
+With the six decompiled effects running on the port, one preset matched the factory lamp almost
+exactly and the rest did not. The one that matched was **Running - Atlantica**. That is the whole
+clue: Atlantica is the only palette of the six the factory presets use whose bytes WLED still
+holds unchanged.
+
+WLED regenerated most of its built-in gradient palettes after 0.14 from cpt-city `.c3g` sources,
+storing them brighter and expecting output gamma to bring them back down. Same palette ID,
+different bytes. Analogous 18, red channel:
+
+    fork 0.14.4-GLORB.1.3     3   23   67  142  255
+    WLED 16.0.1              38   86  139  196  255
+
+which is very close to the fork's values with a 2.2 gamma removed ((67/255)^(1/2.2)*255 = 138).
+
+Checked by searching the fork binary for WLED 16's exact palette bytes
+(`glorb/firmware/firmware_gma_83.bin`):
+
+| palette | id | in fork binary | preset result before the fix |
+|---|---|---|---|
+| Atlantica | 51 | **byte-identical** | Running p4: vhist 0.02, hue 0.06, mean_r 1.02 — matches |
+| Analogous | 18 | differs | p1 mean_r 1.23, p5 1.08, p13 1.02 — port brighter |
+| Tertiary | 34 | differs | p2 mean_r 1.31, sat_d 0.117 |
+| Sunset | 13 | differs | p3 mean_r 1.45, hue 1.93 |
+| Fire | 35 | differs | p14 mean_r 1.40, vhist 0.37 |
+| Fairy Reaf | 59 | differs | p12 hue 0.77 |
+
+Every failing preset was brighter on the port (mean_r > 1 without exception) — the signature of a
+palette re-encoded upward, not of a wrong effect. The effects were already right.
+
+**Fix:** ship the factory stops verbatim as WLED custom palettes and point the presets at them
+(`glorb/mkpalettes.py`, palette0..5 = IDs 200..195). WLED loads a custom palette with the very
+same `loadDynamicGradientPalette` it uses for a built-in gradient (`colors.cpp` loadCustomPalettes),
+so identical stops give a byte-identical CRGBPalette16. No fitting, no re-encoding.
+
+Note this also retires the fitting-era workaround of setting `light.gc` to 1.0: with the factory
+palettes carrying the factory's own encoding, the port runs the factory gamma 2.8.
+
+### The lamps' mA figures are not comparable across the two firmwares
+
+The gate used to require the target's reported current within 15 % of the reference's. Preset 4
+came in at ratio 0.472 while its captured pixels were the same to within 2 % (mean_r 1.02,
+sat_d 0.000, vhist 0.02). WLED 16 sums gamma-corrected channels at the bus
+(`bus_manager.cpp` `estimateCurrent`, `_colorSum` accumulated in `BusDigital::setPixelColor`
+after `FX_fcn.cpp` applies `gamma32`); 0.14.4 did not. The two numbers are not the same quantity.
+
+That the previews are nonetheless in the same space is provable from the captures: gamma applied
+per channel raises saturation sharply ((100,50,25) at gamma 2.8 goes from S=0.75 to S=0.98), and
+preset 4 measures S=0.910 on the fork against S=0.909 on the port. So `verify` now reports current
+but gates brightness on `mean_r`, measured identically from both lamps' frames.
