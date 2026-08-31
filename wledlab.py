@@ -129,8 +129,14 @@ def live_ws(ip, seconds):
         f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n".encode()
     )
     buf = b""
+    t_hs = time.time()
     while b"\r\n\r\n" not in buf:
-        buf += s.recv(4096)
+        d = s.recv(4096)
+        if not d:  # a truncated handshake used to spin here forever, hanging the whole gate run
+            raise RuntimeError("websocket handshake closed early")
+        if time.time() - t_hs > 10:
+            raise RuntimeError("websocket handshake timed out")
+        buf += d
     hdr, buf = buf.split(b"\r\n\r\n", 1)
     if b" 101 " not in hdr.split(b"\r\n")[0]:
         raise RuntimeError(hdr[:80])
@@ -143,9 +149,10 @@ def live_ws(ip, seconds):
     send_text('{"lv":true}')
     frames, t0 = [], time.time()
     s.settimeout(3)
+    msg, msg_op = b"", None  # a liveview message may arrive in several fragments
     while time.time() - t0 < seconds:
         while len(buf) >= 2:
-            op, ln, o = buf[0] & 0x0F, buf[1] & 0x7F, 2
+            fin, op, ln, o = buf[0] & 0x80, buf[0] & 0x0F, buf[1] & 0x7F, 2
             if ln == 126:
                 if len(buf) < 4:
                     break
@@ -157,13 +164,29 @@ def live_ws(ip, seconds):
             if len(buf) < o + ln:
                 break
             pay, buf = buf[o:o + ln], buf[o + ln:]
+            if op >= 8:  # control frames are never fragmented and may interleave
+                if op == 9:
+                    s.sendall(bytes([0x8A, 0x80]) + os.urandom(4) )
+                elif op == 8:
+                    buf = b""
+                    break
+                continue
+            if op == 0:
+                msg += pay            # continuation of the message in flight
+            else:
+                msg, msg_op = pay, op  # first fragment
+            if not fin:
+                continue              # wait for the rest before reading it as a frame
+            pay, op, msg = msg, msg_op, b""
             if op == 2 and pay[:1] == b"L":
                 ver = pay[1]
                 pos = 4 if ver == 2 else 2  # ver 2 carries w,h at [2],[3]
-                leds = [pay[pos + 3 * i:pos + 3 * i + 3].hex() for i in range((len(pay) - pos) // 3)]
+                body = len(pay) - pos
+                if body <= 0 or body % 3:
+                    continue  # not a whole number of pixels: a partial frame would silently
+                              # rescope every statistic to whichever cells survived
+                leds = [pay[pos + 3 * i:pos + 3 * i + 3].hex() for i in range(body // 3)]
                 frames.append((round(time.time() - t0, 3), leds))
-            elif op == 9:
-                s.sendall(bytes([0x8A, 0x80]) + os.urandom(4))
         try:
             d = s.recv(4096)
         except socket.timeout:
@@ -171,8 +194,16 @@ def live_ws(ip, seconds):
         if not d:
             break
         buf += d
-    send_text('{"lv":false}')
-    s.close()
+    # the capture is already collected; a peer that closed on us must not discard it and send
+    # the caller off to re-measure a second, non-overlapping window
+    try:
+        send_text('{"lv":false}')
+    except OSError:
+        pass
+    try:
+        s.close()
+    except OSError:
+        pass
     return frames
 
 
@@ -261,8 +292,9 @@ def activity(frames, dt=1.0):
             break
         a = [hsv(c)[2] for c in leds]; b = [hsv(c)[2] for c in frames[j][1]]
         lit = [k for k in range(len(a)) if a[k] > 0.02 or b[k] > 0.02]
-        if lit:
-            vals.append(sum(abs(a[k] - b[k]) for k in lit) / len(lit))
+        elapsed = frames[j][0] - t  # dt plus up to one frame period, and that period differs per lamp
+        if lit and elapsed > 0:
+            vals.append(sum(abs(a[k] - b[k]) for k in lit) / len(lit) * dt / elapsed)
     return sum(vals) / len(vals) if vals else 0.0
 
 
@@ -465,6 +497,9 @@ def circ_emd(p, q):
 
 def gate_scores(fr, ft):
     """Structural comparison for the gate: distances/ratios of target vs ref."""
+    if fr and ft and len(fr[0][1]) != len(ft[0][1]):
+        raise ValueError(f"raster mismatch: ref has {len(fr[0][1])} cells, target {len(ft[0][1])} -- "
+                         "the two scores would describe different pictures")
     a, b = structural_stats(fr), structural_stats(ft)
     vd = sum(abs(x - y) for x, y in zip(a["vhist"], b["vhist"])) / 2
     hd = circ_emd(hue_shares(fr), hue_shares(ft))
@@ -478,17 +513,39 @@ def gate_scores(fr, ft):
 
 
 def capture_health(frames, seconds=None):
-    """Instrument self-check: achieved rate, window coverage and frame-interval gaps.
-    A capture with low coverage or a multi-second gap measured a different window than
-    its partner and must not be scored silently."""
+    """Instrument self-check: achieved rate, window coverage, frame-interval gaps, and payload
+    shape. A capture with low coverage or a multi-second gap measured a different window than
+    its partner and must not be scored silently -- and neither must one whose frames are the
+    wrong size: a short frame does not raise, it silently rescopes every structural statistic
+    to whichever cells survived."""
     ts = [t for t, _ in frames]
+    cells = sorted({len(leds) for _, leds in frames})
+    shape = dict(cells=cells[-1] if cells else 0, cells_consistent=len(cells) <= 1)
     if len(ts) < 2:
-        return dict(frames=len(ts), hz=0.0, coverage=0.0, max_gap=None, p95_gap=None)
+        return dict(frames=len(ts), hz=0.0, coverage=0.0, max_gap=None, p95_gap=None, **shape)
     span = ts[-1] - ts[0]
     gaps = sorted(b - a for a, b in zip(ts, ts[1:]))
     return dict(frames=len(ts), hz=round((len(ts) - 1) / span, 1) if span else 0.0,
                 coverage=round(span / seconds, 3) if seconds else None,
-                max_gap=round(gaps[-1], 3), p95_gap=round(gaps[int(len(gaps) * 0.95)], 3))
+                max_gap=round(gaps[-1], 3), p95_gap=round(gaps[int(len(gaps) * 0.95)], 3), **shape)
+
+
+def capture_is_healthy(h, seconds=None, expect_cells=None):
+    """Reasons a capture must not be scored. Shared by verify and rescore so an offline rescore
+    cannot bless a capture the live gate would have rejected."""
+    bad = []
+    if h["frames"] < 10:
+        bad.append("too few frames")
+    if not h["cells_consistent"]:
+        bad.append("frame size changes mid-capture")
+    if expect_cells and h["cells"] != expect_cells:
+        bad.append(f"{h['cells']} cells, expected {expect_cells}")
+    if seconds is not None:
+        if h["coverage"] is None or h["coverage"] < 0.9:
+            bad.append("window coverage")
+        if h["max_gap"] is None or h["max_gap"] > 2.0:
+            bad.append("gap > 2 s")
+    return bad
 
 
 def lamp_meta(ip):
@@ -583,8 +640,11 @@ def cmd_rescore(a):
         if not fr or not ft:
             print(f"{os.path.basename(f):<16} no paired frames"); continue
         fr = [(x[0], x[-1]) for x in fr]; ft = [(x[0], x[-1]) for x in ft]
-        unhealthy = [t for t, c in (("ref", fr), ("tgt", ft))
-                     if capture_health(c)["frames"] < 10]  # window length is not recorded in the file
+        secs = (caps.get("meta") or {}).get("window")  # older captures do not record it
+        hr, ht = capture_health(fr, secs), capture_health(ft, secs)
+        expect = max(hr["cells"], ht["cells"])
+        unhealthy = [f"{t}: {', '.join(r)}" for t, h in (("ref", hr), ("tgt", ht))
+                     for r in [capture_is_healthy(h, secs, expect)] if r]
         g = gate_scores(fr, ft)
         bad = [c for c, ok in gate_checks(g, a) if not ok]
         note = f"  capture UNHEALTHY ({','.join(unhealthy)})" if unhealthy else ""
@@ -661,8 +721,10 @@ def cmd_verify(a):
     (both lamps stream), and is a first moment -- never the only criterion (--current-only =
     legacy). A crash on one preset records a FAIL and continues; lamps are always restored."""
     import hashlib
-    raw = open(a.presets_file, "rb").read(); want = json.loads(raw); fails = []
+    raw = open(a.presets_file, "rb").read(); want = json.loads(raw); fails = []; tested = 0
     n = sum(1 for v in want.values() if v)
+    if n == 0:
+        sys.exit(f"REFUSED: {a.presets_file} has no testable preset -- a gate that checks nothing must not pass")
     window = a.samples * a.interval
     print(f"verify: presets.json sha256 {hashlib.sha256(raw).hexdigest()}")
     for tag, ip in (("ref", a.ref), ("target", a.target)):
@@ -712,17 +774,22 @@ def cmd_verify(a):
                         os.makedirs(a.save_captures, exist_ok=True)
                         json.dump({"meta": meta, "ref": fr, "tgt": ft}, open(os.path.join(a.save_captures, f"verify-p{k}.json"), "w"))
                     hr, ht = capture_health(fr, window), capture_health(ft, window)
-                    unhealthy = [t for t, h in (("ref", hr), ("tgt", ht))
-                                 if h["frames"] < 10 or h["coverage"] is None or h["coverage"] < 0.9
-                                 or h["max_gap"] is None or h["max_gap"] > 2.0]
-                    line += f"  hz {hr['hz']}/{ht['hz']} cov {hr['coverage']}/{ht['coverage']} gap {hr['max_gap']}/{ht['max_gap']}"
+                    # both lamps must deliver the same raster, or the two scores describe
+                    # different pictures: a short frame rescopes the statistics, it does not raise
+                    expect = max(hr["cells"], ht["cells"])
+                    unhealthy = [f"{t}: {', '.join(r)}" for t, h in (("ref", hr), ("tgt", ht))
+                                 for r in [capture_is_healthy(h, window, expect)] if r]
+                    line += f"  hz {hr['hz']}/{ht['hz']} cov {hr['coverage']}/{ht['coverage']} gap {hr['max_gap']}/{ht['max_gap']} cells {hr['cells']}/{ht['cells']}"
                     if unhealthy:
                         checks.append(("capture", False)); line += f"  capture UNHEALTHY ({','.join(unhealthy)})"
                     else:
                         g = gate_scores(fr, ft)
                         checks += gate_checks(g, a)
                         line += "  " + gate_line(g)
-                bad = [c for c, ok in checks if not ok]
+                # an empty checks list is not a pass: it means every criterion was skipped
+                # (ABL reporting under the floor, or --current-only with the structural ones off)
+                bad = [c for c, ok in checks if not ok] or ([] if checks else ["no-criteria"])
+                tested += 1
                 print(f"  preset {k:>2} {v.get('n', ''):<26} {line}  {'PASS' if not bad else 'FAIL ' + ','.join(bad)}", flush=True)
                 fails += [] if not bad else [k]
             except Exception as e:  # a broken preset must not cost the remaining ~20 min of run
@@ -736,7 +803,10 @@ def cmd_verify(a):
     finally:
         for ip in (a.ref, a.target):
             post(ip, "/json/state", {"on": True, "bri": 255, "ps": a.restore_preset})
-    print("verify:", "PASS" if not fails else f"FAIL {fails}")
+    if tested != n:  # a preset that never reached a verdict must not vanish into a PASS
+        print(f"verify: FAIL (only {tested} of {n} presets reached a verdict)")
+    else:
+        print("verify:", "PASS" if not fails else f"FAIL {fails}")
     sys.exit(0 if not fails else 1)
 
 
