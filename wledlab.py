@@ -404,25 +404,36 @@ def print_metrics(*named):
 
 # ----------------------------------------------------------------------------- structural gate
 def structural_stats(frames, step=3):
-    """Per-cell V statistics for the acceptance gate: V-histogram (10 bins, share of lit-cell
-    samples), temporal std of the frame mean, mean spatial std, median frame peak, mean lit count.
-    Lit = cells that ever exceed 0.05 (excludes ledmap holes without needing the map)."""
-    vs = [[hsv(c)[2] for c in f[1]] for f in frames[::step]]
-    n = len(vs[0]); lit = [i for i in range(n) if max(v[i] for v in vs) > 0.05]
+    """Per-cell statistics for the acceptance gate: V-histogram (10 bins, share of lit-cell
+    samples), temporal std of the frame mean, mean spatial std, median frame peak, mean lit count,
+    plus mean saturation and mean (R+G+B)/765 over lit samples.
+    Lit = cells that ever exceed 0.05 (excludes ledmap holes without needing the map).
+
+    sat and rgbsum are the axes V alone cannot see: two colours with equal V can differ wildly in
+    saturation and in channel sum (white 255,255,255 vs blue 0,0,255 both have V=1). rgbsum is what
+    the LEDs actually draw, measured from the frames -- unlike the lamp's own mA estimate it is
+    computed the same way for both firmwares."""
+    sub = frames[::step]
+    hsvs = [[hsv(c) for c in f[1]] for f in sub]
+    n = len(hsvs[0]); lit = [i for i in range(n) if max(fr[i][2] for fr in hsvs) > 0.05]
     if not lit:  # all-dark capture: a mis-installed preset must FAIL, not crash the run
-        return dict(vhist=[0.0] * 10, mean=0.0, tstd=0.0, sstd=0.0, peak=0.0, lit=0.0)
-    hist = [0] * 10; means = []; sstds = []; peaks = []; litn = []
-    for v in vs:
-        vals = [v[i] for i in lit]
+        return dict(vhist=[0.0] * 10, mean=0.0, tstd=0.0, sstd=0.0, peak=0.0, lit=0.0, sat=0.0, rgbsum=0.0)
+    hist = [0] * 10; means = []; sstds = []; peaks = []; litn = []; sats = []; sums = []
+    for fr, (_t, leds) in zip(hsvs, sub):
+        vals = [fr[i][2] for i in lit]
         m = sum(vals) / len(vals); means.append(m)
         sstds.append((sum((x - m) ** 2 for x in vals) / len(vals)) ** 0.5)
         peaks.append(max(vals)); litn.append(sum(1 for x in vals if x > 0.05))
-        for x in vals:
-            hist[min(9, int(x * 10))] += 1
+        for i in lit:
+            hist[min(9, int(fr[i][2] * 10))] += 1
+            if fr[i][2] > 0.05:  # colour axes are meaningless on an unlit cell
+                sats.append(fr[i][1])
+                sums.append(sum(int(leds[i][j:j + 2], 16) for j in (0, 2, 4)) / 765)
     ht = sum(hist) or 1; mm = sum(means) / len(means)
     tstd = (sum((x - mm) ** 2 for x in means) / len(means)) ** 0.5
     return dict(vhist=[h / ht for h in hist], mean=mm, tstd=tstd, sstd=sum(sstds) / len(sstds),
-                peak=sorted(peaks)[len(peaks) // 2], lit=sum(litn) / len(litn))
+                peak=sorted(peaks)[len(peaks) // 2], lit=sum(litn) / len(litn),
+                sat=sum(sats) / len(sats) if sats else 0.0, rgbsum=sum(sums) / len(sums) if sums else 0.0)
 
 
 def hue_shares(frames, bins=12, step=3):
@@ -460,7 +471,8 @@ def gate_scores(fr, ft):
         return (y / x) if x else None
 
     return dict(vhist_d=vd, hue_d=hd, sstd_r=rat(a["sstd"], b["sstd"]), act_r=rat(activity(fr), activity(ft)),
-                peak_r=rat(a["peak"], b["peak"]), lit_r=rat(a["lit"], b["lit"]), mean_r=rat(a["mean"], b["mean"]))
+                peak_r=rat(a["peak"], b["peak"]), lit_r=rat(a["lit"], b["lit"]), mean_r=rat(a["mean"], b["mean"]),
+                sat_d=abs(a["sat"] - b["sat"]), rgbsum_r=rat(a["rgbsum"], b["rgbsum"]))
 
 
 def capture_health(frames, seconds=None):
@@ -520,6 +532,61 @@ def cmd_analyse(a):
             fr = [(x[0], x[-1]) for x in fr]
             named.append((os.path.basename(f) + (f":{tag}" if tag else ""), metrics(fr, a.width, a.height)))
     print_metrics(*named)
+
+
+def add_tolerances(s):
+    """The gate's tolerances, shared by verify and rescore so the two always judge alike."""
+    s.add_argument("--vhist-tol", type=float, default=0.25, help="max V-histogram L1/2 distance (accepted presets measure <= 0.18)")
+    s.add_argument("--hue-tol", type=float, default=0.70, help="max circular EMD between hue censuses (run-to-run spread on accepted presets reaches 0.56 -- window phase vs the 30-50 s colour cycle)")
+    s.add_argument("--sstd-tol", type=float, default=1.6, help="max spatial-std ratio either way (accepted <= 1.13)")
+    s.add_argument("--act-tol", type=float, default=1.4, help="max activity ratio either way (accepted presets measure <= 1.12)")
+    s.add_argument("--peak-tol", type=float, default=1.5, help="max median-frame-peak ratio either way (sparkle/swell brightness)")
+    s.add_argument("--lit-tol", type=float, default=1.6, help="max mean lit-cell-count ratio either way")
+    s.add_argument("--sat-tol", type=float, default=0.06, help="max mean-saturation difference (matching presets measure <= 0.05; a washed-out port reads 0.12)")
+    s.add_argument("--mean-tol", type=float, default=1.2, help="max mean-V ratio either way -- the brightness criterion (rgbsum_r is reported but not gated: it moves with hue, which the hue axis already judges)")
+
+
+def gate_checks(g, a):
+    """The structural pass/fail criteria, shared by verify (live) and rescore (offline) so a
+    tolerance can never mean two different things depending on which one you ran."""
+    rng = lambda x, tol: x is not None and 1 / tol <= x <= tol
+    return [("vhist", g["vhist_d"] <= a.vhist_tol),
+            ("hue", g["hue_d"] <= a.hue_tol),
+            ("sstd", rng(g["sstd_r"], a.sstd_tol)),
+            ("act", rng(g["act_r"], a.act_tol)),
+            ("peak", rng(g["peak_r"], a.peak_tol)),
+            ("lit", rng(g["lit_r"], a.lit_tol)),
+            ("sat", g["sat_d"] <= a.sat_tol),
+            ("mean", rng(g["mean_r"], a.mean_tol))]
+
+
+def gate_line(g):
+    fmt = lambda x: "n/a" if x is None else f"{x:.2f}"
+    # rgbsum_r is reported, never gated: at equal V and saturation a secondary hue sums twice a
+    # primary (255,255,0 vs 255,0,0), so it moves with hue drift the hue axis already judges.
+    # It is here because it is the honest analogue of current draw, which the lamps' own mA
+    # figures stop being once the two firmwares estimate them differently.
+    return (f"vhist {g['vhist_d']:.2f} hue {g['hue_d']:.2f} sstd_r {fmt(g['sstd_r'])}"
+            f" act_r {fmt(g['act_r'])} peak_r {fmt(g['peak_r'])} lit_r {fmt(g['lit_r'])}"
+            f" sat_d {g['sat_d']:.3f} mean_r {fmt(g['mean_r'])} rgbsum_r {fmt(g['rgbsum_r'])}")
+
+
+def cmd_rescore(a):
+    """Re-run the gate's structural scoring and verdict over captures verify already saved.
+    Lets a tolerance change or a new criterion be judged against past runs without
+    re-occupying both lamps for 24 minutes. Same criteria and tolerances as verify."""
+    for f in sorted(a.file):
+        caps = load_capture(f)
+        fr, ft = caps.get("ref") or [], caps.get("tgt") or []
+        if not fr or not ft:
+            print(f"{os.path.basename(f):<16} no paired frames"); continue
+        fr = [(x[0], x[-1]) for x in fr]; ft = [(x[0], x[-1]) for x in ft]
+        unhealthy = [t for t, c in (("ref", fr), ("tgt", ft))
+                     if capture_health(c)["frames"] < 10]  # window length is not recorded in the file
+        g = gate_scores(fr, ft)
+        bad = [c for c, ok in gate_checks(g, a) if not ok]
+        note = f"  capture UNHEALTHY ({','.join(unhealthy)})" if unhealthy else ""
+        print(f"{os.path.basename(f):<16} {gate_line(g)}{note}  {'PASS' if not bad and not unhealthy else 'FAIL ' + ','.join(bad)}")
 
 
 def simultaneous(ref, target, seconds, preset=None):
@@ -597,14 +664,21 @@ def cmd_verify(a):
     window = a.samples * a.interval
     fmt = lambda x: "n/a" if x is None else f"{x:.2f}"
     print(f"verify: presets.json sha256 {hashlib.sha256(raw).hexdigest()}")
+    vers = {}
     for tag, ip in (("ref", a.ref), ("target", a.target)):
-        m = lamp_meta(ip)
+        m = lamp_meta(ip); vers[tag] = str(m["ver"] or "")
         print(f"  {tag} {ip}: ver {m['ver']} fps {m['fps']} maxpwr {m['maxpwr']} cpalcount {m['cpalcount']} rssi {(m['wifi'] or {}).get('rssi')}")
+    # the lamps' own mA figures are only comparable when both run the same firmware major version
+    comparable_current = vers["ref"].split(".")[0] == vers["target"].split(".")[0]
+    if not comparable_current:
+        print(f"  current: informational only (*) -- {vers['ref']} and {vers['target']} estimate it differently;"
+              " brightness is gated on mean_r and rgbsum_r reported, both measured from the frames")
     print(f"verify: {n} presets, {window:.0f} s each (~{n * (window + 20) / 60:.0f} min); both lamps end on preset {a.restore_preset}", flush=True)
     try:
         for k, v in want.items():
             if not v:
                 continue
+            t1 = t2 = None
             try:
                 for ip in (a.ref, a.target):
                     post(ip, "/json/state", {"on": True, "bri": 255, "ps": int(k)})
@@ -630,7 +704,12 @@ def cmd_verify(a):
                     line += "  current n/a (ABL off or dark)"
                 else:
                     r = mt / mr
-                    checks.append(("current", 1 - a.tolerance <= r <= 1 + a.tolerance)); line += f"  ratio {r:.3f}"
+                    # WLED 16 sums gamma-corrected channels at the bus (bus_manager.cpp estimateCurrent);
+                    # 0.14.x did not, so across firmwares the two numbers are not the same quantity and
+                    # their ratio is not evidence. rgbsum_r measures the same thing from the frames instead.
+                    if comparable_current:
+                        checks.append(("current", 1 - a.tolerance <= r <= 1 + a.tolerance))
+                    line += f"  ratio {r:.3f}" + ("" if comparable_current else "*")
                 if not a.current_only:
                     t1.join(); t2.join()
                     fr, ft = res.get("ref") or [], res.get("tgt") or []
@@ -646,19 +725,17 @@ def cmd_verify(a):
                         checks.append(("capture", False)); line += f"  capture UNHEALTHY ({','.join(unhealthy)})"
                     else:
                         g = gate_scores(fr, ft)
-                        rng = lambda x, tol: x is not None and 1 / tol <= x <= tol
-                        checks += [("vhist", g["vhist_d"] <= a.vhist_tol),
-                                   ("hue", g["hue_d"] <= a.hue_tol),
-                                   ("sstd", rng(g["sstd_r"], a.sstd_tol)),
-                                   ("act", rng(g["act_r"], a.act_tol)),
-                                   ("peak", rng(g["peak_r"], a.peak_tol)),
-                                   ("lit", rng(g["lit_r"], a.lit_tol))]
-                        line += (f"  vhist {g['vhist_d']:.2f} hue {g['hue_d']:.2f} sstd_r {fmt(g['sstd_r'])}"
-                                 f" act_r {fmt(g['act_r'])} peak_r {fmt(g['peak_r'])} lit_r {fmt(g['lit_r'])}")
+                        checks += gate_checks(g, a)
+                        line += "  " + gate_line(g)
                 bad = [c for c, ok in checks if not ok]
                 print(f"  preset {k:>2} {v.get('n', ''):<26} {line}  {'PASS' if not bad else 'FAIL ' + ','.join(bad)}", flush=True)
                 fails += [] if not bad else [k]
             except Exception as e:  # a broken preset must not cost the remaining ~20 min of run
+                # the capture threads run the full window regardless; leaving them streaming would
+                # put the next preset's capture in competition with an orphan for the liveview
+                for t in (t1, t2):
+                    if t is not None and t.is_alive():
+                        t.join()
                 print(f"  preset {k:>2} {v.get('n', ''):<26} FAIL (error: {e})", flush=True)
                 fails.append(k)
     finally:
@@ -755,6 +832,8 @@ def main():
     s.add_argument("--host", required=True, help="lamp IP or hostname"); s.add_argument("--seconds", type=float, default=120, help="capture length (default 120)")
     s.add_argument("--out", required=True, help="output JSON (directory is created)"); s.set_defaults(fn=cmd_capture)
     s = sub.add_parser("analyse", help="fingerprint one or more captures side by side"); s.add_argument("file", nargs="+"); s.set_defaults(fn=cmd_analyse)
+    s = sub.add_parser("rescore", help="re-run the gate's structural scoring and verdict over saved verify captures, offline")
+    s.add_argument("file", nargs="+"); add_tolerances(s); s.set_defaults(fn=cmd_rescore)
     s = sub.add_parser("compare", help="capture two lamps at the same time and print metrics side by side")
     s.add_argument("--ref", required=True, help="reference lamp (factory firmware)"); s.add_argument("--target", required=True, help="lamp under test")
     s.add_argument("--seconds", type=float, default=120, help="window per capture (default 120)"); s.add_argument("--preset", type=int, help="recall this preset on both lamps first"); s.set_defaults(fn=cmd_compare)
@@ -772,15 +851,10 @@ def main():
     s.add_argument("--ref-input-gamma", action="store_true", help="ref is 0.14 (gamma-corrects per-LED input)"); s.add_argument("--target-input-gamma", action="store_true"); s.set_defaults(fn=cmd_push_frame)
     s = sub.add_parser("verify", help="acceptance gate: current ratio plus structural criteria (V-hist, hue EMD, spatial std, activity, peak, lit) from a same-window liveview capture")
     s.add_argument("--ref", required=True, help="factory lamp"); s.add_argument("--target", required=True, help="ported lamp"); s.add_argument("--presets-file", required=True)
-    s.add_argument("--samples", type=int, default=200, help="current samples per preset (default 140)"); s.add_argument("--interval", type=float, default=0.5, help="seconds between samples (default 0.5 → 70 s window)")
+    s.add_argument("--samples", type=int, default=200, help="current samples per preset (default 200)"); s.add_argument("--interval", type=float, default=0.5, help="seconds between samples (default 0.5 → 100 s window)")
     s.add_argument("--tolerance", type=float, default=0.15, help="allowed deviation of target/ref current (default 0.15)")
     s.add_argument("--current-only", action="store_true", help="legacy gate: current ratio only, no structural criteria")
-    s.add_argument("--vhist-tol", type=float, default=0.25, help="max V-histogram L1/2 distance (accepted presets measure <= 0.18; p14 fails at 0.37)")
-    s.add_argument("--hue-tol", type=float, default=0.70, help="max circular EMD between hue censuses (run-to-run spread on accepted presets reaches 0.56 -- window phase vs the 30-50 s colour cycle; real mismatch p10 measures >= 1.08)")
-    s.add_argument("--sstd-tol", type=float, default=1.6, help="max spatial-std ratio either way (accepted <= 1.13; p14 fails at 0.43)")
-    s.add_argument("--act-tol", type=float, default=1.4, help="max activity ratio either way (accepted presets measure <= 1.12; p10 fails at 1.46)")
-    s.add_argument("--peak-tol", type=float, default=1.5, help="max median-frame-peak ratio either way (sparkle/swell brightness; p11 port peaks at 0.53)")
-    s.add_argument("--lit-tol", type=float, default=1.6, help="max mean lit-cell-count ratio either way (p7 stock 8-frizzle floor reads 1.46 -- recorded limitation, passes)")
+    add_tolerances(s)
     s.add_argument("--save-captures", default="", metavar="DIR", help="save each preset capture as DIR/verify-pN.json with per-preset lamp meta")
     s.add_argument("--restore-preset", type=int, default=1, help="preset both lamps end on"); s.set_defaults(fn=cmd_verify)
     s = sub.add_parser("install", help="upload files byte-exact, reload, verify every preset")
