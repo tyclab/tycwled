@@ -112,11 +112,21 @@ static inline uint32_t glorb_nscale8(uint32_t c, uint8_t s) {
   return RGBW32((R(c) * sc) >> 8, (G(c) * sc) >> 8, (B(c) * sc) >> 8, (W(c) * sc) >> 8);
 }
 
-// 0.14.4 fadeToBlackBy is nscale8(c, 255-fadeBy), i.e. it keeps (v*(256-f))>>8.
-// WLED 16 keeps (v*(255-f))>>8, which is the same curve shifted by one --
-// so the fork's fadeToBlackBy(f) is WLED 16's fadeToBlackBy(f-1).
-static inline void glorb_fadeToBlackBy(uint8_t fadeBy) {
-  SEGMENT.fadeToBlackBy(fadeBy ? fadeBy - 1 : 0);
+// 0.14.4 fadeToBlackBy(f) is nscale8(c, 255-f) with FastLED's rounding, keeping
+// (v*(256-f))>>8; WLED 16 keeps (v*(255-f))>>8. Delegating as fadeToBlackBy(f-1)
+// looks equivalent but breaks at f == 1, where WLED 16 treats 0 as "no fade at
+// all" -- and in a trail effect the difference between a slow decay and no decay
+// is not small: Black Hole's fade argument is custom2>>4, which is 1 on the
+// factory's preset 11, and delegating left its trails immortal (mean_r 1.72).
+static void glorb_fadeToBlackBy(uint8_t fadeBy) {
+  const uint8_t keep = 255 - fadeBy;
+  const int cols = SEG_W;
+  const int rows = SEG_H;
+  for (int y = 0; y < rows; y++) {
+    for (int x = 0; x < cols; x++) {
+      SEGMENT.setPixelColorXY(x, y, glorb_nscale8(SEGMENT.getPixelColorXY(x, y), keep));
+    }
+  }
 }
 
 // 0.14.4 blur2d: blurRow over every row then blurCol over every column, with
