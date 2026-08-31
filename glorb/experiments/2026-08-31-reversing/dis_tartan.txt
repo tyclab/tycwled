@@ -1,0 +1,260 @@
+            0x42043b28      36a100         entry a1, 80
+            0x42043b2b      2110eb         l32r a2, 0x4203e76c         ; [0x4203e76c:4]=0x3fca72a8
+            0x42043b2e      320210         l8ui a3, a2, 16
+        ┌─< 0x42043b31      568300         bnez a3, 0x42043b3d
+        │   0x42043b34      e542fa         call8 0x4203df64
+        │   0x42043b37      a02a20         or a2, a10, a10
+        │   0x42043b3a      900000         retw
+        └─> 0x42043b3d      a20280         l8ui a10, a2, 128
+            0x42043b40      c03a11         slli a3, a10, 4
+            0x42043b43      aa33           add.n a3, a3, a10
+            0x42043b45      a8f2           l32i.n a10, a2, 60
+            0x42043b47      e03311         slli a3, a3, 2
+            0x42043b4a      3aaa           add.n a10, a10, a3
+            0x42043b4c      8170eb         l32r a8, 0x4203e90c         ; [0x4203e90c:4]=0x4214f340
+            0x42043b4f      e00800         callx8 a8
+            0x42043b52      a941           s32i.n a10, a1, 16
+            0x42043b54      a20280         l8ui a10, a2, 128
+            0x42043b57      c03a11         slli a3, a10, 4
+            0x42043b5a      aa33           add.n a3, a3, a10
+            0x42043b5c      a8f2           l32i.n a10, a2, 60
+            0x42043b5e      e03311         slli a3, a3, 2
+            0x42043b61      3aaa           add.n a10, a10, a3
+            0x42043b63      816beb         l32r a8, 0x4203e910         ; [0x4203e910:4]=0x4214f384
+            0x42043b66      e00800         callx8 a8
+            0x42043b69      320280         l8ui a3, a2, 128
+            0x42043b6c      a951           s32i.n a10, a1, 20
+            0x42043b6e      c0a311         slli a10, a3, 4
+            0x42043b71      3aaa           add.n a10, a10, a3
+            0x42043b73      38f2           l32i.n a3, a2, 60
+            0x42043b75      e0aa11         slli a10, a10, 2
+            0x42043b78      aaa3           add.n a10, a3, a10
+            0x42043b7a      b8ca           l32i.n a11, a10, 48
+        ┌─< 0x42043b7c      cc1b           bnez.n a11, 0x42043b81
+        │   0x42043b7e      e54ad5         call8 0x4201902c
+        └─> 0x42043b81      420280         l8ui a4, a2, 128
+            0x42043b84      52a0e8         movi a5, 232
+            0x42043b87      c03411         slli a3, a4, 4
+            0x42043b8a      4a33           add.n a3, a3, a4
+            0x42043b8c      48f2           l32i.n a4, a2, 60
+            0x42043b8e      e03311         slli a3, a3, 2
+            0x42043b91      3a34           add.n a3, a4, a3
+            0x42043b93      32031e         l8ui a3, a3, 30
+            0x42043b96      42af18         movi a4, -232
+            0x42043b99      3044c0         sub a4, a4, a3
+            0x42043b9c      4040f4         extui a4, a4, 0, 16
+            0x42043b9f      5a33           add.n a3, a3, a5
+            0x42043ba1      bd04           mov.n a11, a4
+            0x42043ba3      30c320         or a12, a3, a3
+            0x42043ba6      a2a003         movi a10, 3
+            0x42043ba9      e525ff         call8 0x42042e08
+            0x42043bac      bd04           mov.n a11, a4
+            0x42043bae      a961           s32i.n a10, a1, 24
+            0x42043bb0      cd03           mov.n a12, a3
+            0x42043bb2      0c2a           movi.n a10, 2
+            0x42043bb4      2525ff         call8 0x42042e08
+            0x42043bb7      520280         l8ui a5, a2, 128
+            0x42043bba      28f2           l32i.n a2, a2, 60
+            0x42043bbc      c04511         slli a4, a5, 4
+            0x42043bbf      5a44           add.n a4, a4, a5
+            0x42043bc1      e04411         slli a4, a4, 2
+            0x42043bc4      4a42           add.n a4, a2, a4
+            0x42043bc6      42041d         l8ui a4, a4, 29
+            0x42043bc9      6d0a           mov.n a6, a10
+            0x42043bcb      e2a0ff         movi a14, 255
+            0x42043bce      0c0d           movi.n a13, 0
+            0x42043bd0      cd03           mov.n a12, a3
+            0x42043bd2      30b060         neg a11, a3
+            0x42043bd5      80aa23         sext a10, a10, 15
+            0x42043bd8      404641         srli a4, a4, 6
+            0x42043bdb      815aeb         l32r a8, 0x4203e944         ; [0x4203e944:4]=0x42152f58
+            0x42043bde      e00800         callx8 a8
+            0x42043be1      a971           s32i.n a10, a1, 28
+            0x42043be3      d07411         slli a7, a4, 3
+            0x42043be6      0c02           movi.n a2, 0
+            0x42043be8      3841           l32i.n a3, a1, 16
+        ┌─< 0x42043bea      372202         blt a2, a3, 0x42043bf0
+       ┌──< 0x42043bed      064600         j 0x42043d09
+       │└─> 0x42043bf0      0c03           movi.n a3, 0
+       │    0x42043bf2      5851           l32i.n a5, a1, 20
+       │┌─< 0x42043bf4      572302         blt a3, a5, 0x42043bfa
+      ┌───< 0x42043bf7      464200         j 0x42043d04
+      ││└─> 0x42043bfa      91dcea         l32r a9, 0x4203e76c         ; [0x4203e76c:4]=0x3fca72a8
+      ││    0x42043bfd      820980         l8ui a8, a9, 128
+      ││    0x42043c00      c05811         slli a5, a8, 4
+      ││    0x42043c03      8a55           add.n a5, a5, a8
+      ││    0x42043c05      88f9           l32i.n a8, a9, 60
+      ││    0x42043c07      e05511         slli a5, a5, 2
+      ││    0x42043c0a      5a58           add.n a5, a8, a5
+      ││    0x42043c0c      a20506         l8ui a10, a5, 6
+      ││    0x42043c0f      8861           l32i.n a8, a1, 24
+      ││    0x42043c11      20aa82         mull a10, a10, a2
+      ││    0x42043c14      a0a121         srai a10, a10, 1
+      ││    0x42043c17      80aa80         add a10, a10, a8
+      ││    0x42043c1a      a0a074         extui a10, a10, 0, 8
+      ││    0x42043c1d      a52bfa         call8 0x4203ded8
+      ││    0x42043c20      cd0a           mov.n a12, a10
+      ││    0x42043c22      0c08           movi.n a8, 0
+      ││┌─< 0x42043c24      47a808         bge a8, a4, 0x42043c30
+      │││   0x42043c27      a0cc82         mull a12, a12, a10
+      │││   0x42043c2a      1b88           addi.n a8, a8, 1
+      │││   0x42043c2c      06fdff         j 0x42043c24
+      │││   0x42043c2f      009871         excw
+      ││    0x42043c32      000740         ssr a7
+      ││    0x42043c35      c0c091         srl a12, a12
+      ││    0x42043c38      908074         extui a8, a9, 0, 8
+      ││    0x42043c3b      a139eb         l32r a10, 0x4203e920        ; [0x4203e920:4]=0x3fc9fe80
+      ││    0x42043c3e      bd08           mov.n a11, a8
+      ││    0x42043c40      0c1d           movi.n a13, 1
+      ││    0x42043c42      c0c074         extui a12, a12, 0, 8
+      ││    0x42043c45      8931           s32i.n a8, a1, 12
+      ││    0x42043c47      8138eb         l32r a8, 0x4203e928         ; [0x4203e928:4]=0x4214eb50
+      ││    0x42043c4a      e00800         callx8 a8
+      ││    0x42043c4d      a09874         extui a9, a10, 8, 8
+      ││    0x42043c50      a0b075         extui a11, a10, 16, 8
+      ││    0x42043c53      a2412a         s8i a10, a1, 42
+      ││    0x42043c56      92412b         s8i a9, a1, 43
+      ││    0x42043c59      a0a074         extui a10, a10, 0, 8
+      ││    0x42043c5c      909074         extui a9, a9, 0, 8
+      ││    0x42043c5f      809911         slli a9, a9, 8
+      ││    0x42043c62      00aa11         slli a10, a10, 16
+      ││    0x42043c65      90aa20         or a10, a10, a9
+      ││    0x42043c68      b0d074         extui a13, a11, 0, 8
+      ││    0x42043c6b      d0da20         or a13, a10, a13
+      ││    0x42043c6e      cd03           mov.n a12, a3
+      ││    0x42043c70      ad05           mov.n a10, a5
+      ││    0x42043c72      b2412c         s8i a11, a1, 44
+      ││    0x42043c75      bd02           mov.n a11, a2
+      ││    0x42043c77      8128eb         l32r a8, 0x4203e918         ; [0x4203e918:4]=0x40375538
+      ││    0x42043c7a      e00800         callx8 a8
+      ││    0x42043c7d      91bbea         l32r a9, 0x4203e76c         ; [0x4203e76c:4]=0x3fca72a8
+      ││    0x42043c80      a20980         l8ui a10, a9, 128
+      ││    0x42043c83      98f9           l32i.n a9, a9, 60
+      ││    0x42043c85      c05a11         slli a5, a10, 4
+      ││    0x42043c88      aa55           add.n a5, a5, a10
+      ││    0x42043c8a      e05511         slli a5, a5, 2
+      ││    0x42043c8d      5a59           add.n a5, a9, a5
+      ││    0x42043c8f      a20507         l8ui a10, a5, 7
+      ││    0x42043c92      30aa82         mull a10, a10, a3
+      ││    0x42043c95      a0a121         srai a10, a10, 1
+      ││    0x42043c98      6aaa           add.n a10, a10, a6
+      ││    0x42043c9a      a0a074         extui a10, a10, 0, 8
+      ││    0x42043c9d      a523fa         call8 0x4203ded8
+      ││    0x42043ca0      8831           l32i.n a8, a1, 12
+      ││    0x42043ca2      cd0a           mov.n a12, a10
+      ││    0x42043ca4      0c09           movi.n a9, 0
+      ││    0x42043ca6      47a907         bge a9, a4, 0x42043cb1
+      ││    0x42043ca9      a0cc82         mull a12, a12, a10
+      ││    0x42043cac      1b99           addi.n a9, a9, 1
+      ││    0x42043cae      06fdff         j 0x42043ca6
+      ││    0x42043cb1      000740         ssr a7
+      ││    0x42043cb4      c0c091         srl a12, a12
+      ││    0x42043cb7      a11aeb         l32r a10, 0x4203e920        ; [0x4203e920:4]=0x3fc9fe80
+      ││    0x42043cba      bd08           mov.n a11, a8
+      ││    0x42043cbc      0c1d           movi.n a13, 1
+      ││    0x42043cbe      c0c074         extui a12, a12, 0, 8
+      ││    0x42043cc1      8119eb         l32r a8, 0x4203e928         ; [0x4203e928:4]=0x4214eb50
+      ││    0x42043cc4      e00800         callx8 a8
+      ││    0x42043cc7      a09874         extui a9, a10, 8, 8
+      ││    0x42043cca      a08075         extui a8, a10, 16, 8
+      ││    0x42043ccd      90d074         extui a13, a9, 0, 8
+      ││    0x42043cd0      a2412d         s8i a10, a1, 45
+      ││    0x42043cd3      82412f         s8i a8, a1, 47
+      ││    0x42043cd6      a0a074         extui a10, a10, 0, 8
+      ││    0x42043cd9      80dd11         slli a13, a13, 8
+      ││    0x42043cdc      808074         extui a8, a8, 0, 8
+      ││    0x42043cdf      a0dd20         or a13, a13, a10
+      ││    0x42043ce2      008811         slli a8, a8, 16
+      ││    0x42043ce5      d08820         or a8, a8, a13
+      ││    0x42043ce8      d10feb         l32r a13, 0x4203e924        ; [0x4203e924:4]=0xffffff
+      ││    0x42043ceb      cd03           mov.n a12, a3
+      ││    0x42043ced      0c0e           movi.n a14, 0
+      ││    0x42043cef      d0d810         and a13, a8, a13
+      ││    0x42043cf2      bd02           mov.n a11, a2
+      ││    0x42043cf4      50a520         or a10, a5, a5
+      ││    0x42043cf7      92412e         s8i a9, a1, 46
+      ││    0x42043cfa      32c301         addi a3, a3, 1
+      ││    0x42043cfd      e5f2cd         call8 0x42011c2c
+      ││    0x42043d00      86bbff         j 0x42043bf2
+      ││    0x42043d03      001b22         orb b1, b11, b0
+       │    0x42043d06      86b7ff         j 0x42043be8
+       └──> 0x42043d09      2198ea         l32r a2, 0x4203e76c         ; [0x4203e76c:4]=0x3fca72a8
+            0x42043d0c      221229         l16ui a2, a2, 82
+            0x42043d0f      c689ff         j 0x42043b3a
+            0x42043d12      000036         excw
+            0x42043d15      410081         l32r a4, 0x42024118         ; [0x42024118:4]=0x1003ad02
+            0x42043d18      0ceb           movi.n a11, 14
+            0x42043d1a      8902           s32i.n a8, a2, 0
+            0x42043d1c      2812           l32i.n a2, a2, 4
+            0x42043d1e      9ca2           beqz.n a2, 0x42043d3c
+            0x42043d20      a812           l32i.n a10, a2, 4
+            0x42043d22      8c4a           beqz.n a10, 0x42043d2a
+            0x42043d24      810aeb         l32r a8, 0x4203e94c         ; [0x4203e94c:4]=0x42111750
+            0x42043d27      e00800         callx8 a8
+            0x42043d2a      a822           l32i.n a10, a2, 8
+            0x42043d2c      8c4a           beqz.n a10, 0x42043d34
+            0x42043d2e      8107eb         l32r a8, 0x4203e94c         ; [0x4203e94c:4]=0x42111750
+            0x42043d31      e00800         callx8 a8
+            0x42043d34      ad02           mov.n a10, a2
+            0x42043d36      8189ea         l32r a8, 0x4203e75c         ; [0x4203e75c:4]=0x42111084
+            0x42043d39      e00800         callx8 a8
+            0x42043d3c      1df0           retw.n
+            0x42043d3e      000036         excw
+            0x42043d41      410081         l32r a4, 0x42024144         ; [0x42024144:4]=0x101561b2
+            0x42043d44      03eb20         excw
+            0x42043d47      a22082         l32i a10, a0, 0x208
+            0x42043d4a      620065         l8ui a6, a0, 101
+            0x42043d4d      fcff           bnez.n a15, 0x42043d90
+            0x42043d4f      900000         retw
+            0x42043d52      000036         excw
+            0x42043d55      4100ad         l32r a4, 0x4202f158         ; [0x4202f158:4]=0x4adfb126
+            0x42043d58      0265fe         s32i a0, a5, 0x3f8
+            0x42043d5b      ffad02817f..   { excw; excw }
+            0x42043d63      001df0         subx8 a1, a13, a0
+            0x42043d66      000036         excw
+            0x42043d69      410081         l32r a4, 0x4202416c         ; [0x4202416c:4]=0xa220baa0
+            0x42043d6c      faea           add.n a14, a10, a15
+            0x42043d6e      a2c214         addi a10, a2, 20
+            0x42043d71      826200         s32i a8, a2, 0
+            0x42043d74      a59e3e         call8 0x42082760
+            0x42043d77      20a220         or a10, a2, a2
+            0x42043d7a      a5f9ff         call8 0x42043d14
+            0x42043d7d      1df0           retw.n
+            0x42043d7f      003641         srli a3, a0, 6
+            0x42043d82      00ad02         andb b10, b13, b0
+            0x42043d85      25feff         call8 0x42043d68
+            0x42043d88      ad02           mov.n a10, a2
+            0x42043d8a      8174ea         l32r a8, 0x4203e75c         ; [0x4203e75c:4]=0x42111084
+            0x42043d8d      e00800         callx8 a8
+            0x42043d90      1df0           retw.n
+            0x42043d92      000036         excw
+            0x42043d95      410081         l32r a4, 0x42024198         ; [0x42024198:4]=0x61a2fc36
+            0x42043d98      f0ea20         or a14, a10, a15
+            0x42043d9b      a22082         l32i a10, a0, 0x208
+            0x42043d9e      620025         l8ui a6, a0, 37
+            0x42043da1      f7ff90         bbsi a15, 31, 0x42043d35
+            0x42043da4      000000         ill
+            0x42043da7      003641         srli a3, a0, 6
+            0x42043daa      00ad02         andb b10, b13, b0
+            0x42043dad      65feff         call8 0x42043d94
+            0x42043db0      ad02           mov.n a10, a2
+            0x42043db2      816aea         l32r a8, 0x4203e75c         ; [0x4203e75c:4]=0x42111084
+            0x42043db5      e00800         callx8 a8
+            0x42043db8      1df0           retw.n
+            0x42043dba      000036         excw
+            0x42043dbd      4100ad         l32r a4, 0x4202f1c0         ; [0x4202f1c0:4]=0x8e04ae3
+            0x42043dc0      0225f5         l32i a0, a5, 0x3d4
+            0x42043dc3      ffad028165..   { excw; excw }
+            0x42043dcb      001df0         subx8 a1, a13, a0
+            0x42043dce      000036         excw
+            0x42043dd1      41000c         l32r a4, 0x42006dd4         ; [0x42006dd4:4]=0x23c08189
+            0x42043dd4      0882           l32i.n a0, a2, 32
+            0x42043dd6      420c81         l8ui a4, a12, 129
+            0x42043dd9      e1ea39         l32r a14, 0x42012584        ; [0x42012584:4]=0xad1c41a2
+            0x42043ddc      128902         excw
+            0x42043ddf      4922           s32i.n a4, a2, 8
+            0x42043de1      5942           s32i.n a5, a2, 16
+            0x42043de3      3ccc           movi.n a12, 60
+            0x42043de5      0c0b           movi.n a11, 0
+            0x42043de7      a2c214         addi a10, a2, 20
+            0x42043dea      81b7ea         l32r a8, 0x4203e8c8         ; [0x4203e8c8:4]=0x400011e8
