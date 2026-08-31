@@ -27,7 +27,7 @@ cd WLED && pio run -e glorb_port
 
 The effects register with `addEffect(255, …)`, which fills the reserved gaps in
 WLED's mode table before appending — so the IDs are assigned at boot and four of
-the six land *below* `MODE_COUNT`. On WLED 16.0.1 they come out as 142
+the six land _below_ `MODE_COUNT`. On WLED 16.0.1 they come out as 142
 Colorwaves, 169 Running, 170 Frizzles, 171 Black Hole, 220 Hiphotic, 221 Tartan.
 Read `/json/eff` after flashing and point the port presets at whatever IDs your
 build assigned.

@@ -81,8 +81,9 @@ curl -X POST -H 'Content-Type: application/json' \
 ```
 
 `install` reads every file back byte-for-byte, then recalls each preset and
-compares every segment field. The cfg post sets the factory gamma (2.8), FPS
-and power cap.
+compares every segment field. The cfg post sets gamma, FPS and the power
+cap — see the gamma note under "GLORB facts" for why it is 1.0 and not the
+factory's 2.8.
 
 ### Rolling back to factory firmware
 
@@ -113,7 +114,7 @@ A red gate is the finding; do not tune by eye on top of it.
 Two measurement rules the gate learned the hard way:
 
 - **Current is the only instrument that sees the output stage.** Both firmwares
-  serve the liveview *pre-gamma*, so two lamps can match on every captured
+  serve the liveview _pre-gamma_, so two lamps can match on every captured
   metric and still look completely different to the eye. That is exactly what
   happened: with `gc` set to the factory's 2.8 the port's frames matched the
   fork's to within 2 % while it drew half the current, because WLED 16
@@ -178,12 +179,12 @@ Two measurement rules the gate learned the hard way:
 
 ## Checks (each one exists because we got it wrong once)
 
-| Rule | Enforced by |
-| --- | --- |
-| Never claim "by construction" — same palette ID ≠ same colours, same effect name ≠ same algorithm | `verify` structural criteria |
+| Rule                                                                                                                  | Enforced by                                                     |
+| --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Never claim "by construction" — same palette ID ≠ same colours, same effect name ≠ same algorithm                     | `verify` structural criteria                                    |
 | Custom palettes are the factory stops verbatim, ≤18 stops, first index 0, last 255, committed file = generator output | `make lint` → `mkpalettes.py --check`, `tests/test_palettes.py` |
-| No preset may point at a built-in palette ID | `tests/test_palettes.py` |
-| Ledmap: exact bytes `"map":[`, valid JSON, `width`/`height` before `map` | `make lint`, `install` refuses |
-| Every uploaded file read back byte-exact; every preset applied and all segments compared | `install` |
-| Current is not a cross-firmware criterion; brightness and saturation are measured from the frames | `verify` |
-| Both lamps captured simultaneously over the same window; hue/saturation only from cells bright enough to have a hue | `verify`, `compare` |
+| No preset may point at a built-in palette ID                                                                          | `tests/test_palettes.py`                                        |
+| Ledmap: exact bytes `"map":[`, valid JSON, `width`/`height` before `map`                                              | `make lint`, `install` refuses                                  |
+| Every uploaded file read back byte-exact; every preset applied and all segments compared                              | `install`                                                       |
+| Current is not a cross-firmware criterion; brightness and saturation are measured from the frames                     | `verify`                                                        |
+| Both lamps captured simultaneously over the same window; hue/saturation only from cells bright enough to have a hue   | `verify`, `compare`                                             |

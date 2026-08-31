@@ -1,4 +1,5 @@
 captures/*.json
+captures/**/*.json
 *.pyc
 __pycache__/
 pushed_frame.json
