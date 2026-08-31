@@ -112,15 +112,18 @@ A red gate is the finding; do not tune by eye on top of it.
 
 Two measurement rules the gate learned the hard way:
 
-- **The lamps' own mA figures are not comparable across firmwares.** WLED 16
-  sums gamma-corrected channels at the bus when it estimates current and 0.14.4
-  did not. One preset read a 0.472 current ratio while its captured pixels
-  matched to within 2 %. `verify` still prints current, marked `*`, but gates
-  brightness on `mean_r` measured from the frames.
+- **Current is the only instrument that sees the output stage.** Both firmwares
+  serve the liveview *pre-gamma*, so two lamps can match on every captured
+  metric and still look completely different to the eye. That is exactly what
+  happened: with `gc` set to the factory's 2.8 the port's frames matched the
+  fork's to within 2 % while it drew half the current, because WLED 16
+  gamma-corrects every rendered pixel and 0.14.4 never does. So `verify` gates
+  the current ratio, and a ratio far off 1.0 while the frame metrics agree means
+  the two lamps disagree about gamma.
 - **V alone cannot see a washed-out port.** Saturation is its own criterion.
-  `rgbsum_r` is reported as the honest analogue of draw but never gated: at
-  equal V and saturation a secondary hue sums twice a primary, so it moves with
-  hue drift the hue axis already judges.
+  `rgbsum_r` is reported as an analogue of draw but never gated: at equal V and
+  saturation a secondary hue sums twice a primary, so it moves with hue drift
+  the hue axis already judges.
 
 ## Layout
 
@@ -149,9 +152,13 @@ Two measurement rules the gate learned the hard way:
   200–195; WLED loads a custom palette through the same
   `loadDynamicGradientPalette` as a built-in gradient, so identical stops give
   an identical `CRGBPalette16`.
-- Because the palettes now carry the factory's own encoding, the port runs the
-  **factory gamma 2.8**. Flattening `light.gc` to 1.0 was a workaround for the
-  re-encoded built-ins and is no longer correct.
+- **The port must run `light.gc` at 1.0, not the factory's 2.8.** WLED 0.14.4
+  gamma-corrects user-set colours and custom palettes at load, never rendered
+  effect output; WLED 16 gamma-corrects the whole frame in `show()`. So the
+  factory's `gc 2.8` never touches a palette-driven preset on the fork, and
+  copying it to the port applies a transform the reference lamp does not —
+  which cost half the light output. Verified: setting `gc` to 1.0 moved the
+  current ratios on presets 4/2/9 from 0.473/0.588/0.699 to 1.047/1.104/0.979.
 - Every factory preset is single-segment at `bri 255`, `c3 16`, with `o1/o2/o3`
   off. Translating a preset means changing its `fx` and `pal` numbers and
   nothing else.
