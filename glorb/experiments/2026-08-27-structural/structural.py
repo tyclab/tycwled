@@ -1,10 +1,18 @@
 """Structural comparison of every preset: brightness histogram, global/spatial swell ratio, spectrum bands,
-per-frame hue spread, hue census, breathing waveform. 100 s per preset, both lamps at once."""
-import json, math, sys, time, wledlab
-sys.path.insert(0, ".")
+per-frame hue spread, hue census, breathing waveform. 100 s per preset, both lamps at once.
+
+    PYTHONPATH=. python3 glorb/experiments/2026-08-27-structural/structural.py [preset ...]
+    PYTHONPATH=. python3 glorb/experiments/2026-08-27-structural/structural.py --offline [preset ...]
+
+--offline re-scores the saved captures/struct-pN.json without touching the lamps (no current reading).
+Importable without side effects (pat.py uses feats/pwr_both)."""
+import json, math, os, sys, time, wledlab
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from hipsim import W, H, grids
 R, T = "10.27.4.160", "10.27.4.158"
 fs = 10
+ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+CAP = os.path.join(ROOT, "captures")
 
 
 def feats(frames):
@@ -38,23 +46,47 @@ def feats(frames):
     g = " ▁▂▃▄▅▆▇█"
     wave = "".join(g[min(8, int(v * 8.99))] for v in mean[::5][:120])
     return dict(bands=bands, ratio=round(sstd / tstd, 2) if tstd else None, tstd=round(tstd, 3), sstd=round(sstd, 3), mean=round(mm, 3),
-                vhist=[round(h * 100 / ht) for h in hist], wave=wave)
+                vhist=[round(h * 100 / ht) for h in hist], wave=wave, cells=len(cells))
 
 
-def pwr(ip, n=40, dt=0.5):
-    v = []
+def pwr_both(a, b, n=200, dt=0.5):
+    """Mean leds.pwr of both lamps, read alternately over the same window (n*dt s, default 100 s).
+    Two consecutive windows would sit at different phases of a 30-50 s colour cycle (+-25 %)."""
+    va, vb = [], []
     for _ in range(n):
-        v.append(wledlab.get(ip, "/json/info")["leds"]["pwr"]); time.sleep(dt)
-    return sum(v) / len(v)
+        va.append(wledlab.get(a, "/json/info")["leds"]["pwr"]); vb.append(wledlab.get(b, "/json/info")["leds"]["pwr"]); time.sleep(dt)
+    return sum(va) / len(va), sum(vb) / len(vb)
 
 
-presets = [int(x) for x in sys.argv[1:]] or [1, 3, 4, 5, 2, 14, 12, 13, 7, 9, 10, 11]
-for ps in presets:
-    fr, ft = wledlab.simultaneous(R, T, 100, preset=ps); time.sleep(3)
-    json.dump({"ref": fr, "tgt": ft}, open(f"captures/struct-p{ps}.json", "w"))
-    a, b = wledlab.metrics(fr), wledlab.metrics(ft); fa, fb = feats(fr), feats(ft); pa, pb = pwr(R), pwr(T)
-    print(f"=== p{ps} pwr {pa:.0f}/{pb:.0f} ratio {pb / pa:.2f} | mean {fa['mean']}/{fb['mean']} | swell tstd {fa['tstd']}/{fb['tstd']} sstd {fa['sstd']}/{fb['sstd']} ratio {fa['ratio']}/{fb['ratio']} | act {a['activity']:.3f}/{b['activity']:.3f} fast {a['fast_share']:.3f}/{b['fast_share']:.3f} | huespread {a['hue_spread_mean']:.1f}/{b['hue_spread_mean']:.1f} sat {a['sat_mean']:.2f}/{b['sat_mean']:.2f}", flush=True)
+def report(ps, fr, ft, pa=None, pb=None):
+    a, b = wledlab.metrics(fr), wledlab.metrics(ft); fa, fb = feats(fr), feats(ft)
+    cur = "pwr n/a" if pa is None or pb is None else f"pwr {pa:.0f}/{pb:.0f} ratio {pb / pa:.2f}"
+    print(f"=== p{ps} {cur} | frames {len(fr)}/{len(ft)} cells {fa['cells']}/{fb['cells']} | mean {fa['mean']}/{fb['mean']} | swell tstd {fa['tstd']}/{fb['tstd']} sstd {fa['sstd']}/{fb['sstd']} ratio {fa['ratio']}/{fb['ratio']} | act {a['activity']:.3f}/{b['activity']:.3f} fast {a['fast_share']:.3f}/{b['fast_share']:.3f} | huespread {a['hue_spread_mean']:.1f}/{b['hue_spread_mean']:.1f} sat {a['sat_mean']:.2f}/{b['sat_mean']:.2f}", flush=True)
     print(f"  bands ref {fa['bands']} tgt {fb['bands']}\n  vhist ref {fa['vhist']}\n  vhist tgt {fb['vhist']}\n  hue%  ref {a['hue_share']}\n  hue%  tgt {b['hue_share']}\n  hueV  ref {a['hue_v']}\n  hueV  tgt {b['hue_v']}\n  wave ref {fa['wave']}\n  wave tgt {fb['wave']}", flush=True)
-print("STRUCT DONE", flush=True)
-for ip in (R, T):
-    wledlab.post(ip, "/json/state", {"on": True, "bri": 255, "ps": 4})
+
+
+def main(argv):
+    offline = "--offline" in argv
+    presets = [int(x) for x in argv if x != "--offline"] or [1, 3, 4, 5, 2, 14, 12, 13, 7, 9, 10, 11]
+    os.makedirs(CAP, exist_ok=True)
+    try:
+        for ps in presets:
+            path = os.path.join(CAP, f"struct-p{ps}.json")
+            if offline:
+                d = json.load(open(path)); report(ps, d["ref"], d["tgt"]); continue
+            fr, ft = wledlab.simultaneous(R, T, 100, preset=ps); time.sleep(3)
+            pa, pb = pwr_both(R, T)
+            try:
+                json.dump({"ref": fr, "tgt": ft}, open(path, "w"))
+            except OSError as e:
+                print(f"  capture not saved: {e}", flush=True)
+            report(ps, fr, ft, pa, pb)
+        print("STRUCT DONE", flush=True)
+    finally:
+        if not offline:
+            for ip in (R, T):
+                wledlab.post(ip, "/json/state", {"on": True, "bri": 255, "ps": 4})
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

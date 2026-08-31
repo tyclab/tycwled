@@ -1,11 +1,14 @@
 import json, math, sys, wledlab
 lm=json.load(open("glorb/wled16-port/ledmap.json")); W,H=lm["width"],lm["height"]; mp=lm["map"]
 def grids(frames):
+    """Logical raster (W x H) of brightness V per frame. The liveview stream is already logical
+    (cell i = leds[i]; its always-dark set equals the ledmap holes), so the map is only the hole mask --
+    indexing leds[mp[i]] would permute the cells and read 21 holes as pixels."""
     out=[]
     for t,leds in frames:
         G=[[None]*W for _ in range(H)]
         for i,p in enumerate(mp):
-            if p>=0: G[i//W][i%W]=wledlab.hsv(leds[p])[2]
+            if p>=0: G[i//W][i%W]=wledlab.hsv(leds[i])[2]
         out.append((t,G))
     return out
 def stats(gr, label):
