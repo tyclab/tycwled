@@ -859,7 +859,7 @@ def main():
     s = sub.add_parser("push-frame", help="push one identical frame to both lamps via the per-LED JSON API")
     s.add_argument("--ref"); s.add_argument("--target"); s.add_argument("--frame", help="JSON list of hex colours, default: uniform grey 40")
     s.add_argument("--ref-input-gamma", action="store_true", help="ref is 0.14 (gamma-corrects per-LED input)"); s.add_argument("--target-input-gamma", action="store_true"); s.set_defaults(fn=cmd_push_frame)
-    s = sub.add_parser("verify", help="acceptance gate: current ratio plus structural criteria (V-hist, hue EMD, spatial std, activity, peak, lit) from a same-window liveview capture")
+    s = sub.add_parser("verify", help="acceptance gate: current ratio plus structural criteria (V-hist, hue EMD, saturation, spatial std, activity, peak, lit, mean V) from a same-window liveview capture")
     s.add_argument("--ref", required=True, help="factory lamp"); s.add_argument("--target", required=True, help="ported lamp"); s.add_argument("--presets-file", required=True)
     s.add_argument("--samples", type=int, default=200, help="current samples per preset (default 200)"); s.add_argument("--interval", type=float, default=0.5, help="seconds between samples (default 0.5 → 100 s window)")
     s.add_argument("--tolerance", type=float, default=0.15, help="allowed deviation of target/ref current (default 0.15)")
