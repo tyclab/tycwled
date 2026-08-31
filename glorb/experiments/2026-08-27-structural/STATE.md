@@ -1,7 +1,9 @@
 # Handover: structural comparison, 2026-08-27 (reviewed 2026-08-28)
 
 Lamps: `.160` factory 0.14.4-GLORB.1.3 (reference), `.158` WLED 16.0.1 with the
-committed port installed (palettes 0–11, presets, ledmap). Both left on preset 4.
+committed port installed (palettes 0–11, presets, ledmap). Both switched OFF at
+the end of the 2026-08-31 session — by an operator-side command after the run,
+not by the scripts (their `finally` restores preset 4 at bri 255).
 The scripts here run from the repo root with `PYTHONPATH=.`; they import `wledlab`
 from the root and resolve their own directory from `__file__`.
 
@@ -28,7 +30,7 @@ from the root and resolve their own directory from `__file__`.
   Palettes 12–15 are uploaded from named files in this directory and read back.
 - `after_*.sh` pointed at a non-existent clone path without `|| exit`.
 
-## Result so far
+## Result so far (2026-08-27 — superseded by the 2026-08-31 sections below)
 
 Owner's eye: presets 1, 3, 4, 5, 2 accepted; **14 rejected** ("does not match").
 `make verify` was reported 12/12 PASS on main, but no verify log is committed
@@ -40,17 +42,17 @@ before quoting a pass.
 Structural sweep, 100 s per preset, corrected `grids` (`structural-rescore.log`
 from the saved `captures/struct-pN.json`; `cells 80/80` on every row):
 
-| preset                 | swell tstd / sstd (ref / port)           | act (ref / port) | notes                                                             |
-| ---------------------- | ---------------------------------------- | ---------------- | ----------------------------------------------------------------- |
-| 1 Colorwaves – Analog. | 0.152/0.163 · 0.195/0.148                | 0.278/0.266      | port mean 0.394 vs 0.507; vhist port skewed dark (bands 0: 29→13) |
-| 3 Colorwaves – Sunset  | 0.122/0.120 · 0.139/0.140                | 0.225/0.229      | matched on every stat                                             |
-| 4 Running – Atlantica  | 0.092/0.089 · 0.244/0.241                | 0.383/0.381      | matched                                                           |
-| 5 Running – Analogous  | 0.095/0.093 · 0.297/0.307                | 0.537/0.556      | matched                                                           |
-| 7 Frizzles – Analogous | 0.024/0.031 · 0.195/0.169                | 0.239/0.195      | port fast 0.550 vs 0.345; mean 0.110 vs 0.087                     |
-| 9 Frizzles – Fire      | 0.066/0.077 · 0.170/0.156                | 0.237/0.265      | close                                                             |
-| 10 Black Hole – Tert.  | 0.026/0.039 · 0.188/0.237                | 0.212/0.310      | **hue census unmatched** (peak bin 0 vs 3), huespread 65.8/31.4   |
-| 11 Black Hole – Sunset | 0.020/0.013 · 0.145/0.132                | 0.210/0.222      | hue matched; port swell half the fork's                           |
-| 14, 2, 12, 13          | old rows in `structural.log` are pre-fix | —                | **re-capture**; their captures are not in this clone              |
+| preset                 | swell tstd / sstd (ref / port)           | act (ref / port) | notes                                                               |
+| ---------------------- | ---------------------------------------- | ---------------- | ------------------------------------------------------------------- |
+| 1 Colorwaves – Analog. | 0.152/0.163 · 0.195/0.148                | 0.278/0.266      | port mean 0.394 vs 0.507; vhist port skewed dark (bands 0: 29→13)   |
+| 3 Colorwaves – Sunset  | 0.122/0.120 · 0.139/0.140                | 0.225/0.229      | matched on every stat                                               |
+| 4 Running – Atlantica  | 0.092/0.089 · 0.244/0.241                | 0.383/0.381      | matched                                                             |
+| 5 Running – Analogous  | 0.095/0.093 · 0.297/0.307                | 0.537/0.556      | matched                                                             |
+| 7 Frizzles – Analogous | 0.024/0.031 · 0.195/0.169                | 0.239/0.195      | port fast 0.550 vs 0.345; mean 0.110 vs 0.087                       |
+| 9 Frizzles – Fire      | 0.066/0.077 · 0.170/0.156                | 0.237/0.265      | close                                                               |
+| 10 Black Hole – Tert.  | 0.026/0.039 · 0.188/0.237                | 0.212/0.310      | **hue census unmatched** (peak bin 0 vs 3), huespread 65.8/31.4     |
+| 11 Black Hole – Sunset | 0.020/0.013 · 0.145/0.132                | 0.210/0.222      | hue matched — but see 2026-08-31: `peak_r` 0.53 fails the peak gate |
+| 14, 2, 12, 13          | old rows in `structural.log` are pre-fix | —                | re-captured 2026-08-31 (`captures/struct-pN.json.gz`)               |
 
 The pre-fix p14 row (fork 18 % black / 21 % full, port 0 % black) is probably
 still directionally right — the port floors seg 0 at grey 130 — but it has to
@@ -74,8 +76,9 @@ committed as `captures/struct-pN.json.gz`) followed by the first structural
   the arcsine-dwell model and the port palette agree with each other but not
   with the fork (its stars dwell far more in the red end). Needs an index-dwell
   reconstruction from `captures/struct-p10.json.gz`, not another census fit.
-- p12 FAIL hue 0.46 (tol 0.45): borderline pastel drift on Fairy Reaf — owner
-  call whether this is the accepted no-boost residual or a defect.
+- p12 FAIL hue 0.46 (tol 0.45): borderline pastel drift on Fairy Reaf —
+  reclassified as measurement noise by the calibration below (run 2 read 0.37
+  on the same lamps with no change in between).
 - p14 FAIL vhist 0.37 + sstd 0.43: the rejection reproduces on the corrected
   grid. Fresh numbers: fork 20 % of samples below V 0.2 and 21 % above 0.9
   (bimodal, peak 0.97), port 0 % below 0.2 and 8 % above 0.9 (unimodal
@@ -83,7 +86,50 @@ committed as `captures/struct-pN.json.gz`) followed by the first structural
   single-segment candidates (`after_pat.sh`) remain the open fix.
 - Lamps were found OFF before the run and were switched off again after it.
 
-## Preset 14 — what is known and what is not
+## Calibrated gate + second verify run (2026-08-31, `verify-remeasure2.log`)
+
+The first run showed the hue criterion was too tight and that `peak_r`/`lit_r`
+were reported but not gated. Tolerances were recalibrated against the only data
+available — the two same-day runs plus the morning struct sweep on unchanged
+lamps — and `peak_r`/`lit_r` promoted to gates (the frozen Frizzles criterion).
+A second full verify then ran with the calibrated gates:
+
+**verify: FAIL ['7', '10', '11', '14']** — p12 now PASSes (hue 0.37), p11 now
+FAILs on the newly-gated peak ratio. Captures committed as
+`captures/verify-pN.json.gz` (with full `lamp_meta` provenance).
+
+Calibration derivation — worst accepted-preset value across both verify runs vs
+the smallest real-mismatch value; the tolerance sits between them:
+
+| criterion  | tol  | worst accepted (runs 1/2)              | smallest real mismatch           |
+| ---------- | ---- | -------------------------------------- | -------------------------------- |
+| vhist L1/2 | 0.25 | 0.15 (p2, both runs)                   | 0.36–0.37 (p14)                  |
+| hue EMD    | 0.70 | 0.46 (p12 r1; 0.56 vs struct captures) | 1.10–1.12 (p10)                  |
+| sstd_r     | 1.6× | 0.90–1.09 (accepted band)              | 0.43 (p14)                       |
+| act_r      | 1.4× | 1.28 (p1 r2)                           | 1.45–1.46 (p10)                  |
+| peak_r     | 1.5× | 0.70 (p12)                             | 0.53 (p11)                       |
+| lit_r      | 1.6× | 0.83 (p9)                              | 1.46–1.48 (p7, over via current) |
+| current    | 15 % | 1.03 (p1/p5)                           | 1.15–1.17 (p7)                   |
+
+Caveats on this calibration, stated plainly: it is derived from n=2 runs on one
+day (plus the struct sweep for hue), so the accepted-side spread is a lower
+bound on the true run-to-run noise; act_r has the thinnest margin (1.28
+accepted vs 1.45 real — one noisy run could flip it); hue run-to-run spread on
+accepted presets was the reason for 0.45→0.70 (p2 read 0.28/0.33 in the verify
+runs but 0.56 against its struct capture; p12 0.46/0.37).
+
+Standing verdicts after run 2:
+
+- **p7** FAIL current 1.17 (+ soft peak 0.75 / lit 1.48): the known sparkle
+  density difference — stock floors at 8 frizzles. Owner decision per the
+  README peak/lit criterion, not a bri re-tune.
+- **p10** FAIL hue 1.10 + act 1.45: real; needs the index-dwell reconstruction
+  from `captures/struct-p10.json.gz` (offline).
+- **p11** FAIL peak 0.53: the port's brightest cells reach barely half the
+  fork's peak V — consistent with the 2026-08-27 "port swell half the fork's"
+  row; previously PASSed only because peak was not gated.
+- **p14** FAIL vhist 0.36 + sstd 0.43: the owner-rejected preset; queued
+  single-segment candidates (`after_pat.sh`) remain the open fix.
 
 - The fork's Hiphotic slider names come from the public firmware binary
   (`snrgy-studios/GLORB-WebInstaller`, `strings` of `GLORB_0_14_4-1_3`):
@@ -136,24 +182,32 @@ review notes.
    computed from a liveview capture taken in the same window as the alternating
    current samples; header stamps the presets.json sha256 and both lamps'
    firmware/fps/maxpwr/cpalcount. `--current-only` keeps the legacy behaviour.
-   Tolerances are provisional until calibrated on the 2026-08-31 sweep.
+   Tolerances calibrated on the two 2026-08-31 verify runs (derivation table
+   above); `peak_r`/`lit_r` now gate.
 2. Searches: `pat.py` reads back every swept parameter (clamped/ignored keys
    abort) and takes a replicate count (`pat.py '<plan>' 3`) so rankings can be
-   compared against their own spread.
+   compared against their own spread. **Capability added only — the
+   2026-08-27 hipsearch rankings have not been re-run with readback and
+   replicates; do not cite them.**
 3. Captures: `captures/*.json.gz` are committable (`.gitignore` narrowed);
    the sweep backing any committed verdict gets committed alongside it.
-4. Frizzles: acceptance restated as peak/lit vs the fork (README), frozen.
-5. Provenance: every capture now embeds firmware, fps, maxpwr, cpalcount and
-   the full segment state of both lamps.
+4. Frizzles: acceptance restated as peak/lit vs the fork (README), frozen —
+   and enforced by the gate since run 2 (`--peak-tol` 1.5, `--lit-tol` 1.6).
+5. Provenance: every new capture embeds firmware, fps, maxpwr, cpalcount and
+   the full segment state of both lamps. **The committed
+   `captures/struct-pN.json.gz` predate this stamp and carry no meta block;
+   only the `captures/verify-pN.json.gz` set has it.**
 
-## Open method flaws (review 2026-08-27, partially addressed above)
+## Open method flaws (review 2026-08-27; struck-through items closed 2026-08-31)
 
-- The gate: `leds.pwr` is a post-brightness channel sum — a first moment,
-  invariant to redistribution. It passed preset 14 (0.98), preset 11 with
-  `act 0.210/0.087` (`census_long.log`) and preset 10 with the hue-census peak
-  in a different bin. `compare` has no threshold or exit code. Add structural
-  tolerances (V-histogram distance, `sstd`, activity, circular hue distance)
-  to `verify`, default it to ≥100 s, and commit its log.
+- ~~The gate: `leds.pwr` is a post-brightness channel sum — a first moment,
+  invariant to redistribution. Add structural tolerances to `verify`, default
+  it to ≥100 s, and commit its log.~~ Done: structural gate shipped, two
+  verify logs committed; it now fails exactly the presets `leds.pwr` alone
+  passed (11, 14) plus the known 7/10. Still open from this bullet: `tstd`
+  (breathing depth) is reported but not gated, and captures are aligned by
+  relative time only — no absolute-timestamp alignment between the two lamps
+  (documented limitation, fine at 100 s windows).
 - Band shares and `fast_share` are normalised per lamp (denominator confound);
   zero-order-hold resampling inflates band 4 by ~50–65 %; band 0 (<0.1 Hz) is
   not resolvable in 100 s. `activity` divides by a per-lamp lit set and does

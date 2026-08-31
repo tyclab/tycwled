@@ -49,16 +49,21 @@ def main(plan, replicates=1):
     time.sleep(2)
     try:
         for ps, cands in plan.items():
-            for name, seg in [(f"{n}#{r + 1}" if replicates > 1 else n, s) for n, s in cands.items() for r in range(replicates)]:
+            for name, seg in [(f"{n}#{r + 1}" if replicates > 1 else n, s) for r in range(replicates) for n, s in cands.items()]:
                 seg = dict(seg); single = seg.pop("single", False)
                 for ip in (R, T): wledlab.post(ip, "/json/state", {"on": True, "bri": 255, "ps": int(ps)})
                 time.sleep(1); over = {"seg": [dict(id=0, **seg)]}
                 if single: over["seg"].append({"id": 1, "stop": 0})  # single-segment candidate: drop the colour layer
                 wledlab.post(T, "/json/state", over); time.sleep(2)
-                rb = wledlab.get(T, "/json/state")["seg"][0]
+                st = wledlab.get(T, "/json/state"); rb = st["seg"][0]
                 for key, val in seg.items():
-                    if rb.get(key) != val:
-                        raise SystemExit(f"{name}: {key} readback {rb.get(key)!r} != requested {val!r} -- clamped or ignored; fix the candidate")
+                    got = rb.get(key)
+                    if key == "col":
+                        got = [list(c[:3]) for c in (got or [])][:len(val)]
+                    if got != val:
+                        raise SystemExit(f"{name}: {key} readback {got!r} != requested {val!r} -- clamped or ignored; fix the candidate")
+                if single and len(st["seg"]) > 1 and st["seg"][1].get("stop", 0) != 0:
+                    raise SystemExit(f"{name}: colour layer still active (seg1 stop {st['seg'][1].get('stop')})")
                 fr, ft = capture_both(SECONDS); time.sleep(3)
                 fa, fb = feats(fr), feats(ft); ba, bb = blob(fr), blob(ft); pa, pb = pwr_both(R, T)
                 print(f"p{ps} {name}{' [single]' if single else ''} {seg}: pwr {pa:.0f}/{pb:.0f} | mean {fa['mean']}/{fb['mean']} sstd {fa['sstd']}/{fb['sstd']} tstd {fa['tstd']}/{fb['tstd']} ratio {fa['ratio']}/{fb['ratio']} | blob-len {ba[0]}/{bb[0]} black% {ba[1]}/{bb[1]}\n   bands ref {fa['bands']} tgt {fb['bands']}\n   vhist ref {fa['vhist']}\n   vhist tgt {fb['vhist']}", flush=True)

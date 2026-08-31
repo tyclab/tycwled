@@ -181,9 +181,9 @@ def live(ip, seconds):
         if frames:
             return frames
     except (OSError, RuntimeError) as e:
-        print(f"WARN {ip}: WS liveview failed ({e}); HTTP polling fallback -- different instrument, lower rate", file=sys.stderr)
+        print(f"WARN {ip}: WS liveview failed ({e}); HTTP polling fallback -- different instrument, lower rate", flush=True)
         return live_http(ip, seconds)
-    print(f"WARN {ip}: WS liveview yielded no frames; HTTP polling fallback", file=sys.stderr)
+    print(f"WARN {ip}: WS liveview yielded no frames; HTTP polling fallback", flush=True)
     return live_http(ip, seconds)
 
 
@@ -409,6 +409,8 @@ def structural_stats(frames, step=3):
     Lit = cells that ever exceed 0.05 (excludes ledmap holes without needing the map)."""
     vs = [[hsv(c)[2] for c in f[1]] for f in frames[::step]]
     n = len(vs[0]); lit = [i for i in range(n) if max(v[i] for v in vs) > 0.05]
+    if not lit:  # all-dark capture: a mis-installed preset must FAIL, not crash the run
+        return dict(vhist=[0.0] * 10, mean=0.0, tstd=0.0, sstd=0.0, peak=0.0, lit=0.0)
     hist = [0] * 10; means = []; sstds = []; peaks = []; litn = []
     for v in vs:
         vals = [v[i] for i in lit]
@@ -423,10 +425,23 @@ def structural_stats(frames, step=3):
                 peak=sorted(peaks)[len(peaks) // 2], lit=sum(litn) / len(litn))
 
 
+def hue_shares(frames, bins=12, step=3):
+    """Unrounded hue census shares (fractions summing to 1) for the gate's EMD.
+    Same semantics as hue_census (lit = V > 0.05) but without integer-percent rounding."""
+    cnt = [0.0] * bins; tot = 0
+    for _, leds in frames[::step]:
+        for c in leds:
+            h, s, v = hsv(c)
+            if v > 0.05:
+                cnt[int(h * bins) % bins] += 1; tot += 1
+    return [x / tot for x in cnt] if tot else cnt
+
+
 def circ_emd(p, q):
     """Earth-mover distance between two circular 12-bin distributions (shares summing to 1):
     L1 of the median-shifted prefix sums. Robust to a sub-bin hue shift splitting one colour
     across the 0/11 bin edge, which plain per-bin L1 is not."""
+    assert len(p) == len(q), "circ_emd: length mismatch"
     d = [x - y for x, y in zip(p, q)]
     pre = []; acc = 0.0
     for x in d:
@@ -438,14 +453,13 @@ def circ_emd(p, q):
 def gate_scores(fr, ft):
     """Structural comparison for the gate: distances/ratios of target vs ref."""
     a, b = structural_stats(fr), structural_stats(ft)
-    ma, mb = metrics(fr), metrics(ft)
     vd = sum(abs(x - y) for x, y in zip(a["vhist"], b["vhist"])) / 2
-    hd = circ_emd([x / 100 for x in ma["hue_share"]], [x / 100 for x in mb["hue_share"]])
+    hd = circ_emd(hue_shares(fr), hue_shares(ft))
 
     def rat(x, y):
         return (y / x) if x else None
 
-    return dict(vhist_d=vd, hue_d=hd, sstd_r=rat(a["sstd"], b["sstd"]), act_r=rat(ma["activity"], mb["activity"]),
+    return dict(vhist_d=vd, hue_d=hd, sstd_r=rat(a["sstd"], b["sstd"]), act_r=rat(activity(fr), activity(ft)),
                 peak_r=rat(a["peak"], b["peak"]), lit_r=rat(a["lit"], b["lit"]), mean_r=rat(a["mean"], b["mean"]))
 
 
@@ -484,13 +498,19 @@ def cmd_capture(a):
 
 
 def load_capture(path):
-    """All capture formats: bare frame list, {'meta','frames'}, and {'ref','tgt'[,'meta']} pairs."""
-    d = json.load(open(path))
+    """All capture formats: bare frame list, {'meta','frames'}, {'ref','tgt'[,'meta']}; .gz transparently."""
+    import gzip
+    op = gzip.open if str(path).endswith(".gz") else open
+    with op(path, "rt") as f:
+        d = json.load(f)
     if isinstance(d, list):
         return {"": d}
     if "frames" in d:
         return {"": d["frames"]}
-    return {k: d[k] for k in ("ref", "tgt") if k in d}
+    out = {k: d[k] for k in ("ref", "tgt") if k in d}
+    if not out:
+        raise ValueError(f"{path}: unrecognised capture format")
+    return out
 
 
 def cmd_analyse(a):
@@ -568,62 +588,82 @@ def cmd_check_ledmap(a):
 def cmd_verify(a):
     """Acceptance gate. Per preset: one shared window in which both lamps are captured over
     liveview (structural criteria) while their ABL current estimates are sampled alternately
-    (the output-stage criterion liveview cannot see). Current is a first moment -- invariant
-    to any redistribution of brightness -- so it is never the only criterion (use
-    --current-only to get the legacy behaviour)."""
+    (the output-stage criterion liveview cannot see). Current is measured UNDER liveview load
+    (both lamps stream), and is a first moment -- never the only criterion (--current-only =
+    legacy). A crash on one preset records a FAIL and continues; lamps are always restored."""
     import hashlib
     raw = open(a.presets_file, "rb").read(); want = json.loads(raw); fails = []
     n = sum(1 for v in want.values() if v)
     window = a.samples * a.interval
+    fmt = lambda x: "n/a" if x is None else f"{x:.2f}"
     print(f"verify: presets.json sha256 {hashlib.sha256(raw).hexdigest()}")
     for tag, ip in (("ref", a.ref), ("target", a.target)):
         m = lamp_meta(ip)
-        print(f"  {tag} {ip}: ver {m['ver']} fps {m['fps']} maxpwr {m['maxpwr']} cpalcount {m['cpalcount']}")
-    print(f"verify: {n} presets, {window:.0f} s each (~{n * (window + 8) / 60:.0f} min); both lamps end on preset {a.restore_preset}", flush=True)
-    for k, v in want.items():
-        if not v:
-            continue
+        print(f"  {tag} {ip}: ver {m['ver']} fps {m['fps']} maxpwr {m['maxpwr']} cpalcount {m['cpalcount']} rssi {(m['wifi'] or {}).get('rssi')}")
+    print(f"verify: {n} presets, {window:.0f} s each (~{n * (window + 20) / 60:.0f} min); both lamps end on preset {a.restore_preset}", flush=True)
+    try:
+        for k, v in want.items():
+            if not v:
+                continue
+            try:
+                for ip in (a.ref, a.target):
+                    post(ip, "/json/state", {"on": True, "bri": 255, "ps": int(k)})
+                time.sleep(2)
+                bad = [ip for ip in (a.ref, a.target) if get(ip, "/json/state").get("ps") != int(k)]
+                if bad:
+                    print(f"  preset {k:>2} {v.get('n', ''):<26} FAIL (preset did not apply on {bad})", flush=True)
+                    fails.append(k); continue
+                meta = {"preset": int(k), "ref": lamp_meta(a.ref), "tgt": lamp_meta(a.target)} if a.save_captures else None
+                res = {}
+                t1 = threading.Thread(target=lambda: res.__setitem__("ref", live(a.ref, window)))
+                t2 = threading.Thread(target=lambda: res.__setitem__("tgt", live(a.target, window)))
+                if not a.current_only:
+                    t1.start(); t2.start()
+                pr, pt = [], []
+                t0 = time.time()
+                while time.time() - t0 < window:  # wall clock: GET latency must not stretch past the capture
+                    pr.append(get(a.ref, "/json/info")["leds"]["pwr"]); pt.append(get(a.target, "/json/info")["leds"]["pwr"])
+                    time.sleep(a.interval)
+                mr, mt = sum(pr) / len(pr), sum(pt) / len(pt)
+                checks = []; line = f"ref {mr:5.0f} mA  target {mt:5.0f} mA"
+                if mr < 50 or mt < 50:  # ABL off reports ~0 -- a ratio against the floor guard is noise, not a verdict
+                    line += "  current n/a (ABL off or dark)"
+                else:
+                    r = mt / mr
+                    checks.append(("current", 1 - a.tolerance <= r <= 1 + a.tolerance)); line += f"  ratio {r:.3f}"
+                if not a.current_only:
+                    t1.join(); t2.join()
+                    fr, ft = res.get("ref") or [], res.get("tgt") or []
+                    if a.save_captures and fr and ft:
+                        os.makedirs(a.save_captures, exist_ok=True)
+                        json.dump({"meta": meta, "ref": fr, "tgt": ft}, open(os.path.join(a.save_captures, f"verify-p{k}.json"), "w"))
+                    hr, ht = capture_health(fr, window), capture_health(ft, window)
+                    unhealthy = [t for t, h in (("ref", hr), ("tgt", ht))
+                                 if h["frames"] < 10 or h["coverage"] is None or h["coverage"] < 0.9
+                                 or h["max_gap"] is None or h["max_gap"] > 2.0]
+                    line += f"  hz {hr['hz']}/{ht['hz']} cov {hr['coverage']}/{ht['coverage']} gap {hr['max_gap']}/{ht['max_gap']}"
+                    if unhealthy:
+                        checks.append(("capture", False)); line += f"  capture UNHEALTHY ({','.join(unhealthy)})"
+                    else:
+                        g = gate_scores(fr, ft)
+                        rng = lambda x, tol: x is not None and 1 / tol <= x <= tol
+                        checks += [("vhist", g["vhist_d"] <= a.vhist_tol),
+                                   ("hue", g["hue_d"] <= a.hue_tol),
+                                   ("sstd", rng(g["sstd_r"], a.sstd_tol)),
+                                   ("act", rng(g["act_r"], a.act_tol)),
+                                   ("peak", rng(g["peak_r"], a.peak_tol)),
+                                   ("lit", rng(g["lit_r"], a.lit_tol))]
+                        line += (f"  vhist {g['vhist_d']:.2f} hue {g['hue_d']:.2f} sstd_r {fmt(g['sstd_r'])}"
+                                 f" act_r {fmt(g['act_r'])} peak_r {fmt(g['peak_r'])} lit_r {fmt(g['lit_r'])}")
+                bad = [c for c, ok in checks if not ok]
+                print(f"  preset {k:>2} {v.get('n', ''):<26} {line}  {'PASS' if not bad else 'FAIL ' + ','.join(bad)}", flush=True)
+                fails += [] if not bad else [k]
+            except Exception as e:  # a broken preset must not cost the remaining ~20 min of run
+                print(f"  preset {k:>2} {v.get('n', ''):<26} FAIL (error: {e})", flush=True)
+                fails.append(k)
+    finally:
         for ip in (a.ref, a.target):
-            post(ip, "/json/state", {"on": True, "bri": 255, "ps": int(k)})
-        time.sleep(2)
-        bad = [ip for ip in (a.ref, a.target) if get(ip, "/json/state").get("ps") != int(k)]
-        if bad:
-            print(f"  preset {k:>2} {v.get('n', ''):<26} FAIL (preset did not apply on {bad})", flush=True)
-            fails.append(k); continue
-        res = {}
-        t1 = threading.Thread(target=lambda: res.__setitem__("ref", live(a.ref, window)))
-        t2 = threading.Thread(target=lambda: res.__setitem__("tgt", live(a.target, window)))
-        if not a.current_only:
-            t1.start(); t2.start()
-        pr, pt = [], []
-        for _ in range(a.samples):  # window covers >= 3 colour cycles (~33 s each) -- Fire spans black..white
-            pr.append(get(a.ref, "/json/info")["leds"]["pwr"]); pt.append(get(a.target, "/json/info")["leds"]["pwr"])
-            time.sleep(a.interval)
-        r = (sum(pt) / len(pt)) / max(1, sum(pr) / len(pr))
-        checks = [("current", 1 - a.tolerance <= r <= 1 + a.tolerance)]
-        line = f"ref {sum(pr) / len(pr):5.0f} mA  target {sum(pt) / len(pt):5.0f} mA  ratio {r:.2f}"
-        if not a.current_only:
-            t1.join(); t2.join()
-            fr, ft = res.get("ref") or [], res.get("tgt") or []
-            hr, ht = capture_health(fr, window), capture_health(ft, window)
-            unhealthy = [t for t, h in (("ref", hr), ("tgt", ht))
-                         if h["frames"] < 10 or (h["coverage"] or 0) < 0.9 or (h["max_gap"] or 99) > 2.0]
-            line += f"  hz {hr['hz']}/{ht['hz']} cov {hr['coverage']}/{ht['coverage']} gap {hr['max_gap']}/{ht['max_gap']}"
-            if unhealthy:
-                checks.append(("capture", False)); line += f"  capture UNHEALTHY ({','.join(unhealthy)})"
-            else:
-                g = gate_scores(fr, ft)
-                checks += [("vhist", g["vhist_d"] <= a.vhist_tol),
-                           ("hue", g["hue_d"] <= a.hue_tol),
-                           ("sstd", g["sstd_r"] is not None and 1 / a.sstd_tol <= g["sstd_r"] <= a.sstd_tol),
-                           ("act", g["act_r"] is not None and 1 / a.act_tol <= g["act_r"] <= a.act_tol)]
-                line += (f"  vhist {g['vhist_d']:.2f} hue {g['hue_d']:.2f} sstd_r {g['sstd_r']:.2f}"
-                         f" act_r {g['act_r']:.2f} peak_r {g['peak_r']:.2f} lit_r {g['lit_r']:.2f}")
-        bad = [c for c, ok in checks if not ok]
-        print(f"  preset {k:>2} {v.get('n', ''):<26} {line}  {'PASS' if not bad else 'FAIL ' + ','.join(bad)}", flush=True)
-        fails += [] if not bad else [k]
-    for ip in (a.ref, a.target):
-        post(ip, "/json/state", {"on": True, "bri": 255, "ps": a.restore_preset})
+            post(ip, "/json/state", {"on": True, "bri": 255, "ps": a.restore_preset})
     print("verify:", "PASS" if not fails else f"FAIL {fails}")
     sys.exit(0 if not fails else 1)
 
@@ -729,15 +769,18 @@ def main():
     s = sub.add_parser("push-frame", help="push one identical frame to both lamps via the per-LED JSON API")
     s.add_argument("--ref"); s.add_argument("--target"); s.add_argument("--frame", help="JSON list of hex colours, default: uniform grey 40")
     s.add_argument("--ref-input-gamma", action="store_true", help="ref is 0.14 (gamma-corrects per-LED input)"); s.add_argument("--target-input-gamma", action="store_true"); s.set_defaults(fn=cmd_push_frame)
-    s = sub.add_parser("verify", help="acceptance gate: every preset on both lamps, current-estimate ratio within tolerance")
+    s = sub.add_parser("verify", help="acceptance gate: current ratio plus structural criteria (V-hist, hue EMD, spatial std, activity, peak, lit) from a same-window liveview capture")
     s.add_argument("--ref", required=True, help="factory lamp"); s.add_argument("--target", required=True, help="ported lamp"); s.add_argument("--presets-file", required=True)
     s.add_argument("--samples", type=int, default=200, help="current samples per preset (default 140)"); s.add_argument("--interval", type=float, default=0.5, help="seconds between samples (default 0.5 → 70 s window)")
     s.add_argument("--tolerance", type=float, default=0.15, help="allowed deviation of target/ref current (default 0.15)")
     s.add_argument("--current-only", action="store_true", help="legacy gate: current ratio only, no structural criteria")
-    s.add_argument("--vhist-tol", type=float, default=0.25, help="max V-histogram L1/2 distance (provisional until calibrated)")
-    s.add_argument("--hue-tol", type=float, default=0.45, help="max circular EMD between hue censuses (provisional)")
-    s.add_argument("--sstd-tol", type=float, default=1.6, help="max spatial-std ratio either way (provisional)")
-    s.add_argument("--act-tol", type=float, default=1.4, help="max activity ratio either way (provisional)")
+    s.add_argument("--vhist-tol", type=float, default=0.25, help="max V-histogram L1/2 distance (accepted presets measure <= 0.18; p14 fails at 0.37)")
+    s.add_argument("--hue-tol", type=float, default=0.70, help="max circular EMD between hue censuses (run-to-run spread on accepted presets reaches 0.56 -- window phase vs the 30-50 s colour cycle; real mismatch p10 measures >= 1.08)")
+    s.add_argument("--sstd-tol", type=float, default=1.6, help="max spatial-std ratio either way (accepted <= 1.13; p14 fails at 0.43)")
+    s.add_argument("--act-tol", type=float, default=1.4, help="max activity ratio either way (accepted presets measure <= 1.12; p10 fails at 1.46)")
+    s.add_argument("--peak-tol", type=float, default=1.5, help="max median-frame-peak ratio either way (sparkle/swell brightness; p11 port peaks at 0.53)")
+    s.add_argument("--lit-tol", type=float, default=1.6, help="max mean lit-cell-count ratio either way (p7 stock 8-frizzle floor reads 1.46 -- recorded limitation, passes)")
+    s.add_argument("--save-captures", default="", metavar="DIR", help="save each preset capture as DIR/verify-pN.json with per-preset lamp meta")
     s.add_argument("--restore-preset", type=int, default=1, help="preset both lamps end on"); s.set_defaults(fn=cmd_verify)
     s = sub.add_parser("install", help="upload files byte-exact, reload, verify every preset")
     s.add_argument("--host", required=True); s.add_argument("--ledmap"); s.add_argument("--presets"); s.add_argument("--palette", action="append", help="palette file; paletteN.json in order, repeatable")

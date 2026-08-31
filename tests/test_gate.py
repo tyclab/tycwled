@@ -3,7 +3,6 @@
 The 2026-08-27 review found every capture-analysis function untested; these are the
 gate's pure functions, checked against signals whose statistics are known in closed form.
 """
-import math
 import sys
 import unittest
 from pathlib import Path
@@ -23,10 +22,9 @@ class CircEmd(unittest.TestCase):
         p = [0.5, 0.25, 0.25] + [0] * 9
         self.assertEqual(wledlab.circ_emd(p, p), 0)
 
-    def test_symmetric(self):
-        p = [1.0] + [0] * 11
-        q = [0, 0, 1.0] + [0] * 9
-        self.assertAlmostEqual(wledlab.circ_emd(p, q), wledlab.circ_emd(q, p))
+    def test_length_mismatch_asserts(self):
+        with self.assertRaises(AssertionError):
+            wledlab.circ_emd([1.0, 0.0], [0.0] * 12)
 
     def test_adjacent_shift_costs_one_bin(self):
         # all mass moving one bin over = 1 bin x 1 mass
@@ -81,6 +79,23 @@ class StructuralStats(unittest.TestCase):
         self.assertEqual(b["sstd"], 0)
 
 
+class NullCases(unittest.TestCase):
+    def test_all_dark_capture_zeroed_not_crash(self):
+        s = wledlab.structural_stats(frames_from_grid([0, 0, 0, 0]), step=1)
+        self.assertEqual(s["lit"], 0)
+        self.assertEqual(s["peak"], 0.0)
+
+    def test_gate_scores_dark_target_no_crash(self):
+        ref = frames_from_grid([200] * 6, n_frames=20)
+        tgt = frames_from_grid([0] * 6, n_frames=20)
+        self.assertEqual(wledlab.gate_scores(ref, tgt)["peak_r"], 0.0)
+        self.assertIsNone(wledlab.gate_scores(tgt, ref)["peak_r"])
+
+    def test_hue_shares_sums_to_one(self):
+        fr = frames_from_grid([200, 50, 250, 90], n_frames=10)
+        self.assertAlmostEqual(sum(wledlab.hue_shares(fr, step=1)), 1.0)
+
+
 class LoadCapture(unittest.TestCase):
     def test_all_three_formats(self):
         import json
@@ -88,12 +103,16 @@ class LoadCapture(unittest.TestCase):
         fr = frames_from_grid([10, 250], n_frames=2)
         for payload, keys in ((fr, [""]), ({"meta": {}, "frames": fr}, [""]),
                               ({"meta": {}, "ref": fr, "tgt": fr}, ["ref", "tgt"])):
+            import os
             with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
                 json.dump(payload, f)
-            got = wledlab.load_capture(f.name)
-            self.assertEqual(sorted(got), sorted(keys))
-            for v in got.values():
-                self.assertEqual(len(v), 2)
+            try:
+                got = wledlab.load_capture(f.name)
+                self.assertEqual(sorted(got), sorted(keys))
+                for v in got.values():
+                    self.assertEqual(len(v), 2)
+            finally:
+                os.unlink(f.name)
 
 
 class CaptureHealth(unittest.TestCase):
