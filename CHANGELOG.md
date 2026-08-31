@@ -32,7 +32,7 @@ The format is based on [Keep a Changelog], and this project adheres to
 ### Changed
 
 - Frizzles/Black Hole use custom palettes with the 0.14 stop values (WLED 16 re-encodes its built-ins for gamma).
-- Tartan composites draw plain white lines; Hiphotic floors 175/230 — brightness matched on current.
+- Tartan composites draw plain white lines; Hiphotic pattern floors are 150 (preset 2) / 130 (preset 14) — earlier 175/230 and “matched on current” were superseded (current is a first moment; see README “Checks”).
 
 [Keep a Changelog]: https://keepachangelog.com/en/1.1.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
