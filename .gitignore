@@ -2,3 +2,6 @@ captures/*.json
 *.pyc
 __pycache__/
 pushed_frame.json
+
+# vendor GLORB firmware images — downloaded, never redistributed from this repo
+glorb/firmware/

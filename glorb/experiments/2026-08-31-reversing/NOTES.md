@@ -311,9 +311,9 @@ SEGMENT.step = sPseudotime; SEGMENT.aux0 = sHue16;
 2. **NEW `check1` = Sound Reactive** branch (`bbci check1` @0x42042eef → float/audio path at
    0x42042fed calling audio getter 0x42150ba4, `utrunc.s`/`quos`). When on, audio data feeds
    the hue increment / step; when off, the pure-time stock math runs.
-3. **hueinc16 formula changed**: stock `beatsin88(113,60,300)*intensity*10/255`. Fork computes
-   `(beatsin88(113,60,300) >> 4) + 10`, then multiplies by an intensity-derived term
-   (`intensity>>3`-based) — MED confidence on the exact reduction. ix="Intensity".
+3. **hueinc16 / duration** — CORRECTED in §10.3 (this earlier text was wrong; I had conflated
+   two separate quantities). Definitive: SR-off `hueinc16 = beatsin88(113,60,300)*(intensity>>3)*10/255`
+   and `duration = (speed>>4)+10`. See §10.3 for the full trace and the SR-on form.
 4. All five beatsin88 magic constants (341/96/224, 203/6400/10240, 147/23/60, 113/60/300,
    400/5/9) are **byte-for-byte identical to stock** — confirms this is the colorwaves engine.
 5. step@44 / aux0@52 persistence identical to stock SEGENV.step / SEGENV.aux0.
@@ -459,3 +459,221 @@ is repurposed as a **Sound Reactive** toggle gating an audio (getAudioData @0x42
 Artifacts in this dir: `parse_image.py`, `disasm.sh`, and `dis_<effect>.txt` for each target.
 Scratch (not committed): full segment dumps under
 `/tmp/claude-1000/.../scratchpad/reversing/segments_debug/`, stock `FX_v0.14.4.cpp/.h`.
+
+---
+
+## 9. Sound Reactive audio branches (follow-up)  — CONFIDENCE: HIGH
+
+Two of the six presets read audio: **Colorwaves** and **Running**, gated by `check1`
+("Sound Reactive"). Branch polarity: `check1 == 1` → audio path (correct SR semantics).
+The other four (Hiphotic, Black Hole, Frizzles, Tartan) contain **zero** references to the
+audio helpers — verified by literal/callsite scan of each function body. Expected (no SR slot).
+
+### 9.1 Audio acquisition helpers
+| addr | identity | signature (recovered) |
+|------|----------|-----------------------|
+| 0x3fca7220 | `UsermodManager usermods` (global) | — |
+| 0x42150ba4 | `UsermodManager::getUMData(um_data_t** out, uint8_t modId)` | iterates usermods, calls each vtbl `getId()`(vtbl+72) and, on match, `getUMData()`(vtbl+24); writes `*out`; returns true on hit |
+| 0x42049f18 | `simulateSound(uint8_t simId)` → `um_data_t*` | fallback when no AudioReactive usermod; builds a synthetic um_data (8-ptr array, allocates on first call, cached at 0x3fca11b0) |
+
+Both effects call it identically (only the local out-slot differs):
+```c
+um_data_t *ud;
+if (!usermods.getUMData(&ud, 32)) {          // 32 = AudioReactive usermod id filter
+    ud = simulateSound(SEGMENT.soundSim);    // soundSim = options bits 12-13 (bits 28-29 of u32@seg+8)
+}
+```
+
+### 9.2 `um_data_t` fields actually read
+Both effects dereference **exactly one** field, via `[ud+8] -> [+0] -> load float`:
+```
+ud (um_data_t*)          // returned by getUMData/simulateSound
+  +8 : void** u_data      // pointer array (NOTE: u_data sits at struct offset +8 in this build)
+u_data[0] : float* -> volumeSmth   // the smoothed overall volume, IEEE-754 float
+```
+Neither effect reads `volumeRaw`, `fftResult[]` bins, `samplePeak`, `FFT_MajorPeak`, or
+`my_magnitude`. **Only `volumeSmth` (u_data[0], float)** is consumed. Confirmed byte-identical
+dereference chain in both: colorwaves 0x42043016-0x42043023, running 0x4204341e-0x42043424.
+
+### 9.3 Colorwaves audio branch (func 0x42042e48, path @0x42042fed)
+Runs once per frame in the setup, when `check1` set. Folds volume into the **hue increment base**
+(the register that is then multiplied to form `hueinc16`, so louder = faster hue travel):
+```c
+// entering: hbase = (beatsin88(113,60,300) >> 4) + 10;   // normal per-frame hue-inc base
+um_data_t *ud;
+if (!usermods.getUMData(&ud, 32)) ud = simulateSound(SEGMENT.soundSim);
+float   vol = *(float*)ud->u_data[0];                 // volumeSmth
+uint16_t v  = (uint16_t)(uint32_t)vol;                // utrunc.s + &0xFFFF (0..65535)
+int      d  = 12 - (SEGMENT.intensity >> 5);          // ix="Intensity" -> divisor 12..5
+hbase = (hbase + v / d) & 0xFFFF;                      // signed div (quos); folded into hueinc16
+// ... continues into the normal hueinc16 = msmultiplier * hbase path ...
+```
+Delta vs the non-audio branch: the non-SR path computes `hbase` from `beatsin88(113,60,300)`
+alone; the SR path **adds `volumeSmth / (12 - (intensity>>5))`** on top. Everything downstream
+(the b16 squared-sine brightness, blendPixelColor 128, step/aux0 persistence) is unchanged.
+Constants: shift **>>5** on intensity, divisor base **12**, hbase seed `(beatsin>>4)+10`.
+
+### 9.4 Running audio branch (func 0x420433b4, path @0x420433f5)
+Runs once per frame, when `check1` set. Folds volume into **both** phase accumulators:
+```c
+// entering:  aPhase = (speed >> (check1?7:6)) + 1;    // running-wave start phase (a2)
+//            hPhase = (speed >> 1) + 10;              // hue/step phase (a3)
+if (SEGMENT.check1) {
+  um_data_t *ud;
+  if (!usermods.getUMData(&ud, 32)) ud = simulateSound(SEGMENT.soundSim);
+  float    vol = *(float*)ud->u_data[0];               // volumeSmth
+  uint32_t k   = ((uint32_t)vol >> 5) & 0x7FF;         // extui(bit5,width11): (vol>>5)&0x7FF
+  aPhase += k;                                         // both accumulators advanced by same term
+  hPhase += k;
+}
+aPhase = (aPhase + SEGMENT.step)  & 0xFFFF;            // step @+44
+hPhase = (hPhase + SEGMENT.aux0)  & 0xFFFF;            // aux0 @+52
+// aPhase -> running-wave start; hPhase -> sin/palette phase; both persisted back at frame end
+```
+Note the `speed >> (check1?7:6)`: turning Sound Reactive on **also** halves the base
+time-advance (shift 7 vs 6), so the audio term dominates the motion. Constant: volume reduction
+**`(vol >> 5) & 0x7FF`** (0..2047), added equally to wave phase and hue phase.
+
+### 9.5 Non-audio effects — confirmed audio-free
+Scan of each function body for `getUMData`(0x42150ba4), `simulateSound`(0x42049f18) callsites,
+and the `usermods`(0x3fca7220) literal: **Hiphotic, Black Hole, Frizzles, Tartan = 0 refs each.**
+Their metadata has no Sound Reactive slot; the binary agrees — none read audio.
+
+Repro: `./disasm.sh 0x42042fed 60` (Colorwaves), `./disasm.sh 0x420433f2 40` (Running),
+`./disasm.sh 0x42150ba4 40` (getUMData), `./disasm.sh 0x42049f18 30` (simulateSound).
+
+---
+
+## 10. GLORB usermod, 'g' flag, Colorwaves hueinc16 correction, Running per-pixel, LEDs 0/21/62
+
+### 10.1 The "GLORB" usermod — what `enabled=true` does  (CONFIDENCE: HIGH)
+The fork registers three custom usermods alongside the stock ones: **AudioReactive**,
+**HomeKit** (HomeSpan-based), and **GLORB**. Each is a `Usermod` subclass with its own vtable.
+
+- GLORB name string `"GLORB"` @0x3c1672f0; config keys `"GLORB"`/`"enabled"` (@0x3c1672e0? no —
+  GLORB uses 0x3c1672f0/0x3c1672e8). GLORB **vtable @0x3c1671d8**.
+- Overridden vtable slots (all other slots point to the base-class no-op cluster
+  0x42150de0..0x42150ef8, each just `entry; retw`):
+  - **slot 3 = 0x42046f34** — `readFromJsonState`/`addToJsonState`: reads `[this+9]`, then
+    manipulates a JSON object under key `"GLORB"` and the **MQTT/remote key table @0x3c164890**
+    (`broker`,`cid`,`topics`,`device`,`rtn`,`remote_enabled`,`linked_remote`,`iv`,…).
+  - **slot 6 = 0x42046fd8** — `addToConfig`: writes `{"GLORB":{"enabled":<bool>}}`.
+  - **slot 7 = 0x42046230** — `readFromConfig`: reads `GLORB.enabled` into `[this+8]`.
+- GLORB has **no** `setup`/`loop` override, **no** `handleOverlayDraw`, **no** `getUMData`.
+  It **never** calls `setPixelColor*`, `blur`, `fill`, or any bus/ledmap API.
+
+Verified negatives (whole-image scan):
+- **No IMU / gesture / accelerometer** code or strings (`MPU`,`LSM`,`IMU`,`accel`,`gyro`,
+  `gesture` → none; only unrelated `tap`/`BLE`/`HomeSpan`). No sensor path exists.
+- **No usermod overrides a non-empty overlay-draw slot** — HomeKit's real slots are 1/6/7/11
+  (its slot-1 = HomeSpan service init @0x42045a80: allocations + `"HomeSpan-ESP32"` +
+  callbacks — an Apple-Home integration, not LEDs); GLORB's are 3/6/7. Neither writes pixels.
+
+**Conclusion:** `GLORB.enabled=true` turns on a **cloud/app/MQTT remote-control integration**
+(broker/topics/device linking), gated by a single bool. It does **not** hook rendering, remap
+geometry, switch ledmaps, or read an IMU. **The WLED 16 port does NOT need the GLORB usermod
+for visual parity** — all visuals come from the 12 effect functions (§2-7) + the ledmap.
+
+### 10.2 The trailing `'g'` metadata flag  (CONFIDENCE: HIGH)
+Exhaustive DROM scan of every effect metadata string: the trailing `;…g` flag appears on
+**exactly the 12 GLORB custom effects and nothing else**. All ~99 stock effects lack it
+(they end in the dimension digit / stock flags: `2`, `2f`, `2v`, optional `;c1=8`/`;si=0`).
+Tellingly, the **original stock Tartan is retained as `"Tartan - Legacy@…;;!;2"` (no `g`)**
+while the fork's replacement `"Tartan@…;!;!;2g"` carries it.
+
+WLED effect metadata is `Name@sliders;colors;palette;flags;defaults`. The firmware C effect
+path dispatches purely by the **mode-table function pointer** (§1.3) and derives 1D/2D from the
+live matrix config — it never scans the flag field for arbitrary letters. There is **no readable
+web-UI JS in DROM** (`querySelector`/`getModeInfo`/`addEventListener` = 0 hits → the UI is
+gzipped). So `'g'` is **not consumed by any rendering C code**; it is a fork **UI/app metadata
+badge** that tags "these are the GLORB effects" for the (gzipped) web UI / companion app to
+recognise or filter. It gates nothing in the render pipeline — safe to ignore for the port.
+
+### 10.3 Colorwaves `hueinc16` / `duration` — DEFINITIVE (supersedes §5.3 and §9.3)
+I previously conflated two independent per-frame quantities. Exact register trace of the setup
+(0x42042ea3-0x42042f4b):
+
+Registers: `a2=speed`(l8ui+6), `a7=step`(sPseudotime,+44), `a3=aux0`(sHue16,+52),
+`a4=msmultiplier=beatsin88(147,23,60)`, `a10(BW)=beatsin88(113,60,300)`.
+
+```c
+// duration base (both paths):  a2 = (speed>>4) + 10       // stock: 10 + speed
+int duration = (SEGMENT.speed >> 4) + 10;
+
+if (!check1) {                              // ---- Sound Reactive OFF (pure time) ----
+   uint8_t i8 = SEGMENT.intensity >> 3;                          // intensity/8, 0..31
+   hueinc16 = (uint16_t)( ((uint32_t)BW * i8 * 10) / 255 );      // <-- exact
+   // (÷255 via muluh with 0x80808081 then >>7; ×10 via (x<<2 + x)<<1)
+} else {                                    // ---- Sound Reactive ON  ----
+   float vol = *(float*)ud->u_data[0];                           // volumeSmth
+   duration  = duration + (uint16_t)vol / (12 - (SEGMENT.intensity>>5));  // +audio
+   hueinc16  = 0;                                                // <-- forced to 0 in SR mode
+}
+sPseudotime += duration * msmultiplier;                          // a7 += duration*msmultiplier
+sHue16      += duration * beatsin88(400, 5, 9);                  // a3 += duration*bs(400,5,9)
+```
+Answers to the three questions:
+- **Final hueinc16, SR off** = `beatsin88(113,60,300) * (SEGMENT.intensity>>3) * 10 / 255`.
+  The multiplier is **`intensity>>3`** (stock used full `intensity`). It is *not* `msmultiplier`
+  and *not* `(beatsin>>4)+10` — that latter expression was actually `duration`.
+- **Final hueinc16, SR on** = **0** (the spatial hue gradient is flattened; only `sHue16` drifts
+  the whole field over time). Louder audio instead speeds `duration`.
+- **Where SEGMENT.intensity enters the non-audio path:** *only* in `hueinc16`, as `intensity>>3`.
+  (In the audio path it also appears in the divisor `12-(intensity>>5)`.)
+- `msmultiplier = beatsin88(147,23,60)` multiplies `duration` for `sPseudotime` (as stock).
+
+### 10.4 Running per-pixel body — DEFINITIVE (closes §6's open flag)  (CONFIDENCE: HIGH)
+With `aPhase` (wave) and `hPhase` (hue) as recovered in §9.4, the frame setup then computes a
+**triangle wave of hPhase** as a single global palette index, and the loop applies a running
+`sin8` brightness wave (0x42043446-0x420434dd):
+```c
+uint16_t hp = (hPhase + SEGMENT.aux0) & 0xFFFF;            // aux0@+52
+uint16_t t2 = (hp << 1) & 0xFFFF;
+uint8_t  hueIdx = ((int16_t)hp >= 0 ? t2 : ~t2) >> 8;      // triangle(hPhase) -> 8-bit index
+uint16_t ap = (aPhase + SEGMENT.step) & 0xFFFF;            // step@+44 ; wave start phase
+uint8_t  x_scale = (SEGMENT.intensity>>2) + 12;            // ix="Wave width"
+bool wrap = (strip.paletteBlend-ish bit) ... ;            // PALETTE_SOLID_WRAP flag from strip[1]&~2
+
+for (int i = 0; i < SEGLEN; i++) {
+    uint8_t s = sin8( (uint8_t)(ap + i * x_scale) );                 // running brightness wave
+    uint32_t pcol = SEGMENT.color_from_palette(hueIdx, /*mapping*/false, wrap, /*mcol*/0, 255);
+    uint32_t c    = color_blend(/*BLACK*/0, pcol, s, false);
+    SEGMENT.setPixelColor(i, c);                                     // 1D writer @0x403757e8
+}
+SEGMENT.step = ap-ish; SEGMENT.aux0 = hp-ish;             // persisted
+```
+Exact per-pixel facts:
+- **sin8 argument** = `(aPhase + i*x_scale) & 0xFF`, where the accumulator adds
+  `x_scale = (intensity>>2)+12` each pixel — i.e. `sin8(aPhase + i*x_scale)`.
+- **palette index** = `hueIdx = triangle(hPhase) >> 8` — a **single value shared by all pixels**,
+  advancing only in time (hPhase = speed/audio/aux0), **not** `i`. **mapping flag = false**
+  (stock passed `i` with mapping=**true**). So the whole strip is one time-evolving color whose
+  brightness runs along the length via the sin8 wave; stock instead painted a moving palette
+  gradient (`color_from_palette(i, true, …)`). This is the section-6 delta, now resolved.
+- `color_blend(BLACK, pcol, s)` — color1 is literal 0 (stock used `SEGCOLOR(1)`).
+
+### 10.5 LEDs 0 / 21 / 62 — is anything writing the ledmap holes?  (CONFIDENCE: MED-HIGH)
+The factory grid ledmap maps 80 logical cells onto physical 1..82 except {0,21,62}. Searching
+the whole image for another writer of those three:
+- **No usermod writes LEDs** at all (§10.1): GLORB and HomeKit never call a pixel/bus writer;
+  the `handleOverlayDraw` slot is the base no-op in every custom usermod → no overlay pass draws.
+- **No literal-index pixel write** to 0/21/62 in a render context: `movi *,21`(3 sites) and
+  `movi *,62`(6 sites) all land in unrelated helpers (FFT/util code at 0x42084xxx/0x420cbxxx/…),
+  none adjacent to a `setPixelColor`/bus call.
+- Effects reach the panel **only** through the ledmap, which by construction excludes {0,21,62}.
+
+**Conclusion:** no code path in this app image deliberately lights physical LEDs 0/21/62. They
+are either **gap entries** (physically absent — the firmware has a gap-map: strings "Reading LED
+gap from"/"Gaps loaded"/"Matrix ledmap:") or real LEDs left **black**. Either way the original
+firmware does **not** light them, so a grid-based port loses nothing visible. Caveat: whether
+they are gaps-vs-black, and whether a second full-strip segment exists, is decided by
+`ledmap.json`/`cfg.json` in **littlefs**, which is *not* in this app binary — confirm against the
+device's `/cfg.json` + `/ledmap.json` if certainty on the gap-vs-black distinction is needed.
+
+### 10.6 Per-model LED-count constants
+This image is the **gma_83** build; DROM contains only its banner `WLED v0.14.4-GLORB.1.3`
+and **no** `gma_81`/`sph_81`/`sph_83` model strings — the variants are separate builds/configs,
+not switched by a runtime string in this binary. LED count is not a compile-time literal switched
+by model here; it comes from `cfg.json`/NVS (WLED bus config). `movi` immediates of 80 (19×),
+82 (3×), 83 (4×), 120 (67×) exist but none could be tied to the strip length with confidence
+(120 is common/unrelated). No reliable static per-model count constant to report.
