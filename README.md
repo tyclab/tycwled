@@ -122,7 +122,7 @@ write state to the lamps (white fill, `sx`, preset recall).
 
 | Rule                                                                                                                                                                        | Enforced by                                          |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| Never claim "by construction" — the fork's `g`-flagged effects are modified algorithms; same palette ≠ same output                                                          | `make verify` (current-estimate ratio per preset)    |
+| Never claim "by construction" — the fork's `g`-flagged effects are modified algorithms; same palette ≠ same output                                                          | `verify`: current ratio + structural criteria        |
 | Custom palettes: ≤18 stops, first index 0, last 255, committed file = generator output                                                                                      | `make lint` → `mkpalettes.py --check`                |
 | Ledmap: exact bytes `"map":[`, valid JSON, `width`/`height` before `map`, `map` array byte-identical to factory                                                             | `make lint`, `install` refuses, `check-ledmap` ratio |
 | Every uploaded file is read back byte-exact; every preset is applied and all segments compared (`bm`, `o1`, `col`, `bri` included); `cpalcount` covers every custom ID used | `install`                                            |
@@ -227,6 +227,10 @@ stock algorithm already cycles hue, it only needed the 0–127 compressed palett
   holding a blue hue longer than the fork's 16-slot path — only more slots
   would fix it, and the mirror needs them for the down sweep.
 - Speed map, measured: fork 60 ↔ stock 4 (7.4 s per turn), fork 255 ↔ stock 12.
+- Frizzles acceptance is peak brightness and lit-cell count against the fork
+  (231 / ~25), not current: `verify` reports `peak_r`/`lit_r` per preset.
+  Stock always draws 8 frizzles, so preset 7's reachable peak is bounded (see
+  below) — that bound is a recorded limitation, not a knob to keep re-tuning.
 - Frizzles: the fork sparkles to a per-frame peak of 231 with ~25 lit cells.
   A `bri` cap chosen for equal current (156) flattened the port to a peak of
   135 — current alone is the wrong target for sparkle effects. Fitted on
