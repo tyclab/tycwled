@@ -3,7 +3,11 @@
     PYTHONPATH=. python3 glorb/experiments/2026-08-27-structural/pat.py '{"14": {"name": {seg0 fields...}, ...}}'
 
 A candidate with "single": true is applied as one segment (the colour layer, seg 1, is dropped); every other
-candidate keeps the preset's seg 1. Palettes 12-15 are uploaded from this directory first (see PALETTES)."""
+candidate keeps the preset's seg 1. Palettes 12-15 are uploaded from this directory first (see PALETTES).
+Every swept parameter is read back from /json/state and must match exactly -- a clamped slider (c3 > 31)
+or an ignored key aborts the run instead of silently scoring a different configuration.
+An optional second argument N runs every candidate N times so the score spread (the error bar) is visible;
+a ranking whose gap lies inside the replicate spread is noise."""
 import json, os, sys, threading, time, wledlab
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from structural import feats, pwr_both
@@ -35,7 +39,7 @@ def capture_both(seconds):
     t1.start(); t2.start(); t1.join(); t2.join(); return res["ref"], res["tgt"]
 
 
-def main(plan):
+def main(plan, replicates=1):
     for slot, fname in PALETTES.items():
         wledlab.upload(T, f"/palette{slot}.json", os.path.join(S, fname))
         have = wledlab.readback(T, f"/palette{slot}.json"); want = open(os.path.join(S, fname), "rb").read()
@@ -45,12 +49,21 @@ def main(plan):
     time.sleep(2)
     try:
         for ps, cands in plan.items():
-            for name, seg in cands.items():
+            for name, seg in [(f"{n}#{r + 1}" if replicates > 1 else n, s) for r in range(replicates) for n, s in cands.items()]:
                 seg = dict(seg); single = seg.pop("single", False)
                 for ip in (R, T): wledlab.post(ip, "/json/state", {"on": True, "bri": 255, "ps": int(ps)})
                 time.sleep(1); over = {"seg": [dict(id=0, **seg)]}
                 if single: over["seg"].append({"id": 1, "stop": 0})  # single-segment candidate: drop the colour layer
                 wledlab.post(T, "/json/state", over); time.sleep(2)
+                st = wledlab.get(T, "/json/state"); rb = st["seg"][0]
+                for key, val in seg.items():
+                    got = rb.get(key)
+                    if key == "col":
+                        got = [list(c[:3]) for c in (got or [])][:len(val)]
+                    if got != val:
+                        raise SystemExit(f"{name}: {key} readback {got!r} != requested {val!r} -- clamped or ignored; fix the candidate")
+                if single and len(st["seg"]) > 1 and st["seg"][1].get("stop", 0) != 0:
+                    raise SystemExit(f"{name}: colour layer still active (seg1 stop {st['seg'][1].get('stop')})")
                 fr, ft = capture_both(SECONDS); time.sleep(3)
                 fa, fb = feats(fr), feats(ft); ba, bb = blob(fr), blob(ft); pa, pb = pwr_both(R, T)
                 print(f"p{ps} {name}{' [single]' if single else ''} {seg}: pwr {pa:.0f}/{pb:.0f} | mean {fa['mean']}/{fb['mean']} sstd {fa['sstd']}/{fb['sstd']} tstd {fa['tstd']}/{fb['tstd']} ratio {fa['ratio']}/{fb['ratio']} | blob-len {ba[0]}/{bb[0]} black% {ba[1]}/{bb[1]}\n   bands ref {fa['bands']} tgt {fb['bands']}\n   vhist ref {fa['vhist']}\n   vhist tgt {fb['vhist']}", flush=True)
@@ -60,4 +73,4 @@ def main(plan):
 
 
 if __name__ == "__main__":
-    main(json.loads(sys.argv[1]))
+    main(json.loads(sys.argv[1]), int(sys.argv[2]) if len(sys.argv) > 2 else 1)
