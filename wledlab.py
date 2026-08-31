@@ -729,11 +729,12 @@ def cmd_install(a):
         for k, v in want.items():
             if not v:
                 continue
-            post(a.host, "/json/state", {"on": True, "ps": int(k)}); time.sleep(0.5)
+            post(a.host, "/json/state", {"on": True, "ps": int(k)}); time.sleep(1.5)  # outlast the preset's own transition
             segs = get(a.host, "/json/state")["seg"]
             ok = True
-            for ws in v["seg"]:
-                s = next((x for x in segs if x["id"] == ws["id"]), {})
+            for n, ws in enumerate(v["seg"]):
+                sid = ws.get("id", n)  # trailing {"stop":0} deletion stubs carry no id
+                s = next((x for x in segs if x.get("id") == sid), {})
                 if ws.get("stop") == 0:
                     ok &= s.get("stop", 0) == 0
                 else:

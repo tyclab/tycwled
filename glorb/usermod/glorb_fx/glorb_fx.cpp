@@ -18,6 +18,20 @@ static void glorb_mode_static_fallback(void) {
 }
 #define GLORB_FALLBACK { glorb_mode_static_fallback(); return; }
 
+static um_data_t* glorb_getAudioData() {
+  um_data_t *um_data;
+  if (!UsermodManager::getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
+    um_data = simulateSound(SEGMENT.soundSim);
+  }
+  return um_data;
+}
+
+// fork's triangle(hPhase): fold a 16-bit phase into a triangle wave
+static inline uint16_t glorb_triwave16(uint16_t in) {
+  if (in & 0x8000) in = 65535 - in;
+  return in << 1;
+}
+
 // ---- Hiphotic (fork fx 193) — exact lift, HIGH confidence ----------------
 // sx=Speed (per-frame step accumulator), ix=Hue variation (index compression
 // shift + beat window), c1=X scale, c2=Y scale. Delta vs stock: persistent
@@ -92,20 +106,28 @@ static void glorb_mode_frizzles(void) {
 }
 static const char _data_FX_MODE_GLORB_FRIZZLES[] PROGMEM = "Frizzles@X scale,Y scale,Blur,Intensity;!;!;2g";
 
-// ---- Colorwaves (fork fx 189) — MED-HIGH ---------------------------------
-// sx=Speed, ix=Intensity, check1=Sound Reactive (NOTE-AUDIO: no-op here).
-// The stock 0.14.4 colorwaves engine (all beatsin88 constants byte-identical
-// in the fork binary) rendered over the segment; hueinc16 reduction is the
-// fork's ((beatsin88>>4)+10)*(ix>>3) — NOTE-MED vs stock *ix*10/255.
+// ---- Colorwaves (fork fx 189) — decompiled, HIGH -------------------------
+// sx=Speed (duration=(sx>>4)+10), ix=Intensity (hue-gradient scale),
+// check1=Sound Reactive: hueinc16=0 (gradient flattened) and volumeSmth
+// speeds duration by vol/(12-(ix>>5)). The stock colorwaves engine (all
+// beatsin88 constants byte-identical in the fork binary) over the segment.
 static void glorb_mode_colorwaves(void) {
-  const uint16_t duration = 10 + SEGMENT.speed;
+  uint16_t duration = (SEGMENT.speed >> 4) + 10;
   uint16_t sPseudotime = SEGENV.step;
   uint16_t sHue16 = SEGENV.aux0;
   const uint8_t brightdepth = beatsin88_t(341, 96, 224);
   const uint16_t brightnessthetainc16 = beatsin88_t(203, (25 * 256), (40 * 256));
   const uint8_t msmultiplier = beatsin88_t(147, 23, 60);
   uint16_t hue16 = sHue16;
-  const uint16_t hueinc16 = ((beatsin88_t(113, 60, 300) >> 4) + 10) * (SEGMENT.intensity >> 3);  // NOTE-MED
+  uint16_t hueinc16;
+  if (SEGMENT.check1) {
+    um_data_t *um_data = glorb_getAudioData();
+    const float vol = *(float*)um_data->u_data[0];  // volumeSmth
+    hueinc16 = 0;
+    duration += (uint16_t)((uint32_t)vol / (12 - (SEGMENT.intensity >> 5)));
+  } else {
+    hueinc16 = beatsin88_t(113, 60, 300) * (SEGMENT.intensity >> 3) * 10 / 255;
+  }
   sPseudotime += duration * msmultiplier;
   sHue16 += duration * beatsin88_t(400, 5, 9);
   uint16_t brightnesstheta16 = sPseudotime;
@@ -127,21 +149,34 @@ static void glorb_mode_colorwaves(void) {
 }
 static const char _data_FX_MODE_GLORB_COLORWAVES[] PROGMEM = "Colorwaves@Speed,Intensity,,,,Sound Reactive;!;!;2vg";
 
-// ---- Running (fork fx 190) — MED-HIGH ------------------------------------
-// sx=Speed (persistent accumulator), ix=Wave width ((ix>>2)+12),
-// check1=Sound Reactive (NOTE-AUDIO: no-op). Background blend color is BLACK
-// (fork) rather than SEGCOLOR(1). Palette index kept as the stock mapped i —
-// NOTE-MED: the decompile suggests a time/phase-derived index; revisit if the
-// gate flags p4/p5.
+// ---- Running (fork fx 190) — decompiled, HIGH ----------------------------
+// sx=Speed, ix=Wave width ((ix>>2)+12), check1=Sound Reactive (volumeSmth
+// advances both phases by (vol>>5)&0x7FF and halves the base time-advance).
+// Two persistent accumulators: aPhase (wave, step) and hPhase (hue, aux0).
+// One time-evolving palette color for all pixels (triangle(hPhase)>>8,
+// mapping=false), brightness = running sine wave, background BLACK.
 static void glorb_mode_running(void) {
-  SEGENV.step += (SEGMENT.speed >> 6) + 1;
-  const uint16_t phase = (uint16_t)SEGENV.step;
+  const bool sr = SEGMENT.check1;
+  uint32_t aPhase = (SEGMENT.speed >> (sr ? 7 : 6)) + 1;
+  uint32_t hPhase = (SEGMENT.speed >> 1) + 10;
+  if (sr) {
+    um_data_t *um_data = glorb_getAudioData();
+    const float vol = *(float*)um_data->u_data[0];  // volumeSmth
+    const uint32_t k = ((uint32_t)vol >> 5) & 0x7FF;
+    aPhase += k;
+    hPhase += k;
+  }
+  aPhase = (aPhase + SEGENV.step) & 0xFFFF;
+  hPhase = (hPhase + SEGENV.aux0) & 0xFFFF;
   const uint8_t x_scale = (SEGMENT.intensity >> 2) + 12;
+  const uint8_t idx = glorb_triwave16((uint16_t)hPhase) >> 8;
+  const uint32_t pcol = SEGMENT.color_from_palette(idx, false, PALETTE_SOLID_WRAP, 0);
   for (int i = 0; i < (int)SEGLEN; i++) {
-    const uint8_t s = sin8_t((uint8_t)(i * x_scale + phase));
-    const uint32_t pcol = SEGMENT.color_from_palette(i, true, PALETTE_SOLID_WRAP, 0);
+    const uint8_t s = sin8_t((uint8_t)(aPhase + i * x_scale));
     SEGMENT.setPixelColor(i, color_blend(BLACK, pcol, s));
   }
+  SEGENV.step = aPhase;
+  SEGENV.aux0 = hPhase;
 }
 static const char _data_FX_MODE_GLORB_RUNNING[] PROGMEM = "Running@Speed,Wave width,,,,Sound Reactive;!;!;g";
 
