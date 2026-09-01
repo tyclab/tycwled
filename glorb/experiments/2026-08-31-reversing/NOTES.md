@@ -1068,3 +1068,33 @@ Port fix: the glorb_fx effects that blur (Black Hole, Frizzles) must reproduce t
 topology -- black out the cells whose ledmap entry is unmapped each frame (WLED 16 exposes the
 custom mapping table; precompute the hole mask once). Verify with the gate only AFTER the model
 prediction is reproduced on the lamp.
+
+### The hole semantics, pinned to source, and built into the port
+
+Both engines read from public source, no disassembly needed for this one:
+
+- 0.14.4 `WS2812FX::setPixelColor` (FX_fcn.cpp): `if (i < customMappingSize) i =
+  customMappingTable[i]; if (i >= _length) return;` — `deserializeMap` loads `-1`
+  as `0xFFFF`, so the write is dropped; `getPixelColor` returns 0 the same way.
+  `strip.set/getPixelColorXY` are `setPixelColor(y*maxWidth + x)` (FX.h), and
+  `Segment::setPixelColorXY` routes through them — every effect access, mapped
+  at once.
+- WLED 16 `Segment::set/getPixelColorXY` (FX_2Dfcn.cpp) end in
+  `pixels[x + y*vWidth()]` — the raw segment buffer, no ledmap anywhere in the
+  path; the map is applied in `show()` via `getMappedPixelIndex(i)` over the
+  same `y*maxWidth+x` logical layout.
+
+Two corrections to the section above, from making the model committed and exact:
+
+- The x1.61 was the model scoring all 120 raster cells. Scored through the
+  ledmap (mapped cells only, the only cells either lamp can show — same rule the
+  gate uses), the committed no-holes model gives lit x1.21/x1.20, which is the
+  measured gate ratio. Same conclusion, now with the magnitudes matching the
+  instrument. `blackhole_model.py` now carries `holes=` and mapped-only scoring:
+  fork semantics x0.94/x0.99, port-before-fix x1.21/x1.20.
+- The fix must gate **every access**, not black holes out per frame: within one
+  blur pass the row sweep deposits carry into a hole that the column sweep would
+  read back. glorb_fx now wraps get/set/add in `glorb_cellMapped()` (asks
+  `strip.getMappedPixelIndex` — the engine's own table, not a reparse of the
+  file) and routes all six effects' pixel accesses through the wrappers, so the
+  topology is the fork's at every step, not just at frame boundaries.
