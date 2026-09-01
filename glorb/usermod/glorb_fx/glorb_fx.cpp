@@ -103,6 +103,11 @@ static uint16_t glorb_beatsin88(uint32_t bpm88, uint16_t lowest = 0, uint16_t hi
 // 0.14.4 color_blend: weights sum to 255/256, so it bleeds slightly toward
 // black each iteration where WLED 16's (256-b)/(b+1) pair is a fixed point
 static inline uint32_t glorb_color_blend(uint32_t c1, uint32_t c2, uint8_t blend) {
+  // 0.14.4 returns the endpoints untouched at blend 0/255; without the early
+  // return, blend 255 computes (c2*255)>>8 and loses 1 LSB per channel
+  // (reachable in Running at the sine crest, s == 255)
+  if (blend == 0) return c1;
+  if (blend == 255) return c2;
   const uint8_t inv = 255 - blend;
   return RGBW32((R(c1) * inv + R(c2) * blend) >> 8, (G(c1) * inv + G(c2) * blend) >> 8,
                 (B(c1) * inv + B(c2) * blend) >> 8, (W(c1) * inv + W(c2) * blend) >> 8);
@@ -127,6 +132,9 @@ static inline uint32_t glorb_nscale8(uint32_t c, uint8_t s) {
 // unaffected) and reproduced exactly by the offline model (blackhole_model.py:
 // port semantics x1.21/x1.20 vs fork measurements, fork semantics x0.94/x0.99).
 // These wrappers restore the fork's semantics for every access the effects make.
+// Note: getMappedPixelIndex bypasses the mapping table while realtime mode is
+// active with realtimeRespectLedMaps off -- the hole topology (and the fork
+// comparison) only holds for normal effect rendering, which is all we gate.
 static bool glorb_cellMapped(int x, int y) {
   const Segment &seg = SEGMENT;
   const unsigned logical = (seg.startY + (unsigned)y) * Segment::maxWidth + seg.start + (unsigned)x;

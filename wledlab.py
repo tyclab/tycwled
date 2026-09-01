@@ -313,22 +313,6 @@ def hue_cycle_peaks(ts, hues_deg, dt=0.5, maxlag_s=90):
             if ac[l] > ac[l - 1] and ac[l] >= ac[l + 1] and ac[l] > 0.15][:4]
 
 
-def autocorr_peaks(series, dt, maxlag_s):
-    m = sum(series) / len(series); v = [a - m for a in series]; den = sum(a * a for a in v) or 1
-    ac = [sum(v[i] * v[i + l] for i in range(len(v) - l)) / den for l in range(int(maxlag_s / dt))]
-    return [(round(l * dt, 1), round(ac[l], 2)) for l in range(4, len(ac) - 1)
-            if ac[l] > ac[l - 1] and ac[l] >= ac[l + 1] and ac[l] > 0.15][:4]
-
-
-def resample(ts, series, dt=0.5):
-    out, t, k = [], 0.0, 0
-    while t <= ts[-1]:
-        while k + 1 < len(ts) and ts[k + 1] <= t:
-            k += 1
-        out.append(series[k]); t += dt
-    return out
-
-
 def hue_census(frames, bins=12):
     """Share of lit cell-samples per 30-degree hue bin (%), and their mean brightness (0..255).
     Catches a palette used over the wrong range or dwelling in the wrong colours (Black Hole - Sunset:
@@ -578,8 +562,8 @@ def load_capture(path):
         return {"": d}
     if "frames" in d:
         return {"": d["frames"]}
-    out = {k: d[k] for k in ("ref", "tgt") if k in d}
-    if not out:
+    out = {k: d[k] for k in ("ref", "tgt", "meta") if k in d}
+    if not ("ref" in out or "tgt" in out):
         raise ValueError(f"{path}: unrecognised capture format")
     return out
 
@@ -588,6 +572,8 @@ def cmd_analyse(a):
     named = []
     for f in a.file:
         for tag, fr in load_capture(f).items():
+            if tag == "meta":
+                continue
             fr = [(x[0], x[-1]) for x in fr]
             named.append((os.path.basename(f) + (f":{tag}" if tag else ""), metrics(fr, a.width, a.height)))
     print_metrics(*named)
@@ -640,9 +626,9 @@ def cmd_rescore(a):
         if not fr or not ft:
             print(f"{os.path.basename(f):<16} no paired frames"); continue
         fr = [(x[0], x[-1]) for x in fr]; ft = [(x[0], x[-1]) for x in ft]
-        secs = (caps.get("meta") or {}).get("window")  # older captures do not record it
+        secs = (caps.get("meta") or {}).get("window")  # captures before fee96fb did not record it
         hr, ht = capture_health(fr, secs), capture_health(ft, secs)
-        expect = max(hr["cells"], ht["cells"])
+        expect = max(hr["cells"], ht["cells"], a.width * a.height)
         unhealthy = [f"{t}: {', '.join(r)}" for t, h in (("ref", hr), ("tgt", ht))
                      for r in [capture_is_healthy(h, secs, expect)] if r]
         g = gate_scores(fr, ft)
@@ -753,7 +739,7 @@ def cmd_verify(a):
                 # Only capture health triggers a retry -- a scored FAIL is final; re-rolling
                 # scored windows would be fishing for a friendlier measurement.
                 for attempt in range(3):
-                    meta = {"preset": int(k), "ref": lamp_meta(a.ref), "tgt": lamp_meta(a.target)} if a.save_captures else None
+                    meta = {"preset": int(k), "window": window, "ref": lamp_meta(a.ref), "tgt": lamp_meta(a.target)} if a.save_captures else None
                     res = {}
                     t1 = threading.Thread(target=lambda: res.__setitem__("ref", live(a.ref, window)))
                     t2 = threading.Thread(target=lambda: res.__setitem__("tgt", live(a.target, window)))
@@ -781,7 +767,7 @@ def cmd_verify(a):
                         hr, ht = capture_health(fr, window), capture_health(ft, window)
                         # both lamps must deliver the same raster, or the two scores describe
                         # different pictures: a short frame rescopes the statistics, it does not raise
-                        expect = max(hr["cells"], ht["cells"])
+                        expect = max(hr["cells"], ht["cells"], a.width * a.height)
                         unhealthy = [f"{t}: {', '.join(r)}" for t, h in (("ref", hr), ("tgt", ht))
                                      for r in [capture_is_healthy(h, window, expect)] if r]
                         line += f"  hz {hr['hz']}/{ht['hz']} cov {hr['coverage']}/{ht['coverage']} gap {hr['max_gap']}/{ht['max_gap']} cells {hr['cells']}/{ht['cells']}"

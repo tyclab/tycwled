@@ -17,7 +17,7 @@ check-ledmaps:
 check-palettes:
 	@python3 glorb/mkpalettes.py --check
 
-# Offline tests: the palette emulation against known firmware values. Seconds.
+# Offline tests: gate math, preset/palette invariants, capture handling. Seconds.
 test:
 	python3 -m unittest discover -s tests -v
 
