@@ -920,3 +920,28 @@ Combined with mean V of lit cells matching to ~1.07, the residual is now pinned 
 port keeps about 20 % more cells in the dim tail just above the 0.05 lit threshold, with correct
 star positions and correct brightness. It is a low-end decay equilibrium difference in the
 fade/blur loop, not geometry, energy, or timing.
+
+### The residual tracks blur amount across effects
+
+The dim-tail excess is not unique to Black Hole. Measured against the factory lamp on the audited
+build, the two effects that run fade AND blur in a feedback loop are the only ones off 1.00, and
+they scale with the blur argument:
+
+```text
+Frizzles - Fire     blur (custom1>>4)+4 = 15   lit_r 1.11  mean_r 1.11   (passes)
+Black Hole - Sunset blur 32                    lit_r 1.20+ mean_r 1.20+  (fails)
+Running / Tartan / Colorwaves / Hiphotic       lit_r 1.00  mean_r ~1.00
+```
+
+Hiphotic reads the previous frame too (`color_blend(prev, col, 64)`) and is clean, so it is not
+feedback as such -- it is blur. The arithmetic says why the balance is delicate: at blur 32 the
+fork's FastLED rounding makes each interior pixel emit 224/256 + 2x17/256 = 1.0078 of what it
+held, a 0.78 % gain per pass, and the only sink is the carryover dropped at each row and column
+end. Interior gain and edge loss very nearly cancel, so a small difference anywhere in that loop
+moves the steady-state dim tail a lot while leaving star positions and peak brightness untouched --
+exactly the measured signature.
+
+Next step for whoever picks this up: instrument the equilibrium rather than the aggregate. Drive
+both lamps to a static single-pixel injection with fade and blur running, capture the decay
+envelope, and compare it cell by cell against `blackhole_model.py`. That isolates the loop from
+the effect.
