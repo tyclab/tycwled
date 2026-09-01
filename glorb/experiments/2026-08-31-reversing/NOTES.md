@@ -1016,3 +1016,28 @@ Two consequences:
    (0x4201741c; grouping/spacing multiply observed, identity at grouping 1 / spacing 0 --
    unfinished read), and the model's own transliteration fidelity (its ms timebase and star
    count laws were never diffed against the body the way the helpers now are).
+
+### CORRECTION: the model matches neither firmware — its table above is not reproducible
+
+Re-measured from scratch (committed model run verbatim; lit counts recomputed from the raw
+captures, every 5th frame, V > 0.05):
+
+```text
+                         p11      p10
+fork (ref), all 3 runs   19.8-20.1  37.2-37.4     <- stable; the 20.16/36.93 targets were honest
+port  exact-pal build    21.5       38.2
+port  final build        25.9       45.0
+port  audit build        16.6       14.3
+committed model          32.3       59.7          <- x1.61 vs fork, matches NO port build
+```
+
+The table earlier in this section ("sim lit 24.41 ... x1.21, matches the hardware's lit_r") does
+not reproduce from the committed blackhole_model.py; the only change to the file since that text
+was written is a removed unused import, so the recorded run must have used uncommitted
+parameters. Treat every conclusion that leaned on "the model reproduces the port" as unsupported.
+
+What actually stands: the helper functions are binary-proven (previous section), and the fork's
+lit equilibrium is stable and known. What does not stand: the model's frame loop (ms timebase,
+star count/injection, blur amount) has never matched either lamp, so it cannot arbitrate
+hypotheses. Before anything else, bring the model to reproduce the FORK's 19.8/37.3 from the
+body disassembly alone — a model that cannot reproduce the reference cannot indict the port.
