@@ -1,7 +1,11 @@
 """Offline Black Hole model: integer-exact FastLED/0.14 arithmetic on a 20x6 buffer.
 
-Scores lit-cell count and mean V the same way wledlab's structural_stats does, so a
-hypothesis can be tested against the measured lamp numbers without flashing anything.
+Scores lit-cell count the way wledlab's structural_stats does. Mean V is close to but
+not identical to the gate's mean_r numerator: structural_stats averages V over the
+ever-lit cell set (dark samples of a lit cell count), this model averages only cells
+currently above the lit threshold -- compare model V against fork V recomputed with
+the same rule, never against the gate line. Lets a hypothesis be tested against the
+measured lamp numbers without flashing anything.
 """
 import json
 import os
@@ -128,7 +132,7 @@ def run(stops, sx, ix, c1, c2, frames=900, dt=23, blur=32, count_law=lambda c: (
             means.append(sum(v for v in vs if v > 0.05) / max(1, sum(1 for v in vs if v > 0.05)))
     return sum(lits) / len(lits), sum(means) / len(means)
 
-PALX = json.load(open("/home/tycorc/git/tyclab/tycwled/glorb/factory-0.14.4-GLORB.1.3/palx.json"))
+PALX = json.load(open(os.path.join(_HERE, "..", "..", "factory-0.14.4-GLORB.1.3", "palx.json")))
 SUNSET = [tuple(s) for s in PALX["palettes"]["13"]]
 TERTIARY = [tuple(s) for s in PALX["palettes"]["34"]]
 

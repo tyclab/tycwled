@@ -193,6 +193,6 @@ Two measurement rules the gate learned the hard way:
 | Custom palettes are the factory stops verbatim, ≤18 stops, first index 0, last 255, committed file = generator output | `make lint` → `mkpalettes.py --check`, `tests/test_palettes.py` |
 | No preset may point at a built-in palette ID                                                                          | `tests/test_palettes.py`                                        |
 | Ledmap: exact bytes `"map":[`, valid JSON, `width`/`height` before `map`                                              | `make lint`, `install` refuses                                  |
-| Every uploaded file read back byte-exact; every preset applied and all segments compared                              | `install`                                                       |
+| Ledmap and palettes read back byte-exact, presets compared JSON-equal; every preset applied and all segments compared | `install`                                                       |
 | Current is not a cross-firmware criterion; brightness and saturation are measured from the frames                     | `verify`                                                        |
 | Both lamps captured simultaneously over the same window; hue/saturation only from cells bright enough to have a hue   | `verify`, `compare`                                             |

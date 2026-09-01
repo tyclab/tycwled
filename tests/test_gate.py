@@ -101,16 +101,22 @@ class LoadCapture(unittest.TestCase):
         import json
         import tempfile
         fr = frames_from_grid([10, 250], n_frames=2)
+        # meta must survive load_capture: rescore reads meta["window"] to apply the
+        # same coverage/gap health refusal the live gate applies (dropping it made
+        # those checks dead code and let rescore bless a gapped capture)
         for payload, keys in ((fr, [""]), ({"meta": {}, "frames": fr}, [""]),
-                              ({"meta": {}, "ref": fr, "tgt": fr}, ["ref", "tgt"])):
+                              ({"meta": {"window": 9}, "ref": fr, "tgt": fr}, ["meta", "ref", "tgt"])):
             import os
             with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
                 json.dump(payload, f)
             try:
                 got = wledlab.load_capture(f.name)
                 self.assertEqual(sorted(got), sorted(keys))
-                for v in got.values():
-                    self.assertEqual(len(v), 2)
+                for k, v in got.items():
+                    if k == "meta":
+                        self.assertEqual(v, {"window": 9})
+                    else:
+                        self.assertEqual(len(v), 2)
             finally:
                 os.unlink(f.name)
 
