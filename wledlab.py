@@ -748,44 +748,53 @@ def cmd_verify(a):
                 if bad:
                     print(f"  preset {k:>2} {v.get('n', ''):<26} FAIL (preset did not apply on {bad})", flush=True)
                     fails.append(k); continue
-                meta = {"preset": int(k), "ref": lamp_meta(a.ref), "tgt": lamp_meta(a.target)} if a.save_captures else None
-                res = {}
-                t1 = threading.Thread(target=lambda: res.__setitem__("ref", live(a.ref, window)))
-                t2 = threading.Thread(target=lambda: res.__setitem__("tgt", live(a.target, window)))
-                if not a.current_only:
-                    t1.start(); t2.start()
-                pr, pt = [], []
-                t0 = time.time()
-                while time.time() - t0 < window:  # wall clock: GET latency must not stretch past the capture
-                    pr.append(get(a.ref, "/json/info")["leds"]["pwr"]); pt.append(get(a.target, "/json/info")["leds"]["pwr"])
-                    time.sleep(a.interval)
-                mr, mt = sum(pr) / len(pr), sum(pt) / len(pt)
-                checks = []; line = f"ref {mr:5.0f} mA  target {mt:5.0f} mA"
-                if mr < 50 or mt < 50:  # ABL off reports ~0 -- a ratio against the floor guard is noise, not a verdict
-                    line += "  current n/a (ABL off or dark)"
-                else:
-                    r = mt / mr
-                    checks.append(("current", 1 - a.tolerance <= r <= 1 + a.tolerance))
-                    line += f"  ratio {r:.3f}"
-                if not a.current_only:
-                    t1.join(); t2.join()
-                    fr, ft = res.get("ref") or [], res.get("tgt") or []
-                    if a.save_captures and fr and ft:
-                        os.makedirs(a.save_captures, exist_ok=True)
-                        json.dump({"meta": meta, "ref": fr, "tgt": ft}, open(os.path.join(a.save_captures, f"verify-p{k}.json"), "w"))
-                    hr, ht = capture_health(fr, window), capture_health(ft, window)
-                    # both lamps must deliver the same raster, or the two scores describe
-                    # different pictures: a short frame rescopes the statistics, it does not raise
-                    expect = max(hr["cells"], ht["cells"])
-                    unhealthy = [f"{t}: {', '.join(r)}" for t, h in (("ref", hr), ("tgt", ht))
-                                 for r in [capture_is_healthy(h, window, expect)] if r]
-                    line += f"  hz {hr['hz']}/{ht['hz']} cov {hr['coverage']}/{ht['coverage']} gap {hr['max_gap']}/{ht['max_gap']} cells {hr['cells']}/{ht['cells']}"
-                    if unhealthy:
-                        checks.append(("capture", False)); line += f"  capture UNHEALTHY ({','.join(unhealthy)})"
+                # a capture with stream gaps is a broken instrument, not a verdict: it is never
+                # scored, so re-measure the window (twice at most) instead of burning the preset.
+                # Only capture health triggers a retry -- a scored FAIL is final; re-rolling
+                # scored windows would be fishing for a friendlier measurement.
+                for attempt in range(3):
+                    meta = {"preset": int(k), "ref": lamp_meta(a.ref), "tgt": lamp_meta(a.target)} if a.save_captures else None
+                    res = {}
+                    t1 = threading.Thread(target=lambda: res.__setitem__("ref", live(a.ref, window)))
+                    t2 = threading.Thread(target=lambda: res.__setitem__("tgt", live(a.target, window)))
+                    if not a.current_only:
+                        t1.start(); t2.start()
+                    pr, pt = [], []
+                    t0 = time.time()
+                    while time.time() - t0 < window:  # wall clock: GET latency must not stretch past the capture
+                        pr.append(get(a.ref, "/json/info")["leds"]["pwr"]); pt.append(get(a.target, "/json/info")["leds"]["pwr"])
+                        time.sleep(a.interval)
+                    mr, mt = sum(pr) / len(pr), sum(pt) / len(pt)
+                    checks = []; line = f"ref {mr:5.0f} mA  target {mt:5.0f} mA"
+                    if mr < 50 or mt < 50:  # ABL off reports ~0 -- a ratio against the floor guard is noise, not a verdict
+                        line += "  current n/a (ABL off or dark)"
                     else:
-                        g = gate_scores(fr, ft)
-                        checks += gate_checks(g, a)
-                        line += "  " + gate_line(g)
+                        r = mt / mr
+                        checks.append(("current", 1 - a.tolerance <= r <= 1 + a.tolerance))
+                        line += f"  ratio {r:.3f}"
+                    if not a.current_only:
+                        t1.join(); t2.join()
+                        fr, ft = res.get("ref") or [], res.get("tgt") or []
+                        if a.save_captures and fr and ft:
+                            os.makedirs(a.save_captures, exist_ok=True)
+                            json.dump({"meta": meta, "ref": fr, "tgt": ft}, open(os.path.join(a.save_captures, f"verify-p{k}.json"), "w"))
+                        hr, ht = capture_health(fr, window), capture_health(ft, window)
+                        # both lamps must deliver the same raster, or the two scores describe
+                        # different pictures: a short frame rescopes the statistics, it does not raise
+                        expect = max(hr["cells"], ht["cells"])
+                        unhealthy = [f"{t}: {', '.join(r)}" for t, h in (("ref", hr), ("tgt", ht))
+                                     for r in [capture_is_healthy(h, window, expect)] if r]
+                        line += f"  hz {hr['hz']}/{ht['hz']} cov {hr['coverage']}/{ht['coverage']} gap {hr['max_gap']}/{ht['max_gap']} cells {hr['cells']}/{ht['cells']}"
+                        if unhealthy:
+                            if attempt < 2:
+                                print(f"  preset {k:>2} {v.get('n', ''):<26} capture unhealthy ({','.join(unhealthy)}) -- re-measuring ({attempt + 1}/2)", flush=True)
+                                continue
+                            checks.append(("capture", False)); line += f"  capture UNHEALTHY ({','.join(unhealthy)})"
+                        else:
+                            g = gate_scores(fr, ft)
+                            checks += gate_checks(g, a)
+                            line += "  " + gate_line(g)
+                    break
                 # an empty checks list is not a pass: it means every criterion was skipped
                 # (ABL reporting under the floor, or --current-only with the structural ones off)
                 bad = [c for c, ok in checks if not ok] or ([] if checks else ["no-criteria"])
