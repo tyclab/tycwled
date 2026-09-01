@@ -114,6 +114,34 @@ static inline uint32_t glorb_nscale8(uint32_t c, uint8_t s) {
   return RGBW32((R(c) * sc) >> 8, (G(c) * sc) >> 8, (B(c) * sc) >> 8, (W(c) * sc) >> 8);
 }
 
+// The fork never gives an unmapped raster cell any storage: 0.14.4 routes every
+// effect-side pixel access through the ledmap at once (WS2812FX::setPixelColor:
+// i = customMappingTable[i]; if (i >= _length) return; getPixelColor likewise
+// returns 0), and the GLORB ledmap sends 40 of the 120 raster cells to -1.
+// Writes to those cells vanish and reads come back black, so blur loses every
+// bit of energy that seeps into a gap. WLED 16 renders a segment into its own
+// full buffer and applies the ledmap only at show time, so the same 40 cells
+// hold state, accumulate seep and feed it back to their neighbours -- measured
+// as 20-30% extra dim lit cells on the blurred effects (Black Hole lit_r
+// 1.29/1.21, Frizzles 1.11; the unblurred effects don't couple cells and were
+// unaffected) and reproduced exactly by the offline model (blackhole_model.py:
+// port semantics x1.21/x1.20 vs fork measurements, fork semantics x0.94/x0.99).
+// These wrappers restore the fork's semantics for every access the effects make.
+static bool glorb_cellMapped(int x, int y) {
+  const Segment &seg = SEGMENT;
+  const unsigned logical = (seg.startY + (unsigned)y) * Segment::maxWidth + seg.start + (unsigned)x;
+  return strip.getMappedPixelIndex(logical) < strip.getLengthTotal();
+}
+static inline uint32_t glorb_getPixelColorXY(int x, int y) {
+  return glorb_cellMapped(x, y) ? SEGMENT.getPixelColorXY(x, y) : BLACK;
+}
+static inline void glorb_setPixelColorXY(int x, int y, uint32_t c) {
+  if (glorb_cellMapped(x, y)) SEGMENT.setPixelColorXY(x, y, c);
+}
+static inline void glorb_addPixelColorXY(int x, int y, uint32_t c) {
+  if (glorb_cellMapped(x, y)) SEGMENT.addPixelColorXY(x, y, c);
+}
+
 // 0.14.4 fadeToBlackBy(f) is nscale8(c, 255-f) with FastLED's rounding, keeping
 // (v*(256-f))>>8; WLED 16 keeps (v*(255-f))>>8. Delegating as fadeToBlackBy(f-1)
 // looks equivalent but breaks at f == 1, where WLED 16 treats 0 as "no fade at
@@ -126,7 +154,7 @@ static void glorb_fadeToBlackBy(uint8_t fadeBy) {
   const int rows = SEG_H;
   for (int y = 0; y < rows; y++) {
     for (int x = 0; x < cols; x++) {
-      SEGMENT.setPixelColorXY(x, y, glorb_nscale8(SEGMENT.getPixelColorXY(x, y), keep));
+      glorb_setPixelColorXY(x, y, glorb_nscale8(glorb_getPixelColorXY(x, y), keep));
     }
   }
 }
@@ -141,22 +169,22 @@ static void glorb_blur2d(uint8_t blur_amount) {
   for (int y = 0; y < rows; y++) {
     uint32_t carryover = BLACK;
     for (int x = 0; x < cols; x++) {
-      const uint32_t cur = SEGMENT.getPixelColorXY(x, y);
+      const uint32_t cur = glorb_getPixelColorXY(x, y);
       const uint32_t part = glorb_nscale8(cur, seep);
       uint32_t out = color_add(glorb_nscale8(cur, keep), carryover, false);
-      if (x > 0) SEGMENT.setPixelColorXY(x - 1, y, color_add(SEGMENT.getPixelColorXY(x - 1, y), part, false));
-      SEGMENT.setPixelColorXY(x, y, out);
+      if (x > 0) glorb_setPixelColorXY(x - 1, y, color_add(glorb_getPixelColorXY(x - 1, y), part, false));
+      glorb_setPixelColorXY(x, y, out);
       carryover = part;
     }
   }
   for (int x = 0; x < cols; x++) {
     uint32_t carryover = BLACK;
     for (int y = 0; y < rows; y++) {
-      const uint32_t cur = SEGMENT.getPixelColorXY(x, y);
+      const uint32_t cur = glorb_getPixelColorXY(x, y);
       const uint32_t part = glorb_nscale8(cur, seep);
       uint32_t out = color_add(glorb_nscale8(cur, keep), carryover, false);
-      if (y > 0) SEGMENT.setPixelColorXY(x, y - 1, color_add(SEGMENT.getPixelColorXY(x, y - 1), part, false));
-      SEGMENT.setPixelColorXY(x, y, out);
+      if (y > 0) glorb_setPixelColorXY(x, y - 1, color_add(glorb_getPixelColorXY(x, y - 1), part, false));
+      glorb_setPixelColorXY(x, y, out);
       carryover = part;
     }
   }
@@ -186,7 +214,7 @@ static void glorb_mode_hiphotic(void) {
       const uint8_t v = glorb_sin8(glorb_sin8(hy) + glorb_sin8(hx) + (uint8_t)a);
       const uint8_t idx = (v >> shift) + bwave;
       const uint32_t col = SEGMENT.color_from_palette(idx, false, PALETTE_SOLID_WRAP, 0);
-      SEGMENT.setPixelColorXY(x, y, glorb_color_blend(SEGMENT.getPixelColorXY(x, y), col, 64));
+      glorb_setPixelColorXY(x, y, glorb_color_blend(glorb_getPixelColorXY(x, y), col, 64));
     }
   }
 }
@@ -214,7 +242,7 @@ static void glorb_mode_blackhole(void) {
     const int x = glorb_beatsin8((SEGMENT.speed >> 5) + 1, cols / 2, (cols * 5) / 2 - 1, 0, xphase);
     const int y = glorb_beatsin8((SEGMENT.intensity >> 4) + 1, 1, rows - 2, 0, yphase);
     const uint32_t col = SEGMENT.color_from_palette(i * 63, false, PALETTE_SOLID_WRAP, SEGMENT.check1 ? 0 : 255);
-    SEGMENT.addPixelColorXY(x % cols, y, col);
+    glorb_addPixelColorXY(x % cols, y, col);
   }
   glorb_blur2d(32);
 }
@@ -236,7 +264,7 @@ static void glorb_mode_frizzles(void) {
     const int x = glorb_beatsin8(i + (SEGMENT.speed >> 5), cols / 2, (cols * 5) / 2 - 1);
     const int y = glorb_beatsin8((SEGMENT.intensity >> 6) + 8 - i, 1, rows - 2);
     const uint32_t c = ColorFromPalette(SEGPALETTE, glorb_beatsin8(12, 0, 255), 255, LINEARBLEND);
-    SEGMENT.addPixelColorXY(x % cols, y, c);
+    glorb_addPixelColorXY(x % cols, y, c);
   }
   glorb_blur2d((SEGMENT.custom1 >> 4) + 4);
 }
@@ -286,7 +314,7 @@ static void glorb_mode_colorwaves(void) {
       uint8_t bri8 = (uint32_t)(((uint32_t)bri16) * brightdepth) / 65536;
       bri8 += (255 - brightdepth);
       const uint32_t col = SEGMENT.color_from_palette(hue8, false, PALETTE_SOLID_WRAP, 0, bri8);
-      SEGMENT.setPixelColorXY(x, y, glorb_color_blend(SEGMENT.getPixelColorXY(x, y), col, 128));
+      glorb_setPixelColorXY(x, y, glorb_color_blend(glorb_getPixelColorXY(x, y), col, 128));
     }
   }
   SEGENV.step = sPseudotime;
@@ -349,12 +377,12 @@ static void glorb_mode_tartan(void) {
       size_t inten = bri;
       for (int i = 0; i < sharpness; i++) inten *= bri;
       inten >>= 8 * sharpness;
-      SEGMENT.setPixelColorXY(x, y, ColorFromPalette(SEGPALETTE, ghue, inten, LINEARBLEND));
+      glorb_setPixelColorXY(x, y, ColorFromPalette(SEGPALETTE, ghue, inten, LINEARBLEND));
       bri = glorb_sin8((uint8_t)(y * SEGMENT.intensity / 2 + offsetY));
       inten = bri;
       for (int i = 0; i < sharpness; i++) inten *= bri;
       inten >>= 8 * sharpness;
-      SEGMENT.addPixelColorXY(x, y, ColorFromPalette(SEGPALETTE, ghue, inten, LINEARBLEND));
+      glorb_addPixelColorXY(x, y, ColorFromPalette(SEGPALETTE, ghue, inten, LINEARBLEND));
     }
   }
 }
