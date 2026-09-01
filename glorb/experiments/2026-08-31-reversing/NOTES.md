@@ -945,3 +945,32 @@ Next step for whoever picks this up: instrument the equilibrium rather than the 
 both lamps to a static single-pixel injection with fade and blur running, capture the decay
 envelope, and compare it cell by cell against `blackhole_model.py`. That isolates the loop from
 the effect.
+
+### Black Hole: what is now excluded, and the one thing left
+
+The blur helpers were read to the bottom. `blurRow` (0x420178e4) computes `keep = amount ^ 255`,
+`seep = amount >> 1`, then scales two copies of the pixel through `0x4214ea48` and accumulates
+through `0x4214ea14`:
+
+```text
+0x4214ea48  nscale8x3   addi.n a3,a3,1 ; mul16u ; srai 8    -- FastLED's +1 IS present
+0x4214ea14  qadd8x3     add ; min 255                        -- saturating, per channel
+```
+
+So the fork's blur is exactly what the port implements, `+1` and all. An earlier model result
+suggesting the `+1` should be dropped was wrong and is not to be acted on -- the binary settles it.
+
+Excluded by measurement, with both lamps on preset 11:
+
+- inputs: `sx 210, ix 50, c1 40, c2 20, c3 16, bri 255, o1 false`, segment 0..20 x 0..6, grp 1,
+  spc 0 -- identical on both lamps, only fx and pal differ as designed;
+- star colours: most common brightest-cell values are `#ce4f00`/`#cd0000` on the fork against
+  `#cd5000`/`#cf0000` on the port, so the palette lookup agrees to a few LSB;
+- star trajectories: same rows occupied, same column profile (above);
+- peak brightness: `peak_r` 1.01.
+
+What remains is only this: with identical inputs, identical algorithm, identical star colours and
+identical star paths, the port holds ~29 % more cells just above the lit threshold. Everything
+energetic, geometric and temporal has been ruled out, so the next step is to instrument the decay
+envelope itself rather than the effect -- inject one pixel, let fade and blur run, and compare the
+per-cell falloff on both lamps against `blackhole_model.py`.
