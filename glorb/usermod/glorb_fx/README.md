@@ -1,7 +1,7 @@
 # glorb_fx — GLORB factory effects for WLED 16
 
 Reimplements the six custom effects the GLORB factory presets use (fork fx
-189–195: Colorwaves, Running, Frizzles, Black Hole, Hiphotic, Tartan) as a
+189–193 and 195: Colorwaves, Running, Frizzles, Black Hole, Hiphotic, Tartan) as a
 WLED 16 `custom_usermods` usermod, so the port lamp runs the same algorithms as
 the factory fork instead of stock lookalikes. All twelve factory presets use
 these effects and none other.
