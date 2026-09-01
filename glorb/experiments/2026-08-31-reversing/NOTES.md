@@ -847,3 +847,55 @@ after the palette fix was +5.9 %.
 WLED 16 ships no FastLED trig at all, so `glorb_fx.cpp` now carries the originals
 (`glorb_sin8`, `glorb_sin16`, the `beatsin` family, `glorb_color_blend`, `glorb_nscale8`,
 `glorb_blur2d`) and the effects call those instead of the WLED spellings.
+
+## 13. Full instruction-level audit of all six effects — 2026-09-01
+
+Everything before this was found by measuring a symptom, guessing a cause, flashing, and waiting
+24 minutes for the gate. That is fitting to the instrument: it finds at most one defect per cycle,
+and it once produced a change that scored _better_ while being provably wrong. This pass read all
+six effects against the disassembly instead, and states for each whether it was verified or
+corrected.
+
+| effect     | outcome                                                                                                                                                                      |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Colorwaves | 2 defects: hue fold was half-range, hue advanced per pixel not per row. Also still blending through WLED 16's `color_blend`. All fixed.                                      |
+| Tartan     | 1 defect: the fork derives ONE palette index per frame; this port coloured by position. Fixed. `amp = custom2+232` and both `beatsin16` ranges verified.                     |
+| Running    | Verified exact (setup, audio path, hoisted palette index, `color_blend(BLACK, pcol, s)`, `SEGENV.step` stores the base phase). `triwave16` fold form corrected -- see below. |
+| Frizzles   | Verified exact: fade 8, count `(custom2>>5)+1`, both bpm terms, `blur((custom1>>4)+4)`, `beatsin8(12,0,255)` colour. Both NOTE-MED markers retired.                          |
+| Hiphotic   | Verified exact: `step += (speed>>6)+1`, xstep/ystep `(cN>>5)+8`, `shift = 3-(ix>>6)`, `himask = ~(255>>shift)`, `bwave = beatsin8(2,0,himask)`, `hx = a/3+64`, `hy = a/4`.   |
+| Black Hole | Verified exact, and STILL measures x1.20. Open -- see below.                                                                                                                 |
+
+### The `beatsin8` helper takes no timebase
+
+Worth recording because it cost a wrong "fix". The fork's helper at `0x4204307c` is
+`f(bpm, lowest, highest, phase_offset)`. After `entry`, arg4 arrives in `a5`, and `0x420430a3`
+does `add a10, a5, a10` -- adding arg4 straight to the beat angle before `sin8`. There is no
+`millis() - timebase` anywhere in the function. Reading Black Hole's `mov.n a13, a3` as a timebase
+and changing the port accordingly made preset 11 pass and collapsed preset 10 (lit_r 0.39). The
+gate is not the authority on which reading is right; the callee is.
+
+### Running's triangle fold
+
+The fork complements the _doubled_ phase (`0x42043453 slli a4, a3, 1`, then `0x42043464
+xor a4, -1, a4`), not `(65535 - in) << 1`. Those differ by exactly one. Corrected -- but after the
+`>>8` that follows, all 65536 phases yield the same palette index, so nothing observable changes.
+Recorded so nobody re-derives it expecting a fix.
+
+### Black Hole: bounded, reproducible, unexplained
+
+`blackhole_model.py` reproduces the defect offline. Scored through the ledmap (80 of 120 logical
+cells drive an LED -- forgetting that mask reads as a spurious 1.6x), the model lands at
+
+```text
+p11 Sunset    sim lit 24.41  fork 20.16   x1.21
+p10 Tertiary  sim lit 44.44  fork 36.93   x1.20
+```
+
+which matches the hardware's measured `lit_r`. Ruled out, none explaining both presets: blur
+amount (8/16/24/32), rows-only vs rows+cols, `seep>>2`, saturating vs ratio-preserving
+`addPixelColor`, fade laws `c2>>2 / c2>>3 / c2 raw`, counts `(c1>>6)+1` and `(c1>>7)+2`, star
+brightness, and effective frame rate from 20 to 120 fps.
+
+Every instruction matches the binary and the mean V of lit cells matches the fork to ~1.07, so the
+excess is spatial, not energetic. The cause is not in the effect body. Next step is a differential
+harness against the real fork's captured frames with the phase fitted, not another gate cycle.
