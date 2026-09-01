@@ -9,7 +9,7 @@ Open an issue with what you see, or a pull request with what you changed.
 
 The GLORB ships a closed fork of WLED 0.14.4. Its twelve factory presets do not
 use a single stock effect — every one of them calls a custom effect the fork
-added at fx 189–195 (Colorwaves, Running, Frizzles, Black Hole, Hiphotic,
+added at fx 189–193 and 195 (Colorwaves, Running, Frizzles, Black Hole, Hiphotic,
 Tartan). There is no source release.
 
 Earlier revisions of this repo tried to approximate those effects with stock
