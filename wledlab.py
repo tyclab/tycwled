@@ -19,8 +19,9 @@ Subcommands
   push-frame       push one identical frame to both lamps (per-LED JSON API,
                    inverse gamma for 0.14 which gamma-corrects that input)
   install          upload ledmap / presets / palettes byte-exact, reload, verify
-  verify           acceptance gate: every preset on both lamps, ABL current
-                   estimate ratio target/ref must stay within --tolerance
+  verify           acceptance gate: every preset on both lamps, current ratio
+                   plus structural criteria from a same-window capture
+  rescore          re-run the gate's criteria offline over saved captures
 
 Metrics printed by analyse/compare: bri_* from all lit cells (0-255, liveview
 is pre-brightness), sat/hue from cells above 20 % brightness (black has no
@@ -44,8 +45,9 @@ Recorded knowledge (GLORB, WLED 16.0.1):
     Custom palette IDs count down from 200 (palette0 = 200).
   * 16's built-in palettes are re-encoded for its per-pixel gamma; with
     light.gc off, use custom palettes with the 0.14 stop values instead.
-  * Colorwaves' hue triangle sweeps palette index 0-127 only; compress a
-    palette into 0-127 to get the full gradient.
+  * Stock Colorwaves' hue triangle sweeps palette index 0-127 only. The GLORB
+    fork's does NOT -- it spans the whole palette and advances per row, so the
+    port reimplements it rather than compressing a palette to compensate.
   * 16 applies gamma to every rendered pixel, 0.14 only to input colours:
     light.gc = {bri:1,col:1,val:1} for the 0.14 look with palette effects.
   * liveview load slows frame-bound effects; use long simultaneous windows.
@@ -127,8 +129,14 @@ def live_ws(ip, seconds):
         f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n".encode()
     )
     buf = b""
+    t_hs = time.time()
     while b"\r\n\r\n" not in buf:
-        buf += s.recv(4096)
+        d = s.recv(4096)
+        if not d:  # a truncated handshake used to spin here forever, hanging the whole gate run
+            raise RuntimeError("websocket handshake closed early")
+        if time.time() - t_hs > 10:
+            raise RuntimeError("websocket handshake timed out")
+        buf += d
     hdr, buf = buf.split(b"\r\n\r\n", 1)
     if b" 101 " not in hdr.split(b"\r\n")[0]:
         raise RuntimeError(hdr[:80])
@@ -141,9 +149,10 @@ def live_ws(ip, seconds):
     send_text('{"lv":true}')
     frames, t0 = [], time.time()
     s.settimeout(3)
+    msg, msg_op = b"", None  # a liveview message may arrive in several fragments
     while time.time() - t0 < seconds:
         while len(buf) >= 2:
-            op, ln, o = buf[0] & 0x0F, buf[1] & 0x7F, 2
+            fin, op, ln, o = buf[0] & 0x80, buf[0] & 0x0F, buf[1] & 0x7F, 2
             if ln == 126:
                 if len(buf) < 4:
                     break
@@ -155,13 +164,29 @@ def live_ws(ip, seconds):
             if len(buf) < o + ln:
                 break
             pay, buf = buf[o:o + ln], buf[o + ln:]
+            if op >= 8:  # control frames are never fragmented and may interleave
+                if op == 9:
+                    s.sendall(bytes([0x8A, 0x80]) + os.urandom(4) )
+                elif op == 8:
+                    buf = b""
+                    break
+                continue
+            if op == 0:
+                msg += pay            # continuation of the message in flight
+            else:
+                msg, msg_op = pay, op  # first fragment
+            if not fin:
+                continue              # wait for the rest before reading it as a frame
+            pay, op, msg = msg, msg_op, b""
             if op == 2 and pay[:1] == b"L":
                 ver = pay[1]
                 pos = 4 if ver == 2 else 2  # ver 2 carries w,h at [2],[3]
-                leds = [pay[pos + 3 * i:pos + 3 * i + 3].hex() for i in range((len(pay) - pos) // 3)]
+                body = len(pay) - pos
+                if body <= 0 or body % 3:
+                    continue  # not a whole number of pixels: a partial frame would silently
+                              # rescope every statistic to whichever cells survived
+                leds = [pay[pos + 3 * i:pos + 3 * i + 3].hex() for i in range(body // 3)]
                 frames.append((round(time.time() - t0, 3), leds))
-            elif op == 9:
-                s.sendall(bytes([0x8A, 0x80]) + os.urandom(4))
         try:
             d = s.recv(4096)
         except socket.timeout:
@@ -169,8 +194,16 @@ def live_ws(ip, seconds):
         if not d:
             break
         buf += d
-    send_text('{"lv":false}')
-    s.close()
+    # the capture is already collected; a peer that closed on us must not discard it and send
+    # the caller off to re-measure a second, non-overlapping window
+    try:
+        send_text('{"lv":false}')
+    except OSError:
+        pass
+    try:
+        s.close()
+    except OSError:
+        pass
     return frames
 
 
@@ -259,8 +292,9 @@ def activity(frames, dt=1.0):
             break
         a = [hsv(c)[2] for c in leds]; b = [hsv(c)[2] for c in frames[j][1]]
         lit = [k for k in range(len(a)) if a[k] > 0.02 or b[k] > 0.02]
-        if lit:
-            vals.append(sum(abs(a[k] - b[k]) for k in lit) / len(lit))
+        elapsed = frames[j][0] - t  # dt plus up to one frame period, and that period differs per lamp
+        if lit and elapsed > 0:
+            vals.append(sum(abs(a[k] - b[k]) for k in lit) / len(lit) * dt / elapsed)
     return sum(vals) / len(vals) if vals else 0.0
 
 
@@ -277,22 +311,6 @@ def hue_cycle_peaks(ts, hues_deg, dt=0.5, maxlag_s=90):
     ac = [sum(dc[i] * dc[i + l] + ds[i] * ds[i + l] for i in range(n - l)) / den for l in range(L)]
     return [(round(l * dt, 1), round(ac[l], 2)) for l in range(4, len(ac) - 1)
             if ac[l] > ac[l - 1] and ac[l] >= ac[l + 1] and ac[l] > 0.15][:4]
-
-
-def autocorr_peaks(series, dt, maxlag_s):
-    m = sum(series) / len(series); v = [a - m for a in series]; den = sum(a * a for a in v) or 1
-    ac = [sum(v[i] * v[i + l] for i in range(len(v) - l)) / den for l in range(int(maxlag_s / dt))]
-    return [(round(l * dt, 1), round(ac[l], 2)) for l in range(4, len(ac) - 1)
-            if ac[l] > ac[l - 1] and ac[l] >= ac[l + 1] and ac[l] > 0.15][:4]
-
-
-def resample(ts, series, dt=0.5):
-    out, t, k = [], 0.0, 0
-    while t <= ts[-1]:
-        while k + 1 < len(ts) and ts[k + 1] <= t:
-            k += 1
-        out.append(series[k]); t += dt
-    return out
 
 
 def hue_census(frames, bins=12):
@@ -404,25 +422,36 @@ def print_metrics(*named):
 
 # ----------------------------------------------------------------------------- structural gate
 def structural_stats(frames, step=3):
-    """Per-cell V statistics for the acceptance gate: V-histogram (10 bins, share of lit-cell
-    samples), temporal std of the frame mean, mean spatial std, median frame peak, mean lit count.
-    Lit = cells that ever exceed 0.05 (excludes ledmap holes without needing the map)."""
-    vs = [[hsv(c)[2] for c in f[1]] for f in frames[::step]]
-    n = len(vs[0]); lit = [i for i in range(n) if max(v[i] for v in vs) > 0.05]
+    """Per-cell statistics for the acceptance gate: V-histogram (10 bins, share of lit-cell
+    samples), temporal std of the frame mean, mean spatial std, median frame peak, mean lit count,
+    plus mean saturation and mean (R+G+B)/765 over lit samples.
+    Lit = cells that ever exceed 0.05 (excludes ledmap holes without needing the map).
+
+    sat and rgbsum are the axes V alone cannot see: two colours with equal V can differ wildly in
+    saturation and in channel sum (white 255,255,255 vs blue 0,0,255 both have V=1). rgbsum is what
+    the LEDs actually draw, measured from the frames -- unlike the lamp's own mA estimate it is
+    computed the same way for both firmwares."""
+    sub = frames[::step]
+    hsvs = [[hsv(c) for c in f[1]] for f in sub]
+    n = len(hsvs[0]); lit = [i for i in range(n) if max(fr[i][2] for fr in hsvs) > 0.05]
     if not lit:  # all-dark capture: a mis-installed preset must FAIL, not crash the run
-        return dict(vhist=[0.0] * 10, mean=0.0, tstd=0.0, sstd=0.0, peak=0.0, lit=0.0)
-    hist = [0] * 10; means = []; sstds = []; peaks = []; litn = []
-    for v in vs:
-        vals = [v[i] for i in lit]
+        return dict(vhist=[0.0] * 10, mean=0.0, tstd=0.0, sstd=0.0, peak=0.0, lit=0.0, sat=0.0, rgbsum=0.0)
+    hist = [0] * 10; means = []; sstds = []; peaks = []; litn = []; sats = []; sums = []
+    for fr, (_t, leds) in zip(hsvs, sub):
+        vals = [fr[i][2] for i in lit]
         m = sum(vals) / len(vals); means.append(m)
         sstds.append((sum((x - m) ** 2 for x in vals) / len(vals)) ** 0.5)
         peaks.append(max(vals)); litn.append(sum(1 for x in vals if x > 0.05))
-        for x in vals:
-            hist[min(9, int(x * 10))] += 1
+        for i in lit:
+            hist[min(9, int(fr[i][2] * 10))] += 1
+            if fr[i][2] > 0.05:  # colour axes are meaningless on an unlit cell
+                sats.append(fr[i][1])
+                sums.append(sum(int(leds[i][j:j + 2], 16) for j in (0, 2, 4)) / 765)
     ht = sum(hist) or 1; mm = sum(means) / len(means)
     tstd = (sum((x - mm) ** 2 for x in means) / len(means)) ** 0.5
     return dict(vhist=[h / ht for h in hist], mean=mm, tstd=tstd, sstd=sum(sstds) / len(sstds),
-                peak=sorted(peaks)[len(peaks) // 2], lit=sum(litn) / len(litn))
+                peak=sorted(peaks)[len(peaks) // 2], lit=sum(litn) / len(litn),
+                sat=sum(sats) / len(sats) if sats else 0.0, rgbsum=sum(sums) / len(sums) if sums else 0.0)
 
 
 def hue_shares(frames, bins=12, step=3):
@@ -452,6 +481,9 @@ def circ_emd(p, q):
 
 def gate_scores(fr, ft):
     """Structural comparison for the gate: distances/ratios of target vs ref."""
+    if fr and ft and len(fr[0][1]) != len(ft[0][1]):
+        raise ValueError(f"raster mismatch: ref has {len(fr[0][1])} cells, target {len(ft[0][1])} -- "
+                         "the two scores would describe different pictures")
     a, b = structural_stats(fr), structural_stats(ft)
     vd = sum(abs(x - y) for x, y in zip(a["vhist"], b["vhist"])) / 2
     hd = circ_emd(hue_shares(fr), hue_shares(ft))
@@ -460,21 +492,44 @@ def gate_scores(fr, ft):
         return (y / x) if x else None
 
     return dict(vhist_d=vd, hue_d=hd, sstd_r=rat(a["sstd"], b["sstd"]), act_r=rat(activity(fr), activity(ft)),
-                peak_r=rat(a["peak"], b["peak"]), lit_r=rat(a["lit"], b["lit"]), mean_r=rat(a["mean"], b["mean"]))
+                peak_r=rat(a["peak"], b["peak"]), lit_r=rat(a["lit"], b["lit"]), mean_r=rat(a["mean"], b["mean"]),
+                sat_d=abs(a["sat"] - b["sat"]), rgbsum_r=rat(a["rgbsum"], b["rgbsum"]))
 
 
 def capture_health(frames, seconds=None):
-    """Instrument self-check: achieved rate, window coverage and frame-interval gaps.
-    A capture with low coverage or a multi-second gap measured a different window than
-    its partner and must not be scored silently."""
+    """Instrument self-check: achieved rate, window coverage, frame-interval gaps, and payload
+    shape. A capture with low coverage or a multi-second gap measured a different window than
+    its partner and must not be scored silently -- and neither must one whose frames are the
+    wrong size: a short frame does not raise, it silently rescopes every structural statistic
+    to whichever cells survived."""
     ts = [t for t, _ in frames]
+    cells = sorted({len(leds) for _, leds in frames})
+    shape = dict(cells=cells[-1] if cells else 0, cells_consistent=len(cells) <= 1)
     if len(ts) < 2:
-        return dict(frames=len(ts), hz=0.0, coverage=0.0, max_gap=None, p95_gap=None)
+        return dict(frames=len(ts), hz=0.0, coverage=0.0, max_gap=None, p95_gap=None, **shape)
     span = ts[-1] - ts[0]
     gaps = sorted(b - a for a, b in zip(ts, ts[1:]))
     return dict(frames=len(ts), hz=round((len(ts) - 1) / span, 1) if span else 0.0,
                 coverage=round(span / seconds, 3) if seconds else None,
-                max_gap=round(gaps[-1], 3), p95_gap=round(gaps[int(len(gaps) * 0.95)], 3))
+                max_gap=round(gaps[-1], 3), p95_gap=round(gaps[int(len(gaps) * 0.95)], 3), **shape)
+
+
+def capture_is_healthy(h, seconds=None, expect_cells=None):
+    """Reasons a capture must not be scored. Shared by verify and rescore so an offline rescore
+    cannot bless a capture the live gate would have rejected."""
+    bad = []
+    if h["frames"] < 10:
+        bad.append("too few frames")
+    if not h["cells_consistent"]:
+        bad.append("frame size changes mid-capture")
+    if expect_cells and h["cells"] != expect_cells:
+        bad.append(f"{h['cells']} cells, expected {expect_cells}")
+    if seconds is not None:
+        if h["coverage"] is None or h["coverage"] < 0.9:
+            bad.append("window coverage")
+        if h["max_gap"] is None or h["max_gap"] > 2.0:
+            bad.append("gap > 2 s")
+    return bad
 
 
 def lamp_meta(ip):
@@ -507,8 +562,8 @@ def load_capture(path):
         return {"": d}
     if "frames" in d:
         return {"": d["frames"]}
-    out = {k: d[k] for k in ("ref", "tgt") if k in d}
-    if not out:
+    out = {k: d[k] for k in ("ref", "tgt", "meta") if k in d}
+    if not ("ref" in out or "tgt" in out):
         raise ValueError(f"{path}: unrecognised capture format")
     return out
 
@@ -517,9 +572,69 @@ def cmd_analyse(a):
     named = []
     for f in a.file:
         for tag, fr in load_capture(f).items():
+            if tag == "meta":
+                continue
             fr = [(x[0], x[-1]) for x in fr]
             named.append((os.path.basename(f) + (f":{tag}" if tag else ""), metrics(fr, a.width, a.height)))
     print_metrics(*named)
+
+
+def add_tolerances(s):
+    """The gate's tolerances, shared by verify and rescore so the two always judge alike."""
+    s.add_argument("--vhist-tol", type=float, default=0.25, help="max V-histogram L1/2 distance (accepted presets measure <= 0.18)")
+    s.add_argument("--hue-tol", type=float, default=0.70, help="max circular EMD between hue censuses (run-to-run spread on accepted presets reaches 0.56 -- window phase vs the 30-50 s colour cycle)")
+    s.add_argument("--sstd-tol", type=float, default=1.6, help="max spatial-std ratio either way (accepted <= 1.13)")
+    s.add_argument("--act-tol", type=float, default=1.4, help="max activity ratio either way (accepted presets measure <= 1.12)")
+    s.add_argument("--peak-tol", type=float, default=1.5, help="max median-frame-peak ratio either way (sparkle/swell brightness)")
+    s.add_argument("--lit-tol", type=float, default=1.6, help="max mean lit-cell-count ratio either way")
+    s.add_argument("--sat-tol", type=float, default=0.06, help="max mean-saturation difference (matching presets measure <= 0.05; a washed-out port reads 0.12)")
+    s.add_argument("--mean-tol", type=float, default=1.2, help="max mean-V ratio either way -- the brightness criterion (rgbsum_r is reported but not gated: it moves with hue, which the hue axis already judges)")
+
+
+def gate_checks(g, a):
+    """The structural pass/fail criteria, shared by verify (live) and rescore (offline) so a
+    tolerance can never mean two different things depending on which one you ran."""
+    rng = lambda x, tol: x is not None and 1 / tol <= x <= tol
+    return [("vhist", g["vhist_d"] <= a.vhist_tol),
+            ("hue", g["hue_d"] <= a.hue_tol),
+            ("sstd", rng(g["sstd_r"], a.sstd_tol)),
+            ("act", rng(g["act_r"], a.act_tol)),
+            ("peak", rng(g["peak_r"], a.peak_tol)),
+            ("lit", rng(g["lit_r"], a.lit_tol)),
+            ("sat", g["sat_d"] <= a.sat_tol),
+            ("mean", rng(g["mean_r"], a.mean_tol))]
+
+
+def gate_line(g):
+    fmt = lambda x: "n/a" if x is None else f"{x:.2f}"
+    # rgbsum_r is reported, never gated: at equal V and saturation a secondary hue sums twice a
+    # primary (255,255,0 vs 255,0,0), so it moves with hue drift the hue axis already judges.
+    # It is here because it is the honest analogue of current draw, which the lamps' own mA
+    # figures stop being once the two firmwares estimate them differently.
+    return (f"vhist {g['vhist_d']:.2f} hue {g['hue_d']:.2f} sstd_r {fmt(g['sstd_r'])}"
+            f" act_r {fmt(g['act_r'])} peak_r {fmt(g['peak_r'])} lit_r {fmt(g['lit_r'])}"
+            f" sat_d {g['sat_d']:.3f} mean_r {fmt(g['mean_r'])} rgbsum_r {fmt(g['rgbsum_r'])}")
+
+
+def cmd_rescore(a):
+    """Re-run the gate's structural scoring and verdict over captures verify already saved.
+    Lets a tolerance change or a new criterion be judged against past runs without
+    re-occupying both lamps for 24 minutes. Same criteria and tolerances as verify."""
+    for f in sorted(a.file):
+        caps = load_capture(f)
+        fr, ft = caps.get("ref") or [], caps.get("tgt") or []
+        if not fr or not ft:
+            print(f"{os.path.basename(f):<16} no paired frames"); continue
+        fr = [(x[0], x[-1]) for x in fr]; ft = [(x[0], x[-1]) for x in ft]
+        secs = (caps.get("meta") or {}).get("window")  # captures before fee96fb did not record it
+        hr, ht = capture_health(fr, secs), capture_health(ft, secs)
+        expect = max(hr["cells"], ht["cells"], a.width * a.height)
+        unhealthy = [f"{t}: {', '.join(r)}" for t, h in (("ref", hr), ("tgt", ht))
+                     for r in [capture_is_healthy(h, secs, expect)] if r]
+        g = gate_scores(fr, ft)
+        bad = [c for c, ok in gate_checks(g, a) if not ok]
+        note = f"  capture UNHEALTHY ({','.join(unhealthy)})" if unhealthy else ""
+        print(f"{os.path.basename(f):<16} {gate_line(g)}{note}  {'PASS' if not bad and not unhealthy else 'FAIL ' + ','.join(bad)}")
 
 
 def simultaneous(ref, target, seconds, preset=None):
@@ -592,19 +707,25 @@ def cmd_verify(a):
     (both lamps stream), and is a first moment -- never the only criterion (--current-only =
     legacy). A crash on one preset records a FAIL and continues; lamps are always restored."""
     import hashlib
-    raw = open(a.presets_file, "rb").read(); want = json.loads(raw); fails = []
+    raw = open(a.presets_file, "rb").read(); want = json.loads(raw); fails = []; tested = 0
     n = sum(1 for v in want.values() if v)
+    if n == 0:
+        sys.exit(f"REFUSED: {a.presets_file} has no testable preset -- a gate that checks nothing must not pass")
     window = a.samples * a.interval
-    fmt = lambda x: "n/a" if x is None else f"{x:.2f}"
     print(f"verify: presets.json sha256 {hashlib.sha256(raw).hexdigest()}")
     for tag, ip in (("ref", a.ref), ("target", a.target)):
         m = lamp_meta(ip)
         print(f"  {tag} {ip}: ver {m['ver']} fps {m['fps']} maxpwr {m['maxpwr']} cpalcount {m['cpalcount']} rssi {(m['wifi'] or {}).get('rssi')}")
+    # Current stays a criterion across firmwares. Both estimate it from what they write to the bus,
+    # so it is the only view of the output stage -- liveview is pre-gamma on both and cannot see it.
+    # A current ratio far off 1.0 while the frame metrics match means the two lamps disagree about
+    # output gamma, which is exactly how the port's light.gc was found to be wrong.
     print(f"verify: {n} presets, {window:.0f} s each (~{n * (window + 20) / 60:.0f} min); both lamps end on preset {a.restore_preset}", flush=True)
     try:
         for k, v in want.items():
             if not v:
                 continue
+            t1 = t2 = None
             try:
                 for ip in (a.ref, a.target):
                     post(ip, "/json/state", {"on": True, "bri": 255, "ps": int(k)})
@@ -613,58 +734,74 @@ def cmd_verify(a):
                 if bad:
                     print(f"  preset {k:>2} {v.get('n', ''):<26} FAIL (preset did not apply on {bad})", flush=True)
                     fails.append(k); continue
-                meta = {"preset": int(k), "ref": lamp_meta(a.ref), "tgt": lamp_meta(a.target)} if a.save_captures else None
-                res = {}
-                t1 = threading.Thread(target=lambda: res.__setitem__("ref", live(a.ref, window)))
-                t2 = threading.Thread(target=lambda: res.__setitem__("tgt", live(a.target, window)))
-                if not a.current_only:
-                    t1.start(); t2.start()
-                pr, pt = [], []
-                t0 = time.time()
-                while time.time() - t0 < window:  # wall clock: GET latency must not stretch past the capture
-                    pr.append(get(a.ref, "/json/info")["leds"]["pwr"]); pt.append(get(a.target, "/json/info")["leds"]["pwr"])
-                    time.sleep(a.interval)
-                mr, mt = sum(pr) / len(pr), sum(pt) / len(pt)
-                checks = []; line = f"ref {mr:5.0f} mA  target {mt:5.0f} mA"
-                if mr < 50 or mt < 50:  # ABL off reports ~0 -- a ratio against the floor guard is noise, not a verdict
-                    line += "  current n/a (ABL off or dark)"
-                else:
-                    r = mt / mr
-                    checks.append(("current", 1 - a.tolerance <= r <= 1 + a.tolerance)); line += f"  ratio {r:.3f}"
-                if not a.current_only:
-                    t1.join(); t2.join()
-                    fr, ft = res.get("ref") or [], res.get("tgt") or []
-                    if a.save_captures and fr and ft:
-                        os.makedirs(a.save_captures, exist_ok=True)
-                        json.dump({"meta": meta, "ref": fr, "tgt": ft}, open(os.path.join(a.save_captures, f"verify-p{k}.json"), "w"))
-                    hr, ht = capture_health(fr, window), capture_health(ft, window)
-                    unhealthy = [t for t, h in (("ref", hr), ("tgt", ht))
-                                 if h["frames"] < 10 or h["coverage"] is None or h["coverage"] < 0.9
-                                 or h["max_gap"] is None or h["max_gap"] > 2.0]
-                    line += f"  hz {hr['hz']}/{ht['hz']} cov {hr['coverage']}/{ht['coverage']} gap {hr['max_gap']}/{ht['max_gap']}"
-                    if unhealthy:
-                        checks.append(("capture", False)); line += f"  capture UNHEALTHY ({','.join(unhealthy)})"
+                # a capture with stream gaps is a broken instrument, not a verdict: it is never
+                # scored, so re-measure the window (twice at most) instead of burning the preset.
+                # Only capture health triggers a retry -- a scored FAIL is final; re-rolling
+                # scored windows would be fishing for a friendlier measurement.
+                for attempt in range(3):
+                    meta = {"preset": int(k), "window": window, "ref": lamp_meta(a.ref), "tgt": lamp_meta(a.target)} if a.save_captures else None
+                    res = {}
+                    t1 = threading.Thread(target=lambda: res.__setitem__("ref", live(a.ref, window)))
+                    t2 = threading.Thread(target=lambda: res.__setitem__("tgt", live(a.target, window)))
+                    if not a.current_only:
+                        t1.start(); t2.start()
+                    pr, pt = [], []
+                    t0 = time.time()
+                    while time.time() - t0 < window:  # wall clock: GET latency must not stretch past the capture
+                        pr.append(get(a.ref, "/json/info")["leds"]["pwr"]); pt.append(get(a.target, "/json/info")["leds"]["pwr"])
+                        time.sleep(a.interval)
+                    mr, mt = sum(pr) / len(pr), sum(pt) / len(pt)
+                    checks = []; line = f"ref {mr:5.0f} mA  target {mt:5.0f} mA"
+                    if mr < 50 or mt < 50:  # ABL off reports ~0 -- a ratio against the floor guard is noise, not a verdict
+                        line += "  current n/a (ABL off or dark)"
                     else:
-                        g = gate_scores(fr, ft)
-                        rng = lambda x, tol: x is not None and 1 / tol <= x <= tol
-                        checks += [("vhist", g["vhist_d"] <= a.vhist_tol),
-                                   ("hue", g["hue_d"] <= a.hue_tol),
-                                   ("sstd", rng(g["sstd_r"], a.sstd_tol)),
-                                   ("act", rng(g["act_r"], a.act_tol)),
-                                   ("peak", rng(g["peak_r"], a.peak_tol)),
-                                   ("lit", rng(g["lit_r"], a.lit_tol))]
-                        line += (f"  vhist {g['vhist_d']:.2f} hue {g['hue_d']:.2f} sstd_r {fmt(g['sstd_r'])}"
-                                 f" act_r {fmt(g['act_r'])} peak_r {fmt(g['peak_r'])} lit_r {fmt(g['lit_r'])}")
-                bad = [c for c, ok in checks if not ok]
+                        r = mt / mr
+                        checks.append(("current", 1 - a.tolerance <= r <= 1 + a.tolerance))
+                        line += f"  ratio {r:.3f}"
+                    if not a.current_only:
+                        t1.join(); t2.join()
+                        fr, ft = res.get("ref") or [], res.get("tgt") or []
+                        if a.save_captures and fr and ft:
+                            os.makedirs(a.save_captures, exist_ok=True)
+                            json.dump({"meta": meta, "ref": fr, "tgt": ft}, open(os.path.join(a.save_captures, f"verify-p{k}.json"), "w"))
+                        hr, ht = capture_health(fr, window), capture_health(ft, window)
+                        # both lamps must deliver the same raster, or the two scores describe
+                        # different pictures: a short frame rescopes the statistics, it does not raise
+                        expect = max(hr["cells"], ht["cells"], a.width * a.height)
+                        unhealthy = [f"{t}: {', '.join(r)}" for t, h in (("ref", hr), ("tgt", ht))
+                                     for r in [capture_is_healthy(h, window, expect)] if r]
+                        line += f"  hz {hr['hz']}/{ht['hz']} cov {hr['coverage']}/{ht['coverage']} gap {hr['max_gap']}/{ht['max_gap']} cells {hr['cells']}/{ht['cells']}"
+                        if unhealthy:
+                            if attempt < 2:
+                                print(f"  preset {k:>2} {v.get('n', ''):<26} capture unhealthy ({','.join(unhealthy)}) -- re-measuring ({attempt + 1}/2)", flush=True)
+                                continue
+                            checks.append(("capture", False)); line += f"  capture UNHEALTHY ({','.join(unhealthy)})"
+                        else:
+                            g = gate_scores(fr, ft)
+                            checks += gate_checks(g, a)
+                            line += "  " + gate_line(g)
+                    break
+                # an empty checks list is not a pass: it means every criterion was skipped
+                # (ABL reporting under the floor, or --current-only with the structural ones off)
+                bad = [c for c, ok in checks if not ok] or ([] if checks else ["no-criteria"])
+                tested += 1
                 print(f"  preset {k:>2} {v.get('n', ''):<26} {line}  {'PASS' if not bad else 'FAIL ' + ','.join(bad)}", flush=True)
                 fails += [] if not bad else [k]
             except Exception as e:  # a broken preset must not cost the remaining ~20 min of run
+                # the capture threads run the full window regardless; leaving them streaming would
+                # put the next preset's capture in competition with an orphan for the liveview
+                for t in (t1, t2):
+                    if t is not None and t.is_alive():
+                        t.join()
                 print(f"  preset {k:>2} {v.get('n', ''):<26} FAIL (error: {e})", flush=True)
                 fails.append(k)
     finally:
         for ip in (a.ref, a.target):
             post(ip, "/json/state", {"on": True, "bri": 255, "ps": a.restore_preset})
-    print("verify:", "PASS" if not fails else f"FAIL {fails}")
+    if tested != n:  # a preset that never reached a verdict must not vanish into a PASS
+        print(f"verify: FAIL (only {tested} of {n} presets reached a verdict)")
+    else:
+        print("verify:", "PASS" if not fails else f"FAIL {fails}")
     sys.exit(0 if not fails else 1)
 
 
@@ -720,6 +857,21 @@ def cmd_install(a):
     info = get(a.host, "/json/info")
     print("rebooted:" if a.reboot else "live:", info["ver"], "matrix", info["leds"].get("matrix"),
           "ledmap", get(a.host, "/json/state").get("ledmap"), "custom palettes", info.get("cpalcount"))
+    if a.effects:
+        # the usermod registers with addEffect(255, ...), so WLED assigns the IDs at boot and a
+        # WLED update that shifts its mode table would silently point every preset at a stock
+        # effect of the same number. Check the names behind the IDs, not just that they exist.
+        want = json.load(open(a.effects)); eff = get(a.host, "/json/eff"); wrong = []
+        for fx, name in sorted(want.items(), key=lambda kv: int(kv[0])):
+            got = eff[int(fx)] if int(fx) < len(eff) else "<out of range>"
+            if got != name:
+                wrong.append(f"fx {fx}: expected {name!r}, lamp has {got!r}")
+        print("effect IDs:", "all OK" if not wrong else "MISMATCH")
+        for w in wrong:
+            print("  ", w)
+        if wrong:
+            sys.exit("effect IDs on the lamp do not match glorb/wled16-port/effects.json -- "
+                     "reread /json/eff and remap presets.json before installing")
     if a.palette and info.get("cpalcount", 0) < len(a.palette):
         sys.exit(f"custom palettes: lamp reports {info.get('cpalcount')}, uploaded {len(a.palette)}")
     if a.presets:
@@ -729,11 +881,12 @@ def cmd_install(a):
         for k, v in want.items():
             if not v:
                 continue
-            post(a.host, "/json/state", {"on": True, "ps": int(k)}); time.sleep(0.5)
+            post(a.host, "/json/state", {"on": True, "ps": int(k)}); time.sleep(1.5)  # outlast the preset's own transition
             segs = get(a.host, "/json/state")["seg"]
             ok = True
-            for ws in v["seg"]:
-                s = next((x for x in segs if x["id"] == ws["id"]), {})
+            for n, ws in enumerate(v["seg"]):
+                sid = ws.get("id", n)  # trailing {"stop":0} deletion stubs carry no id
+                s = next((x for x in segs if x.get("id") == sid), {})
                 if ws.get("stop") == 0:
                     ok &= s.get("stop", 0) == 0
                 else:
@@ -754,6 +907,8 @@ def main():
     s.add_argument("--host", required=True, help="lamp IP or hostname"); s.add_argument("--seconds", type=float, default=120, help="capture length (default 120)")
     s.add_argument("--out", required=True, help="output JSON (directory is created)"); s.set_defaults(fn=cmd_capture)
     s = sub.add_parser("analyse", help="fingerprint one or more captures side by side"); s.add_argument("file", nargs="+"); s.set_defaults(fn=cmd_analyse)
+    s = sub.add_parser("rescore", help="re-run the gate's structural scoring and verdict over saved verify captures, offline")
+    s.add_argument("file", nargs="+"); add_tolerances(s); s.set_defaults(fn=cmd_rescore)
     s = sub.add_parser("compare", help="capture two lamps at the same time and print metrics side by side")
     s.add_argument("--ref", required=True, help="reference lamp (factory firmware)"); s.add_argument("--target", required=True, help="lamp under test")
     s.add_argument("--seconds", type=float, default=120, help="window per capture (default 120)"); s.add_argument("--preset", type=int, help="recall this preset on both lamps first"); s.set_defaults(fn=cmd_compare)
@@ -769,21 +924,17 @@ def main():
     s = sub.add_parser("push-frame", help="push one identical frame to both lamps via the per-LED JSON API")
     s.add_argument("--ref"); s.add_argument("--target"); s.add_argument("--frame", help="JSON list of hex colours, default: uniform grey 40")
     s.add_argument("--ref-input-gamma", action="store_true", help="ref is 0.14 (gamma-corrects per-LED input)"); s.add_argument("--target-input-gamma", action="store_true"); s.set_defaults(fn=cmd_push_frame)
-    s = sub.add_parser("verify", help="acceptance gate: current ratio plus structural criteria (V-hist, hue EMD, spatial std, activity, peak, lit) from a same-window liveview capture")
+    s = sub.add_parser("verify", help="acceptance gate: current ratio plus structural criteria (V-hist, hue EMD, saturation, spatial std, activity, peak, lit, mean V) from a same-window liveview capture")
     s.add_argument("--ref", required=True, help="factory lamp"); s.add_argument("--target", required=True, help="ported lamp"); s.add_argument("--presets-file", required=True)
-    s.add_argument("--samples", type=int, default=200, help="current samples per preset (default 140)"); s.add_argument("--interval", type=float, default=0.5, help="seconds between samples (default 0.5 → 70 s window)")
+    s.add_argument("--samples", type=int, default=200, help="current samples per preset (default 200)"); s.add_argument("--interval", type=float, default=0.5, help="seconds between samples (default 0.5 → 100 s window)")
     s.add_argument("--tolerance", type=float, default=0.15, help="allowed deviation of target/ref current (default 0.15)")
     s.add_argument("--current-only", action="store_true", help="legacy gate: current ratio only, no structural criteria")
-    s.add_argument("--vhist-tol", type=float, default=0.25, help="max V-histogram L1/2 distance (accepted presets measure <= 0.18; p14 fails at 0.37)")
-    s.add_argument("--hue-tol", type=float, default=0.70, help="max circular EMD between hue censuses (run-to-run spread on accepted presets reaches 0.56 -- window phase vs the 30-50 s colour cycle; real mismatch p10 measures >= 1.08)")
-    s.add_argument("--sstd-tol", type=float, default=1.6, help="max spatial-std ratio either way (accepted <= 1.13; p14 fails at 0.43)")
-    s.add_argument("--act-tol", type=float, default=1.4, help="max activity ratio either way (accepted presets measure <= 1.12; p10 fails at 1.46)")
-    s.add_argument("--peak-tol", type=float, default=1.5, help="max median-frame-peak ratio either way (sparkle/swell brightness; p11 port peaks at 0.53)")
-    s.add_argument("--lit-tol", type=float, default=1.6, help="max mean lit-cell-count ratio either way (p7 stock 8-frizzle floor reads 1.46 -- recorded limitation, passes)")
+    add_tolerances(s)
     s.add_argument("--save-captures", default="", metavar="DIR", help="save each preset capture as DIR/verify-pN.json with per-preset lamp meta")
     s.add_argument("--restore-preset", type=int, default=1, help="preset both lamps end on"); s.set_defaults(fn=cmd_verify)
     s = sub.add_parser("install", help="upload files byte-exact, reload, verify every preset")
     s.add_argument("--host", required=True); s.add_argument("--ledmap"); s.add_argument("--presets"); s.add_argument("--palette", action="append", help="palette file; paletteN.json in order, repeatable")
+    s.add_argument("--effects", help="JSON map of fx ID -> effect name to assert against /json/eff (the usermod's IDs are assigned at boot)")
     s.add_argument("--reboot", action="store_true", help="reboot after upload instead of live reload"); s.set_defaults(fn=cmd_install)
     a = p.parse_args(); a.fn(a)
 

@@ -1,0 +1,1118 @@
+# GLORB.1.3 firmware — reverse-engineering of 6 custom 2D effects
+
+Date: 2026-08-31
+Input: `glorb/firmware/firmware_gma_83_debug.bin` (ESP-IDF app image, ESP32-S3 / Xtensa LX7 LE).
+Fork: WLED 0.14.4 "GLORB.1.3". No app symbols in the image.
+Stock reference: WLED v0.14.4 `wled00/FX.cpp` + `FX.h` (fetched; copies in scratch as `FX_v0.14.4.cpp/.h`).
+
+Goal: faithful C pseudocode for the 6 target effects, each reported as a **delta vs its
+stock 0.14.4 ancestor**.
+
+---
+
+## 1. Pipeline / how to reproduce
+
+### 1.1 Image → segments (`parse_image.py`)
+
+ESP-IDF v4.4.3 image, `esp_image_header_t` = 24 bytes, chip_id 9 (ESP32-S3), 6 segments:
+
+| seg | load addr      | size     | region                                       |
+| --- | -------------- | -------- | -------------------------------------------- |
+| 0   | 0x3c160020     | 0x6f1a8  | DROM (.rodata / const strings)               |
+| 1   | 0x3fc98d90     | 0x0e48   | DRAM                                         |
+| 2   | **0x42000020** | 0x15a914 | **IROM (.flash.text — all effect code)**     |
+| 3   | 0x3fc99bd8     | 0x6224   | DRAM                                         |
+| 4   | 0x40374000     | 0x14d90  | IRAM (fast-path code, incl. setPixelColorXY) |
+| 5   | 0x50000000     | 0x10     | RTC                                          |
+
+`python3 parse_image.py <bin> segments_debug`
+
+### 1.2 Disassembly
+
+Ghidra 12 (nixpkgs) was a dead end: the nixpkgs `ghidra` closure that resolved was
+incomplete (no `Ghidra/Processors`, dangling `support/analyzeHeadless`), and mainline
+Ghidra ships **no** Xtensa processor module anyway. Capstone 5.0.7 (pip) has no Xtensa
+(only capstone-next). **radare2 6.1.8** (`nix shell nixpkgs#radare2`) has a working Xtensa
+decoder — used for everything here. Disassembly is decode-only (no decompiler), so the C
+below is hand-lifted from the instruction stream, anchored on the exact stock source.
+
+`./disasm.sh 0x4204321c 170` (maps IROM at 0x42000020, `-a xtensa -b 32`)
+
+### 1.3 Mode table (fx-ID → string → function)
+
+Found the 12 fork mode-metadata strings in DROM, then their `{const char* data, fx_func}`
+pairs in an IROM table at **0x4203ea80** (16-byte stride pairs `[str_ptr, func_ptr]`), in
+fx-ID order 187..198. Targets:
+
+| fx  | effect     | metadata string @DROM | **func @IROM** |
+| --- | ---------- | --------------------- | -------------- |
+| 193 | Hiphotic   | 0x3c167426            | **0x4204321c** |
+| 192 | Black Hole | 0x3c1673f0            | **0x420430c0** |
+| 191 | Frizzles   | 0x3c16745a            | **0x42043560** |
+| 189 | Colorwaves | 0x3c1674ba            | **0x42042e48** |
+| 190 | Running    | 0x3c167489            | **0x420433b4** |
+| 195 | Tartan     | 0x3c16738c            | **0x42043b28** |
+
+(Full table also covers 187 Static 0x4203df64, 188 Colorloop 0x4203df90, 194 Swirl
+0x420436e0, 196 Pulse Wave 0x42042bf0, 197 Gradient Flow 0x4203e130, 198 Fold 0x4203e350.)
+
+### 1.4 Helper functions identified (by structure + stock cross-ref), all high confidence
+
+| addr                    | identity                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| 0x4203df64              | `mode_static()` (the `if(!strip.isMatrix) return mode_static()` bailout)        |
+| 0x4214f340              | `Segment::virtualWidth()` → cols                                                |
+| 0x4214f384              | `Segment::virtualHeight()` → rows                                               |
+| 0x4203ded8              | `sin8(uint8_t)` — classic FastLED table lookup, table @0x3c167ab8               |
+| 0x4204307c              | `beatsin8(accum88 bpm, uint8_t low, uint8_t high, uint32_t tb, uint8_t phase)`  |
+| 0x42042bb8              | `beatsin88(accum88 bpm, uint16_t low, uint16_t high, ...)`                      |
+| 0x42042e08 / 0x42152f58 | `beatsin16(bpm, int16 low, int16 high, ...)`                                    |
+| 0x4203de90              | `sin16(uint16_t)`                                                               |
+| 0x42018ed4              | `Segment::color_from_palette(idx, mapping, wrap, mcol, pbri=255)`               |
+| 0x4214eb50              | FastLED `ColorFromPalette(pal, idx, bri, LINEARBLEND)` (SEGPALETTE @0x3fc9fe80) |
+| 0x4202617c              | `color_blend(c1, c2, blend, bool)`                                              |
+| 0x42017834              | `Segment::blendPixelColor(i, color, blend)`                                     |
+| 0x42017864              | `Segment::addPixelColorXY(x, y, color)` (2D)                                    |
+| 0x42011c2c              | `Segment::addPixelColorXY(x, y, color)` (variant used by Frizzles/Tartan)       |
+| 0x4201741c              | `Segment::getPixelColorXY(x, y)` (bounds-checked; returns 0 if OOB)             |
+| 0x40375538              | `Segment::setPixelColorXY(x, y, color)` (IRAM)                                  |
+| 0x403757e8              | `Segment::setPixelColor(i, color)` (IRAM, 1D)                                   |
+| 0x420194f4              | `Segment::fadeToBlackBy(uint8_t rate)`                                          |
+| 0x420195a0              | `Segment::blur(uint8_t)`                                                        |
+| 0x4201902c              | `Segment::fill(uint32_t)`                                                       |
+| 0x420842f4              | millis()/strip.now getter (Black Hole timebase)                                 |
+
+### 1.5 Segment field byte offsets (from FX.h 0.14.4; runtime offsets confirmed against
+
+the binary, e.g. Colorwaves reads step@44 / aux0@52 exactly where stock uses SEGENV.step/aux0)
+
+```
++6  speed(u8)   +7 intensity(u8)   +8 palette(u8)
++16/+20/+24 colors[0..2](u32)
++29 custom1(u8) +30 custom2(u8)
++31 {custom3:5, check1:bit5, check2:bit6, check3:bit7}(u8)   // bit29 of the u32@+28 = check1
++44 step(u32)   +48 call(u32)   +52 aux0(u16)   +54 aux1(u16)
+```
+
+`strip` global @0x3fca72a8; `strip+16` = isMatrix; `strip+128` = current segment id;
+`strip+60` = segments array base; sizeof(Segment)=68 (index = base + 68*id).
+
+---
+
+## 2. HIPHOTIC (fx 193, func 0x4204321c) — CONFIDENCE: HIGH
+
+### Stock `mode_2DHiphotic()` (0.14.4)
+
+```c
+const uint32_t a = strip.now / ((SEGMENT.custom3>>1)+1);
+for (x) for (y)
+  setPixelColorXY(x, y, color_from_palette(
+     sin8( cos8(x*SEGMENT.speed/16 + a/3) + sin8(y*SEGMENT.intensity/16 + a/4) + a ),
+     false, PALETTE_SOLID_WRAP, 0));
+```
+
+Stock metadata `"Hiphotic@X scale,Y scale,,,Speed;!;!;2"` (sx=Xscale, ix=Yscale, c3=Speed).
+
+### Fork metadata `"Hiphotic@Speed,Hue variation,X scale,Y scale;!;!;2g"`
+
+→ sx=Speed, ix=Hue variation, c1=X scale, c2=Y scale.
+
+### Recovered fork pseudocode
+
+```c
+if (!strip.isMatrix) return mode_static();
+uint16_t cols = SEGMENT.virtualWidth(), rows = SEGMENT.virtualHeight();
+
+// --- per-frame phase: an INTERNAL accumulator in SEGMENT.step, not strip.now ---
+SEGMENT.step = SEGMENT.step + (SEGMENT.speed>>6) + 1;   // stored back at end of frame
+uint16_t a = SEGMENT.step;                              // "a" timebase (16-bit)
+
+// per-frame intensity-driven modulation (NEW vs stock):
+uint8_t shift  = 3 - (SEGMENT.intensity>>6);            // ix=14 ->3, ix=128 ->1, ix>=192 ->0
+uint8_t himask = ~(0xFF >> shift) & 0xFF;               // ix=14 ->224, ix=128 ->128
+uint8_t bwave  = beatsin8(2, 0, himask, /*tb*/0, /*ph*/0);   // NEW oscillator
+
+uint8_t xstep = (SEGMENT.custom1>>5) + 8;   // c1=X scale  -> 8..15   (stock: speed/16)
+uint8_t ystep = (SEGMENT.custom2>>5) + 8;   // c2=Y scale  -> 8..15   (stock: intensity/16)
+uint8_t xbase = (a/3) + 64;                 // +64 folds cos8 into sin8 (cos8(t)==sin8(t+64))
+uint8_t ybase = (a/2)>>1;                   //  == a/4  (stock a/4)
+
+uint8_t hx = xbase;                          // per-x accumulator
+for (int x = 0; x < cols; x++, hx += xstep) {
+  uint8_t hy = ybase;                        // per-y accumulator
+  for (int y = 0; y < rows; y++, hy += ystep) {
+    uint8_t v = sin8( sin8(hy) + sin8(hx) + (uint8_t)a );   // sin8(hx)==cos8(x*xstep+a/3)
+    uint8_t idx = (v >> shift) + bwave;                     // palette index (NEW modulation)
+    uint32_t col = SEGMENT.color_from_palette(idx, false, PALETTE_SOLID_WRAP, 0, 255);
+    uint32_t out = color_blend(SEGMENT.getPixelColorXY(x,y), col, 64);  // 64/255 temporal blend
+    SEGMENT.setPixelColorXY(x, y, out);
+  }
+}
+```
+
+### Delta vs stock
+
+1. **Timebase**: stock `a = strip.now/((c3>>1)+1)`. Fork keeps a persistent phase in
+   `SEGMENT.step`, incremented **`+(speed>>6)+1` per frame** and written back. So the
+   **Speed** slider (sx) is a genuine speed control; strip.now and custom3 are gone.
+2. **Coefficients**: stock `x*speed/16`, `y*intensity/16`. Fork uses per-step increments
+   `xstep=(c1>>5)+8` and `ystep=(c2>>5)+8` (both clamp to 8..15). c1="X scale", c2="Y scale".
+3. **cos8** is implemented as `sin8(hx)` with the `+64` baked into `xbase` — mathematically
+   identical, no behavioural delta.
+4. **NEW palette-index modulation** (not in stock): `idx = (v >> shift) + beatsin8(2,0,himask)`,
+   with `shift = 3-(ix>>6)` and `himask = ~(0xFF>>shift)`. Both driven by **Intensity/"Hue
+   variation"** (ix). Stock fed `v` straight in as the index at full brightness.
+5. **NEW temporal blend**: fork writes `color_blend(getPixelColorXY, newcol, 64)` — a 64/255
+   crossfade with the previous frame — instead of a hard `setPixelColorXY`. Smooths motion.
+6. color_from_palette brightness arg is fixed 255 (as stock).
+
+### Why "Hue variation" (ix) produces the bimodal / black-gap look at ix=128 but not ix=14
+
+The index is `idx = (v >> shift) + bwave`, and `v = sin8(...)` spans 0..255.
+
+- **ix=14**: `shift=3` → `v>>3` spans only **0..31**; `bwave` = beatsin8(2,0,**224**). The index
+  is a slow beat baseline (0..224) plus a _small_ ±31 ripple → the palette pointer stays in a
+  narrow, slowly-drifting window → smooth, no dark gaps.
+- **ix=128**: `shift=1` → `v>>1` spans a **wide 0..127**; `bwave` = beatsin8(2,0,**128**). Now the
+  per-pixel ripple is ~4× larger and, added to the beat, the index sweeps most of the palette
+  every frame — crossing the palette's dark/black entries — which reads as **bimodal brightness
+  and black gaps**. Higher ix ⇒ smaller right-shift ⇒ larger index excursion ⇒ more of the
+  palette (including black) is traversed. The decompiled math fully explains the observation.
+
+Sanity vs presets: p2 (sx72 ix14 c1128 c2128 c316) and p14 (sx52 ix128 c164 c2190) both fall in
+range; ix14→shift3 (smooth), ix128→shift1 (bimodal), consistent with the reported behaviour.
+(custom3=16 in p2 is now unused by this effect — confirms c3 no longer wired here.)
+
+Repro: `dis_hiphotic.txt` (0x4204321c). Literal pool consts: /3 magic 0xaaaaaaab @0x4203e914.
+
+---
+
+## 3. BLACK HOLE (fx 192, func 0x420430c0) — CONFIDENCE: HIGH (structure), MED (phase detail)
+
+### Stock `mode_2DBlackHole()`: fadeToBlackBy(16+speed>>3); t=millis()/128; **8 outer stars**
+
+(beatsin8 x/y over full grid) + **4 inner stars** + **central WHITE dot** + blur(16).
+Stock metadata: `"Black Hole@Fade rate,Outer Y freq.,Outer X freq.,Inner X freq.,Inner Y freq.,Solid;...;2;pal=11"`.
+
+### Fork metadata `"Black Hole@X scale,Y scale,Intensity,Fade rate;!;!;2g"`
+
+→ sx=X scale, ix=Y scale, c1=Intensity, c2=Fade rate.
+
+### Recovered fork pseudocode
+
+```c
+if (!strip.isMatrix) return mode_static();
+uint16_t cols = virtualWidth(), rows = virtualHeight();
+
+SEGMENT.fadeToBlackBy(SEGMENT.custom2 >> 4);      // c2="Fade rate"   (stock: 16 + speed>>3)
+uint32_t t8 = millis_getter() >> 7;               // == millis()/128  (t, 8-bit)
+
+uint8_t count = (SEGMENT.custom1>>6) + 2;          // c1="Intensity" -> 2..5 stars
+for (size_t i = 0; i < count; i++) {
+  uint8_t xphase = i * (t8 - 128);                 // (see note)  stock: ((i%2)?128:0)+t*i
+  uint8_t yphase = (i&1 ? 192 : 64) + i * t8;      // matches stock parity+t*i
+  uint16_t x = beatsin8((SEGMENT.speed>>5)+1,  cols/2, (cols*5)/2 - 1, 0, xphase);
+  uint16_t y = beatsin8((SEGMENT.intensity>>4)+1, 1,    rows - 2,       0, yphase);
+  uint32_t col = SEGMENT.color_from_palette(i*63, false, PALETTE_SOLID_WRAP,
+                                            SEGMENT.check1?0:255);
+  SEGMENT.addPixelColorXY(x % cols, y, col);       // X taken modulo width (wraps)
+}
+SEGMENT.blur(32);                                  // stock: blur(16)
+return FRAMETIME;
+```
+
+### Delta vs stock
+
+1. **Only ONE star loop** — the 4 inner stars **and** the central white dot are **removed**.
+2. **Star count is variable** `(custom1>>6)+2` (2..5), driven by **Intensity** (c1). Stock: fixed 8.
+3. **X beatsin range is widened to `[cols/2, cols*5/2-1]` then taken `% cols`** — X wraps around
+   the matrix (a recurring fork idiom, also in Frizzles). Y range `[1, rows-2]`. Stock: `[0,cols-1]`/`[0,rows-1]`.
+4. **bpm wiring**: X bpm `(speed>>5)+1` (sx="X scale"), Y bpm `(intensity>>4)+1` (ix="Y scale").
+   Stock: `custom1>>3` / `intensity>>3`.
+5. **fade** `custom2>>4` (c2="Fade rate"); **blur 32** (stock 16).
+6. **palette index `i*63`** (stock `i*32`). `check1` still selects the solid-wrap mcol (0 vs 255).
+7. X-phase accumulation differs slightly from stock's `((i%2)?128:0)+t*i` (fork accumulates
+   `i*(t-128)`); low confidence on that exact term, high on everything else.
+
+Repro: `dis_blackhole.txt` (0x420430c0). Single loop 0x4204314b→0x4204320d; blur(32)@0x42043212.
+
+---
+
+## 4. FRIZZLES (fx 191, func 0x42043560) — CONFIDENCE: HIGH (structure/wiring), MED (exact bpm shifts)
+
+### Stock `mode_2DFrizzles()`
+
+```c
+fadeToBlackBy(16);
+for (i=8; i>0; i--)
+  addPixelColorXY(beatsin8(speed/8 + i, 0, cols-1),
+                  beatsin8(intensity/8 - i, 0, rows-1),
+                  ColorFromPalette(SEGPALETTE, beatsin8(12,0,255), 255, LINEARBLEND));
+blur(custom1>>3);
+```
+
+Stock metadata `"Frizzles@X frequency,Y frequency,Blur;;!;2"` (sx,ix,c1).
+
+### Fork metadata `"Frizzles@X scale,Y scale,Blur,Intensity;!;!;2g"`
+
+→ sx=X scale, ix=Y scale, c1=Blur, **c2=Intensity (NEW slider)**.
+
+### Recovered fork pseudocode
+
+```c
+if (!strip.isMatrix) return mode_static();
+uint16_t cols = virtualWidth(), rows = virtualHeight();
+
+SEGMENT.fadeToBlackBy(8);                          // stock: 16
+
+int count = (SEGMENT.custom2>>5) + 1;              // c2="Intensity" -> 1..8 points (stock: fixed 8)
+for (int i = count; i > 0; i--) {
+  uint16_t x = beatsin8(i + (SEGMENT.speed>>5),      cols/2, (cols*5)/2 - 1);  // sx="X scale"
+  uint16_t y = beatsin8((SEGMENT.intensity>>6)+8 - i, 1,      rows - 2);        // ix="Y scale"
+  uint8_t  h = beatsin8(12, 0, 255);
+  uint32_t c = ColorFromPalette(SEGPALETTE, h, 255, LINEARBLEND);
+  SEGMENT.addPixelColorXY(x % cols, y, c);         // X modulo width (wraps), as Black Hole
+}
+SEGMENT.blur((SEGMENT.custom1>>4) + 4);            // c1="Blur"  (stock: custom1>>3)
+return FRAMETIME;
+```
+
+### Delta vs stock
+
+1. **NEW slider c2="Intensity"** sets the point count `(c2>>5)+1` (1..8). Stock: fixed 8.
+2. **X beatsin range widened to `[cols/2, cols*5/2-1]` then `% cols`** (wrap); Y `[1, rows-2]`.
+   Stock: `[0,cols-1]` / `[0,rows-1]`.
+3. **bpm**: X `i + (speed>>5)` (stock `speed/8 + i`); Y `(intensity>>6)+8 - i` (stock `intensity/8 - i`).
+   Note the different shift amounts (>>5, >>6) and the `+8` on Y — MED confidence on these exact
+   shifts, HIGH that speed→X-bpm and intensity→Y-bpm as `±i`.
+4. **fade 8** (stock 16); **blur `(c1>>4)+4`** (stock `c1>>3`). c1="Blur".
+5. Color index `beatsin8(12,0,255)` and SEGPALETTE/LINEARBLEND — **unchanged**.
+
+Repro: `dis_frizzles.txt` (0x42043560). Loop 0x420435f1→0x420436bb; `rems x,cols`@0x4204365a.
+
+---
+
+## 5. COLORWAVES (fx 189, func 0x42042e48) — CONFIDENCE: MED-HIGH
+
+### Stock `mode_colorwaves()` — 1D over SEGLEN, uses SEGENV.step/aux0, beatsin88 set
+
+`brightdepth=beatsin88(341,96,224)`, `brightnessthetainc16=beatsin88(203,25*256,40*256)`,
+`msmultiplier=beatsin88(147,23,60)`, `hueinc16=beatsin88(113,60,300)*intensity*10/255`,
+`sHue16 += duration*beatsin88(400,5,9)`, `duration=10+speed`; per pixel a squared-sine
+brightness and `blendPixelColor(i, color_from_palette(hue8,...), 128)`.
+
+Stock metadata `"Colorwaves@!,Hue;!;!"` (sx=speed, ix=Hue).
+
+### Fork metadata `"Colorwaves@Speed,Intensity,,,,Sound Reactive;!;!;2vg"`
+
+→ sx=Speed, ix=Intensity, **check1="Sound Reactive"**, and the effect is **rendered over the
+2D grid** (the `;2` + `v` flags; the `g` = ledmap).
+
+### Recovered structure (helpers all confirmed)
+
+```c
+if (!strip.isMatrix) return mode_static();
+cols=virtualWidth(); rows=virtualHeight();
+uint16_t sPseudotime = SEGMENT.step, sHue16 = SEGMENT.aux0;      // +44 / +52 (== stock SEGENV)
+uint8_t  brightdepth          = beatsin88(341, 96, 224);
+uint16_t brightnessthetainc16 = beatsin88(203, 25*256, 40*256);
+uint8_t  msmultiplier         = beatsin88(147, 23, 60);
+uint16_t hueinc16             = /* from beatsin88(113,60,300), see delta */;
+uint16_t duration = 10 + SEGMENT.speed;
+// ... if (check1) { pull audio (getAudioData @0x42150ba4) and fold FFT/volume into
+//                   hueinc16/duration via float path } ...
+sPseudotime += duration*msmultiplier;  sHue16 += duration*beatsin88(400,5,9);
+for (each pixel p in the 2D grid, index i) {
+  hue16 += hueinc16; hue8 = fold(hue16);
+  b16 = sin16(brightnesstheta16 += brightnessthetainc16) + 32768;
+  bri16 = (b16*b16)/65536; bri8 = (bri16*brightdepth)/65536 + (255-brightdepth);
+  SEGMENT.blendPixelColor(i, SEGMENT.color_from_palette(hue8, false, PALETTE_SOLID_WRAP, 0, bri8), 128);
+}
+SEGMENT.step = sPseudotime; SEGMENT.aux0 = sHue16;
+```
+
+### Delta vs stock
+
+1. **Rendered over the 2D matrix** (nested cols×rows) rather than 1D SEGLEN; uses the
+   fork's 2D `color_from_palette`/`blendPixelColor` path.
+2. **NEW `check1` = Sound Reactive** branch (`bbci check1` @0x42042eef → float/audio path at
+   0x42042fed calling audio getter 0x42150ba4, `utrunc.s`/`quos`). When on, audio data feeds
+   the hue increment / step; when off, the pure-time stock math runs.
+3. **hueinc16 / duration** — CORRECTED in §10.3 (this earlier text was wrong; I had conflated
+   two separate quantities). Definitive: SR-off `hueinc16 = beatsin88(113,60,300)*(intensity>>3)*10/255`
+   and `duration = (speed>>4)+10`. See §10.3 for the full trace and the SR-on form.
+4. All five beatsin88 magic constants (341/96/224, 203/6400/10240, 147/23/60, 113/60/300,
+   400/5/9) are **byte-for-byte identical to stock** — confirms this is the colorwaves engine.
+5. step@44 / aux0@52 persistence identical to stock SEGENV.step / SEGENV.aux0.
+
+Repro: `dis_colorwaves.txt` (0x42042e48). beatsin88=0x42042bb8, sin16=0x4203de90, blendPixelColor=0x42017834.
+
+---
+
+## 6. RUNNING (fx 190, func 0x420433b4) — CONFIDENCE: MED-HIGH (1D port + wiring), MED (palette-index detail)
+
+### Stock `mode_running_lights()` → `running_base(false)`
+
+```c
+uint8_t  x_scale = intensity >> 2;
+uint32_t counter = (strip.now * speed) >> 9;
+for (i<SEGLEN) {
+  uint16_t a = i*x_scale - counter;
+  uint8_t  s = sin8(a);
+  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(i,true,PALETTE_SOLID_WRAP,0), s));
+}
+```
+
+Stock metadata `"Running@!,Wave width;!,!;!"` (sx=speed, ix=Wave width).
+
+### Fork metadata `"Running@Speed,Wave width,,,,Sound Reactive;!;!;g"`
+
+→ sx=Speed, ix=Wave width, **check1="Sound Reactive"**. Still **1D** (no `2` flag).
+
+### Recovered fork pseudocode
+
+```c
+uint8_t sr = SEGMENT.check1;                       // bit29 of u32@+28
+uint8_t x_scale = (SEGMENT.intensity >> 2) + 12;   // ix="Wave width"  (stock: intensity>>2, no +12)
+uint32_t counter = (SEGMENT.speed >> (sr ? 7 : 6)) + 1;   // base rate; stock: (strip.now*speed)>>9
+// counter is persisted via SEGMENT.step(+44)/aux0(+52) and, when sr, incremented by an
+// audio-derived term (getAudioData @0x42150ba4, float→ (fftResult>>? & 0x7ff)).
+counter += SEGMENT.step; ...                        // accumulator, written back at end
+for (int i = 0; i < SEGLEN; i++) {
+  uint16_t a = i*x_scale + phase;                   // running phase
+  uint8_t  s = sin8((uint8_t)a);
+  uint32_t pcol = SEGMENT.color_from_palette(/*idx*/, false, wrap, 0, 255);
+  uint32_t c    = color_blend(BLACK, pcol, s);       // stock blends SEGCOLOR(1); here color1=0
+  SEGMENT.setPixelColor(i, c);
+}
+SEGMENT.step = ...; SEGMENT.aux0 = ...;             // s32i @+44, s16i @+52
+return FRAMETIME;
+```
+
+### Delta vs stock
+
+1. **Wave-width offset**: `x_scale = (intensity>>2) + 12` (stock `intensity>>2`). ix="Wave width".
+2. **Speed/counter is a persistent accumulator** in step(+44)/aux0(+52) driven by
+   `speed >> (check1?7:6)`, rather than the stateless `(strip.now*speed)>>9`.
+3. **NEW `check1` = Sound Reactive**: adds an audio term to the counter (float path via 0x42150ba4).
+4. color1 in the blend is **BLACK (0)** rather than `SEGCOLOR(1)` — equivalent when the
+   background color is black (the usual case), a behavioural delta only if SEGCOLOR(1) is set.
+5. Still 1D `setPixelColor` (0x403757e8) over SEGLEN. sin8 blend preserved.
+6. The **palette index** passed to color_from_palette is uncertain (it is fed from a
+   time/phase temp `[a1+8]` rather than the raw loop index `i` as in stock) — MED confidence;
+   flag for follow-up.
+
+Repro: `dis_running.txt` (0x420433b4). Loop 0x42043476→0x420434dd; writeback @0x420434e0.
+
+---
+
+## 7. TARTAN (fx 195, func 0x42043b28) — CONFIDENCE: HIGH
+
+### Stock `mode_2Dtartan()`
+
+```c
+if (SEGENV.call==0) fill(BLACK);
+int offsetX=beatsin16(3,-360,360), offsetY=beatsin16(2,-360,360);
+int sharpness = custom3/8;                       // 0..3
+for (x) for (y) {
+  hue = x*beatsin16(10,1,10) + offsetY;
+  intensity = bri = sin8(x*speed/2 + offsetX);
+  for(i<sharpness) intensity*=bri;  intensity >>= 8*sharpness;
+  setPixelColorXY(x,y, ColorFromPalette(SEGPALETTE, hue, intensity, LINEARBLEND));
+  hue = y*3 + offsetX;
+  intensity = bri = sin8(y*intensity/2 + offsetY);
+  for(i<sharpness) intensity*=bri;  intensity >>= 8*sharpness;
+  addPixelColorXY(x,y, ColorFromPalette(SEGPALETTE, hue, intensity, LINEARBLEND));
+}
+```
+
+Stock metadata `"Tartan@X scale,Y scale,,,Sharpness;;!;2"` (sx,ix,c3=Sharpness).
+
+### Fork metadata `"Tartan@X scale,Y scale,Sharpness,Speed;!;!;2g"`
+
+→ sx=X scale, ix=Y scale, **c1=Sharpness**, **c2=Speed (NEW)**.
+
+### Recovered fork pseudocode
+
+```c
+if (!strip.isMatrix) return mode_static();
+cols=virtualWidth(); rows=virtualHeight();
+if (SEGMENT.call == 0) SEGMENT.fill(BLACK);                          // call@+48
+
+int amp     = SEGMENT.custom2 + 232;                                 // c2="Speed" -> 232..487
+int offsetX = beatsin16(3, -amp, amp);                               // stock: beatsin16(3,-360,360)
+int offsetY = beatsin16(2, -amp, amp);                               // stock: beatsin16(2,-360,360)
+int sharpness = SEGMENT.custom1 >> 6;                                // c1="Sharpness", 0..3 (stock c3/8)
+uint16_t hmul = beatsin16(10, 1, 10);                                // per-frame x hue multiplier
+uint8_t  sh   = 8 * sharpness;
+
+for (int x = 0; x < cols; x++) {
+  for (int y = 0; y < rows; y++) {
+    // pass 1 (set)
+    uint8_t bri = sin8((uint8_t)(x*SEGMENT.speed/2 + offsetX));      // sx="X scale"
+    uint32_t I = bri; for (i<sharpness) I*=bri; I >>= sh;
+    uint8_t hue = x*hmul + offsetY;                                  // (hmul = beatsin16(10,1,10))
+    SEGMENT.setPixelColorXY(x, y, ColorFromPalette(SEGPALETTE, hue, I, LINEARBLEND));
+    // pass 2 (add)
+    bri = sin8((uint8_t)(y*SEGMENT.intensity/2 + offsetY));          // ix="Y scale"
+    I = bri; for (i<sharpness) I*=bri; I >>= sh;
+    hue = y*3 + offsetX;
+    SEGMENT.addPixelColorXY(x, y, ColorFromPalette(SEGPALETTE, hue, I, LINEARBLEND));
+  }
+}
+return FRAMETIME;
+```
+
+### Delta vs stock
+
+1. **Sharpness moved to c1** (`custom1>>6`) from stock c3 (`custom3/8`). c1="Sharpness".
+2. **offsetX/offsetY amplitude is now `±(custom2+232)`** (c2="Speed") instead of fixed `±360`.
+   Note **c2=128 → ±360 = exactly stock**, so the default matches; the slider widens/narrows the
+   plaid drift range.
+3. Everything else — `call==0` black fill, `x*speed/2+offsetX`, `y*intensity/2+offsetY`, the
+   `intensity *= bri` sharpen-and-`>>=8*sharpness`, SEGPALETTE/LINEARBLEND, set-then-add — is a
+   **faithful port** of stock. sx drives the X sine, ix drives the Y sine (as stock).
+
+Repro: `dis_tartan.txt` (0x42043b28). beatsin16=0x42042e08/0x42152f58, fill=0x4201902c.
+
+---
+
+## 8. Summary of confidence
+
+| effect     | confidence                   | notes                                                                                   |
+| ---------- | ---------------------------- | --------------------------------------------------------------------------------------- |
+| Hiphotic   | **HIGH**                     | full lift; ix bimodal-black-gap mechanism explained exactly                             |
+| Tartan     | **HIGH**                     | near-faithful port; only sharpness(c1) + amplitude(c2) rewired                          |
+| Black Hole | HIGH struct / MED phase      | inner stars + white dot removed; count=(c1>>6)+2; X wraps %cols                         |
+| Frizzles   | HIGH wiring / MED bpm shifts | NEW c2=count; X wraps %cols; fade8/blur(c1>>4)+4                                        |
+| Colorwaves | MED-HIGH                     | 2D port; beatsin88 consts identical; NEW check1 sound-reactive; hueinc reduction approx |
+| Running    | MED-HIGH                     | 1D; x_scale+12; NEW check1 sound-reactive; palette-index source uncertain               |
+
+Recurring fork idioms discovered: (a) many effects widen a 2D beatsin range to ~`[dim/2,
+5*dim/2-1]` and take the coordinate **modulo the matrix dimension** so it wraps; (b) `check1`
+is repurposed as a **Sound Reactive** toggle gating an audio (getAudioData @0x42150ba4) path;
+(c) Hiphotic replaced strip.now with a per-segment `step` accumulator so its Speed slider works.
+
+Artifacts in this dir: `parse_image.py`, `disasm.sh`, and `dis_<effect>.txt` for each target.
+Scratch (not committed): full segment dumps under
+`/tmp/claude-1000/.../scratchpad/reversing/segments_debug/`, stock `FX_v0.14.4.cpp/.h`.
+
+---
+
+## 9. Sound Reactive audio branches (follow-up) — CONFIDENCE: HIGH
+
+Two of the six presets read audio: **Colorwaves** and **Running**, gated by `check1`
+("Sound Reactive"). Branch polarity: `check1 == 1` → audio path (correct SR semantics).
+The other four (Hiphotic, Black Hole, Frizzles, Tartan) contain **zero** references to the
+audio helpers — verified by literal/callsite scan of each function body. Expected (no SR slot).
+
+### 9.1 Audio acquisition helpers
+
+| addr       | identity                                                    | signature (recovered)                                                                                                           |
+| ---------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 0x3fca7220 | `UsermodManager usermods` (global)                          | —                                                                                                                               |
+| 0x42150ba4 | `UsermodManager::getUMData(um_data_t** out, uint8_t modId)` | iterates usermods, calls each vtbl `getId()`(vtbl+72) and, on match, `getUMData()`(vtbl+24); writes `*out`; returns true on hit |
+| 0x42049f18 | `simulateSound(uint8_t simId)` → `um_data_t*`               | fallback when no AudioReactive usermod; builds a synthetic um_data (8-ptr array, allocates on first call, cached at 0x3fca11b0) |
+
+Both effects call it identically (only the local out-slot differs):
+
+```c
+um_data_t *ud;
+if (!usermods.getUMData(&ud, 32)) {          // 32 = AudioReactive usermod id filter
+    ud = simulateSound(SEGMENT.soundSim);    // soundSim = options bits 12-13 (bits 28-29 of u32@seg+8)
+}
+```
+
+### 9.2 `um_data_t` fields actually read
+
+Both effects dereference **exactly one** field, via `[ud+8] -> [+0] -> load float`:
+
+```
+ud (um_data_t*)          // returned by getUMData/simulateSound
+  +8 : void** u_data      // pointer array (NOTE: u_data sits at struct offset +8 in this build)
+u_data[0] : float* -> volumeSmth   // the smoothed overall volume, IEEE-754 float
+```
+
+Neither effect reads `volumeRaw`, `fftResult[]` bins, `samplePeak`, `FFT_MajorPeak`, or
+`my_magnitude`. **Only `volumeSmth` (u_data[0], float)** is consumed. Confirmed byte-identical
+dereference chain in both: colorwaves 0x42043016-0x42043023, running 0x4204341e-0x42043424.
+
+### 9.3 Colorwaves audio branch (func 0x42042e48, path @0x42042fed)
+
+Runs once per frame in the setup, when `check1` set. Folds volume into the **hue increment base**
+(the register that is then multiplied to form `hueinc16`, so louder = faster hue travel):
+
+```c
+// entering: hbase = (beatsin88(113,60,300) >> 4) + 10;   // normal per-frame hue-inc base
+um_data_t *ud;
+if (!usermods.getUMData(&ud, 32)) ud = simulateSound(SEGMENT.soundSim);
+float   vol = *(float*)ud->u_data[0];                 // volumeSmth
+uint16_t v  = (uint16_t)(uint32_t)vol;                // utrunc.s + &0xFFFF (0..65535)
+int      d  = 12 - (SEGMENT.intensity >> 5);          // ix="Intensity" -> divisor 12..5
+hbase = (hbase + v / d) & 0xFFFF;                      // signed div (quos); folded into hueinc16
+// ... continues into the normal hueinc16 = msmultiplier * hbase path ...
+```
+
+Delta vs the non-audio branch: the non-SR path computes `hbase` from `beatsin88(113,60,300)`
+alone; the SR path **adds `volumeSmth / (12 - (intensity>>5))`** on top. Everything downstream
+(the b16 squared-sine brightness, blendPixelColor 128, step/aux0 persistence) is unchanged.
+Constants: shift **>>5** on intensity, divisor base **12**, hbase seed `(beatsin>>4)+10`.
+
+### 9.4 Running audio branch (func 0x420433b4, path @0x420433f5)
+
+Runs once per frame, when `check1` set. Folds volume into **both** phase accumulators:
+
+```c
+// entering:  aPhase = (speed >> (check1?7:6)) + 1;    // running-wave start phase (a2)
+//            hPhase = (speed >> 1) + 10;              // hue/step phase (a3)
+if (SEGMENT.check1) {
+  um_data_t *ud;
+  if (!usermods.getUMData(&ud, 32)) ud = simulateSound(SEGMENT.soundSim);
+  float    vol = *(float*)ud->u_data[0];               // volumeSmth
+  uint32_t k   = ((uint32_t)vol >> 5) & 0x7FF;         // extui(bit5,width11): (vol>>5)&0x7FF
+  aPhase += k;                                         // both accumulators advanced by same term
+  hPhase += k;
+}
+aPhase = (aPhase + SEGMENT.step)  & 0xFFFF;            // step @+44
+hPhase = (hPhase + SEGMENT.aux0)  & 0xFFFF;            // aux0 @+52
+// aPhase -> running-wave start; hPhase -> sin/palette phase; both persisted back at frame end
+```
+
+Note the `speed >> (check1?7:6)`: turning Sound Reactive on **also** halves the base
+time-advance (shift 7 vs 6), so the audio term dominates the motion. Constant: volume reduction
+**`(vol >> 5) & 0x7FF`** (0..2047), added equally to wave phase and hue phase.
+
+### 9.5 Non-audio effects — confirmed audio-free
+
+Scan of each function body for `getUMData`(0x42150ba4), `simulateSound`(0x42049f18) callsites,
+and the `usermods`(0x3fca7220) literal: **Hiphotic, Black Hole, Frizzles, Tartan = 0 refs each.**
+Their metadata has no Sound Reactive slot; the binary agrees — none read audio.
+
+Repro: `./disasm.sh 0x42042fed 60` (Colorwaves), `./disasm.sh 0x420433f2 40` (Running),
+`./disasm.sh 0x42150ba4 40` (getUMData), `./disasm.sh 0x42049f18 30` (simulateSound).
+
+---
+
+## 10. GLORB usermod, 'g' flag, Colorwaves hueinc16 correction, Running per-pixel, LEDs 0/21/62
+
+### 10.1 The "GLORB" usermod — what `enabled=true` does (CONFIDENCE: HIGH)
+
+The fork registers three custom usermods alongside the stock ones: **AudioReactive**,
+**HomeKit** (HomeSpan-based), and **GLORB**. Each is a `Usermod` subclass with its own vtable.
+
+- GLORB name string `"GLORB"` @0x3c1672f0; config keys `"GLORB"`/`"enabled"` (@0x3c1672e0? no —
+  GLORB uses 0x3c1672f0/0x3c1672e8). GLORB **vtable @0x3c1671d8**.
+- Overridden vtable slots (all other slots point to the base-class no-op cluster
+  0x42150de0..0x42150ef8, each just `entry; retw`):
+  - **slot 3 = 0x42046f34** — `readFromJsonState`/`addToJsonState`: reads `[this+9]`, then
+    manipulates a JSON object under key `"GLORB"` and the **MQTT/remote key table @0x3c164890**
+    (`broker`,`cid`,`topics`,`device`,`rtn`,`remote_enabled`,`linked_remote`,`iv`,…).
+  - **slot 6 = 0x42046fd8** — `addToConfig`: writes `{"GLORB":{"enabled":<bool>}}`.
+  - **slot 7 = 0x42046230** — `readFromConfig`: reads `GLORB.enabled` into `[this+8]`.
+- GLORB has **no** `setup`/`loop` override, **no** `handleOverlayDraw`, **no** `getUMData`.
+  It **never** calls `setPixelColor*`, `blur`, `fill`, or any bus/ledmap API.
+
+Verified negatives (whole-image scan):
+
+- **No IMU / gesture / accelerometer** code or strings (`MPU`,`LSM`,`IMU`,`accel`,`gyro`,
+  `gesture` → none; only unrelated `tap`/`BLE`/`HomeSpan`). No sensor path exists.
+- **No usermod overrides a non-empty overlay-draw slot** — HomeKit's real slots are 1/6/7/11
+  (its slot-1 = HomeSpan service init @0x42045a80: allocations + `"HomeSpan-ESP32"` +
+  callbacks — an Apple-Home integration, not LEDs); GLORB's are 3/6/7. Neither writes pixels.
+
+**Conclusion:** `GLORB.enabled=true` turns on a **cloud/app/MQTT remote-control integration**
+(broker/topics/device linking), gated by a single bool. It does **not** hook rendering, remap
+geometry, switch ledmaps, or read an IMU. **The WLED 16 port does NOT need the GLORB usermod
+for visual parity** — all visuals come from the 12 effect functions (§2-7) + the ledmap.
+
+### 10.2 The trailing `'g'` metadata flag (CONFIDENCE: HIGH)
+
+Exhaustive DROM scan of every effect metadata string: the trailing `;…g` flag appears on
+**exactly the 12 GLORB custom effects and nothing else**. All ~99 stock effects lack it
+(they end in the dimension digit / stock flags: `2`, `2f`, `2v`, optional `;c1=8`/`;si=0`).
+Tellingly, the **original stock Tartan is retained as `"Tartan - Legacy@…;;!;2"` (no `g`)**
+while the fork's replacement `"Tartan@…;!;!;2g"` carries it.
+
+WLED effect metadata is `Name@sliders;colors;palette;flags;defaults`. The firmware C effect
+path dispatches purely by the **mode-table function pointer** (§1.3) and derives 1D/2D from the
+live matrix config — it never scans the flag field for arbitrary letters. There is **no readable
+web-UI JS in DROM** (`querySelector`/`getModeInfo`/`addEventListener` = 0 hits → the UI is
+gzipped). So `'g'` is **not consumed by any rendering C code**; it is a fork **UI/app metadata
+badge** that tags "these are the GLORB effects" for the (gzipped) web UI / companion app to
+recognise or filter. It gates nothing in the render pipeline — safe to ignore for the port.
+
+### 10.3 Colorwaves `hueinc16` / `duration` — DEFINITIVE (supersedes §5.3 and §9.3)
+
+I previously conflated two independent per-frame quantities. Exact register trace of the setup
+(0x42042ea3-0x42042f4b):
+
+Registers: `a2=speed`(l8ui+6), `a7=step`(sPseudotime,+44), `a3=aux0`(sHue16,+52),
+`a4=msmultiplier=beatsin88(147,23,60)`, `a10(BW)=beatsin88(113,60,300)`.
+
+```c
+// duration base (both paths):  a2 = (speed>>4) + 10       // stock: 10 + speed
+int duration = (SEGMENT.speed >> 4) + 10;
+
+if (!check1) {                              // ---- Sound Reactive OFF (pure time) ----
+   uint8_t i8 = SEGMENT.intensity >> 3;                          // intensity/8, 0..31
+   hueinc16 = (uint16_t)( ((uint32_t)BW * i8 * 10) / 255 );      // <-- exact
+   // (÷255 via muluh with 0x80808081 then >>7; ×10 via (x<<2 + x)<<1)
+} else {                                    // ---- Sound Reactive ON  ----
+   float vol = *(float*)ud->u_data[0];                           // volumeSmth
+   duration  = duration + (uint16_t)vol / (12 - (SEGMENT.intensity>>5));  // +audio
+   hueinc16  = 0;                                                // <-- forced to 0 in SR mode
+}
+sPseudotime += duration * msmultiplier;                          // a7 += duration*msmultiplier
+sHue16      += duration * beatsin88(400, 5, 9);                  // a3 += duration*bs(400,5,9)
+```
+
+Answers to the three questions:
+
+- **Final hueinc16, SR off** = `beatsin88(113,60,300) * (SEGMENT.intensity>>3) * 10 / 255`.
+  The multiplier is **`intensity>>3`** (stock used full `intensity`). It is _not_ `msmultiplier`
+  and _not_ `(beatsin>>4)+10` — that latter expression was actually `duration`.
+- **Final hueinc16, SR on** = **0** (the spatial hue gradient is flattened; only `sHue16` drifts
+  the whole field over time). Louder audio instead speeds `duration`.
+- **Where SEGMENT.intensity enters the non-audio path:** _only_ in `hueinc16`, as `intensity>>3`.
+  (In the audio path it also appears in the divisor `12-(intensity>>5)`.)
+- `msmultiplier = beatsin88(147,23,60)` multiplies `duration` for `sPseudotime` (as stock).
+
+### 10.4 Running per-pixel body — DEFINITIVE (closes §6's open flag) (CONFIDENCE: HIGH)
+
+With `aPhase` (wave) and `hPhase` (hue) as recovered in §9.4, the frame setup then computes a
+**triangle wave of hPhase** as a single global palette index, and the loop applies a running
+`sin8` brightness wave (0x42043446-0x420434dd):
+
+```c
+uint16_t hp = (hPhase + SEGMENT.aux0) & 0xFFFF;            // aux0@+52
+uint16_t t2 = (hp << 1) & 0xFFFF;
+uint8_t  hueIdx = ((int16_t)hp >= 0 ? t2 : ~t2) >> 8;      // triangle(hPhase) -> 8-bit index
+uint16_t ap = (aPhase + SEGMENT.step) & 0xFFFF;            // step@+44 ; wave start phase
+uint8_t  x_scale = (SEGMENT.intensity>>2) + 12;            // ix="Wave width"
+bool wrap = (strip.paletteBlend-ish bit) ... ;            // PALETTE_SOLID_WRAP flag from strip[1]&~2
+
+for (int i = 0; i < SEGLEN; i++) {
+    uint8_t s = sin8( (uint8_t)(ap + i * x_scale) );                 // running brightness wave
+    uint32_t pcol = SEGMENT.color_from_palette(hueIdx, /*mapping*/false, wrap, /*mcol*/0, 255);
+    uint32_t c    = color_blend(/*BLACK*/0, pcol, s, false);
+    SEGMENT.setPixelColor(i, c);                                     // 1D writer @0x403757e8
+}
+SEGMENT.step = ap-ish; SEGMENT.aux0 = hp-ish;             // persisted
+```
+
+Exact per-pixel facts:
+
+- **sin8 argument** = `(aPhase + i*x_scale) & 0xFF`, where the accumulator adds
+  `x_scale = (intensity>>2)+12` each pixel — i.e. `sin8(aPhase + i*x_scale)`.
+- **palette index** = `hueIdx = triangle(hPhase) >> 8` — a **single value shared by all pixels**,
+  advancing only in time (hPhase = speed/audio/aux0), **not** `i`. **mapping flag = false**
+  (stock passed `i` with mapping=**true**). So the whole strip is one time-evolving color whose
+  brightness runs along the length via the sin8 wave; stock instead painted a moving palette
+  gradient (`color_from_palette(i, true, …)`). This is the section-6 delta, now resolved.
+- `color_blend(BLACK, pcol, s)` — color1 is literal 0 (stock used `SEGCOLOR(1)`).
+
+### 10.5 LEDs 0 / 21 / 62 — is anything writing the ledmap holes? (CONFIDENCE: MED-HIGH)
+
+The factory grid ledmap maps 80 logical cells onto physical 1..82 except {0,21,62}. Searching
+the whole image for another writer of those three:
+
+- **No usermod writes LEDs** at all (§10.1): GLORB and HomeKit never call a pixel/bus writer;
+  the `handleOverlayDraw` slot is the base no-op in every custom usermod → no overlay pass draws.
+- **No literal-index pixel write** to 0/21/62 in a render context: `movi *,21`(3 sites) and
+  `movi *,62`(6 sites) all land in unrelated helpers (FFT/util code at 0x42084xxx/0x420cbxxx/…),
+  none adjacent to a `setPixelColor`/bus call.
+- Effects reach the panel **only** through the ledmap, which by construction excludes {0,21,62}.
+
+**Conclusion:** no code path in this app image deliberately lights physical LEDs 0/21/62. They
+are either **gap entries** (physically absent — the firmware has a gap-map: strings "Reading LED
+gap from"/"Gaps loaded"/"Matrix ledmap:") or real LEDs left **black**. Either way the original
+firmware does **not** light them, so a grid-based port loses nothing visible. Caveat: whether
+they are gaps-vs-black, and whether a second full-strip segment exists, is decided by
+`ledmap.json`/`cfg.json` in **littlefs**, which is _not_ in this app binary — confirm against the
+device's `/cfg.json` + `/ledmap.json` if certainty on the gap-vs-black distinction is needed.
+
+### 10.6 Per-model LED-count constants
+
+This image is the **gma_83** build; DROM contains only its banner `WLED v0.14.4-GLORB.1.3`
+and **no** `gma_81`/`sph_81`/`sph_83` model strings — the variants are separate builds/configs,
+not switched by a runtime string in this binary. LED count is not a compile-time literal switched
+by model here; it comes from `cfg.json`/NVS (WLED bus config). `movi` immediates of 80 (19×),
+82 (3×), 83 (4×), 120 (67×) exist but none could be tied to the strip length with confidence
+(120 is common/unrelated). No reliable static per-model count constant to report.
+
+## 11. The palettes, not the effects — why five presets still missed — CONFIDENCE: PROVEN
+
+With the six decompiled effects running on the port, one preset matched the factory lamp almost
+exactly and the rest did not. The one that matched was **Running - Atlantica**. That is the whole
+clue: Atlantica is the only palette of the six the factory presets use whose bytes WLED still
+holds unchanged.
+
+WLED regenerated most of its built-in gradient palettes after 0.14 from cpt-city `.c3g` sources,
+storing them brighter and expecting output gamma to bring them back down. Same palette ID,
+different bytes. Analogous 18, red channel:
+
+```text
+fork 0.14.4-GLORB.1.3     3   23   67  142  255
+WLED 16.0.1              38   86  139  196  255
+```
+
+which is very close to the fork's values with a 2.2 gamma removed ((67/255)^(1/2.2)*255 = 138).
+
+Checked by searching the fork binary for WLED 16's exact palette bytes
+(`glorb/firmware/firmware_gma_83.bin`):
+
+| palette    | id  | in fork binary     | preset result before the fix                            |
+| ---------- | --- | ------------------ | ------------------------------------------------------- |
+| Atlantica  | 51  | **byte-identical** | Running p4: vhist 0.02, hue 0.06, mean_r 1.02 — matches |
+| Analogous  | 18  | differs            | p1 mean_r 1.23, p5 1.08, p13 1.02 — port brighter       |
+| Tertiary   | 34  | differs            | p2 mean_r 1.31, sat_d 0.117                             |
+| Sunset     | 13  | differs            | p3 mean_r 1.45, hue 1.93                                |
+| Fire       | 35  | differs            | p14 mean_r 1.40, vhist 0.37                             |
+| Fairy Reaf | 59  | differs            | p12 hue 0.77                                            |
+
+Every failing preset was brighter on the port (mean_r > 1 without exception) — the signature of a
+palette re-encoded upward, not of a wrong effect. The effects were already right.
+
+**Fix:** ship the factory stops verbatim as WLED custom palettes and point the presets at them
+(`glorb/mkpalettes.py`, palette0..5 = IDs 200..195). WLED loads a custom palette with the very
+same `loadDynamicGradientPalette` it uses for a built-in gradient (`colors.cpp` loadCustomPalettes),
+so identical stops give a byte-identical CRGBPalette16. No fitting, no re-encoding.
+
+Note this also retires the fitting-era workaround of setting `light.gc` to 1.0: with the factory
+palettes carrying the factory's own encoding, the port runs the factory gamma 2.8.
+
+### Output gamma: the fork never gamma-corrects rendered pixels, WLED 16 does — PROVEN
+
+An earlier draft of this section claimed the two lamps' mA figures were simply not comparable,
+because WLED 16 sums gamma-corrected channels at the bus and 0.14.4 does not. That was the wrong
+conclusion from a real observation, and it nearly buried a real defect.
+
+Both firmwares estimate current from what they actually write to the bus, so both estimates are
+honest. Predicting each lamp's reported mA from its own captured (pre-gamma) frames --
+`mA = colorSum * ledma/765 + nLEDs`, channels taken as captured versus raised to 2.8 -- separates
+the cases cleanly:
+
+|         | measured | predicted linear | predicted gamma 2.8 |
+| ------- | -------- | ---------------- | ------------------- |
+| p4 fork | 1012 mA  | **915**          | 349                 |
+| p4 port | 478 mA   | 925              | **359**             |
+| p2 fork | 1274 mA  | **1177**         | 553                 |
+| p2 port | 750 mA   | 1231             | **629**             |
+
+The fork tracks the linear prediction, the port the gamma one. Confirmed independently in the
+binary: an exhaustive scan for callers of the fork's `gamma32` (0x42026b7c) finds twelve, all in
+the colour-setting region and none in the bus path, and 0.14.4 instead applies `gamma8()` to custom
+palettes at _load_ time. WLED 16 gamma-corrects the whole frame in `show()` and no longer gammas
+custom palettes at load.
+
+So with the factory palettes shipped verbatim the port's `light.gc` must be **1.0**, not the
+factory's 2.8. The fork's `gc` never touches palette output, so 2.8 on the port was applying a
+transform the reference lamp does not. Setting it to 1.0 moved the current ratios from
+0.473 / 0.588 / 0.699 to **1.047 / 1.104 / 0.979** on presets 4 / 2 / 9.
+
+Why the captures could not see this: both firmwares serve the liveview pre-gamma (WLED 16 from
+`_pixels[]`, `ws.cpp:231`; 0.14.4 from a bus with `NeoGammaNullMethod`). Two lamps can match on
+every captured metric and still look very different to the eye. **Current is the only instrument
+that sees the output stage**, which is why `verify` gates it instead of merely reporting it.
+
+## 12. What WLED 16 changed underneath the effects — PROVEN
+
+With palettes and gamma fixed, four presets still missed. All four came down to WLED 16 having
+replaced helpers the fork calls, in ways that are individually tiny and compound inside feedback
+loops.
+
+**Colorwaves (presets 1 and 3) — two bugs, both in the hue path.** The fork folds the hue over the
+_whole_ palette (`0x42042f57`: `slli a4, a3, 1`, and `65535 - 2*hue16` on the other branch), where
+stock WLED folds to 0..127 and never addresses the upper half. With Analogous, whose lower half is
+entirely blue/violet, the port sat in one hue bin: measured hue census, ref 0.366/0.178 across bins
+24/25 and another 0.26 spread over the red end, port 0.733/0.267 and nothing above bin 25. The fork
+also advances `hue16` once per **row** (the `blt` at line 101 is the row loop) and writes with
+`blendPixelColorXY`, so the gradient spans 6 steps, not 120.
+
+**Frizzles and Black Hole — FastLED's rounding.** 0.14.4 scales through `nscale8x3`
+(`0x4214ea48`), which does `(v * (scale+1)) >> 8`; WLED 16's `fast_color_scale` (`colors.h:96`)
+drops the `+1`. Per blur pass the fork keeps 1.0039 of the energy and WLED 16 keeps 0.9922, and
+`blur2D` runs rows and columns, so ~2.4 % per frame -- amplified roughly twentyfold by the
+fade/inject/blur feedback loop. `fadeToBlackBy` diverges the same way, and there the fix is exact:
+the fork's `fadeToBlackBy(f)` is WLED 16's `fadeToBlackBy(f-1)`.
+
+**All six effects — trig and blend.** The fork calls FastLED `sin8_C` (table at DROM `0x3c167ab8`
+= `b_m16_interleave`) and `sin16_C` (slope table `0x3c167ac0`), not WLED 16's accurate `sin8_t`
+/`sin16_t`, which differ by up to 5/255. And 0.14.4's `color_blend` (`0x4202617c`) weights
+`c1*(255-blend) + c2*blend`, summing to 255/256, where WLED 16 uses `(256-blend)` and `(blend+1)`,
+summing to 257/256 -- the fork's version bleeds slightly toward black each iteration and WLED 16's
+is a fixed point. Simulated against Hiphotic this predicts +6.1 % mean V; the measured residual
+after the palette fix was +5.9 %.
+
+WLED 16 ships no FastLED trig at all, so `glorb_fx.cpp` now carries the originals
+(`glorb_sin8`, `glorb_sin16`, the `beatsin` family, `glorb_color_blend`, `glorb_nscale8`,
+`glorb_blur2d`) and the effects call those instead of the WLED spellings.
+
+## 13. Full instruction-level audit of all six effects — 2026-09-01
+
+Everything before this was found by measuring a symptom, guessing a cause, flashing, and waiting
+24 minutes for the gate. That is fitting to the instrument: it finds at most one defect per cycle,
+and it once produced a change that scored _better_ while being provably wrong. This pass read all
+six effects against the disassembly instead, and states for each whether it was verified or
+corrected.
+
+| effect     | outcome                                                                                                                                                                      |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Colorwaves | 2 defects: hue fold was half-range, hue advanced per pixel not per row. Also still blending through WLED 16's `color_blend`. All fixed.                                      |
+| Tartan     | 1 defect: the fork derives ONE palette index per frame; this port coloured by position. Fixed. `amp = custom2+232` and both `beatsin16` ranges verified.                     |
+| Running    | Verified exact (setup, audio path, hoisted palette index, `color_blend(BLACK, pcol, s)`, `SEGENV.step` stores the base phase). `triwave16` fold form corrected -- see below. |
+| Frizzles   | Verified exact: fade 8, count `(custom2>>5)+1`, both bpm terms, `blur((custom1>>4)+4)`, `beatsin8(12,0,255)` colour. Both NOTE-MED markers retired.                          |
+| Hiphotic   | Verified exact: `step += (speed>>6)+1`, xstep/ystep `(cN>>5)+8`, `shift = 3-(ix>>6)`, `himask = ~(255>>shift)`, `bwave = beatsin8(2,0,himask)`, `hx = a/3+64`, `hy = a/4`.   |
+| Black Hole | Verified exact, and STILL measures x1.20. Open -- see below.                                                                                                                 |
+
+### The `beatsin8` helper takes no timebase
+
+Worth recording because it cost a wrong "fix". The fork's helper at `0x4204307c` is
+`f(bpm, lowest, highest, phase_offset)`. After `entry`, arg4 arrives in `a5`, and `0x420430a3`
+does `add a10, a5, a10` -- adding arg4 straight to the beat angle before `sin8`. There is no
+`millis() - timebase` anywhere in the function. Reading Black Hole's `mov.n a13, a3` as a timebase
+and changing the port accordingly made preset 11 pass and collapsed preset 10 (lit_r 0.39). The
+gate is not the authority on which reading is right; the callee is.
+
+### Running's triangle fold
+
+The fork complements the _doubled_ phase (`0x42043453 slli a4, a3, 1`, then `0x42043464
+xor a4, -1, a4`), not `(65535 - in) << 1`. Those differ by exactly one. Corrected -- but after the
+`>>8` that follows, all 65536 phases yield the same palette index, so nothing observable changes.
+Recorded so nobody re-derives it expecting a fix.
+
+### Black Hole: bounded, reproducible, unexplained
+
+`blackhole_model.py` reproduces the defect offline. Scored through the ledmap (80 of 120 logical
+cells drive an LED -- forgetting that mask reads as a spurious 1.6x), the model lands at
+
+```text
+p11 Sunset    sim lit 24.41  fork 20.16   x1.21
+p10 Tertiary  sim lit 44.44  fork 36.93   x1.20
+```
+
+which matches the hardware's measured `lit_r`. Ruled out, none explaining both presets: blur
+amount (8/16/24/32), rows-only vs rows+cols, `seep>>2`, saturating vs ratio-preserving
+`addPixelColor`, fade laws `c2>>2 / c2>>3 / c2 raw`, counts `(c1>>6)+1` and `(c1>>7)+2`, star
+brightness, and effective frame rate from 20 to 120 fps.
+
+Every instruction matches the binary and the mean V of lit cells matches the fork to ~1.07, so the
+excess is spatial, not energetic. The cause is not in the effect body. Next step is a differential
+harness against the real fork's captured frames with the phase fitted, not another gate cycle.
+
+### Black Hole: star trajectories are correct (narrowing the residual)
+
+Comparing where the brightest cell sits, over a 100 s window, is phase-independent and tests the
+star paths directly. Fork capture against the model, preset 11:
+
+```text
+row    fork  0.000 0.241 0.236 0.234 0.289 0.000
+      model  0.000 0.288 0.202 0.218 0.292 0.000
+col    fork  peaks at columns 9-11 (0.099 0.093 0.098)
+      model  peaks at columns 9-11 (0.091 0.102 0.114)
+```
+
+Same rows occupied, same column profile. So `beatsin8`'s phase handling is right -- which is the
+independent confirmation that treating the phase as a timebase was wrong -- and the star geometry
+is not the defect.
+
+Combined with mean V of lit cells matching to ~1.07, the residual is now pinned to one thing: the
+port keeps about 20 % more cells in the dim tail just above the 0.05 lit threshold, with correct
+star positions and correct brightness. It is a low-end decay equilibrium difference in the
+fade/blur loop, not geometry, energy, or timing.
+
+### The residual tracks blur amount across effects
+
+The dim-tail excess is not unique to Black Hole. Measured against the factory lamp on the audited
+build, the two effects that run fade AND blur in a feedback loop are the only ones off 1.00, and
+they scale with the blur argument:
+
+```text
+Frizzles - Fire     blur (custom1>>4)+4 = 15   lit_r 1.11  mean_r 1.11   (passes)
+Black Hole - Sunset blur 32                    lit_r 1.20+ mean_r 1.20+  (fails)
+Running / Tartan / Colorwaves / Hiphotic       lit_r 1.00  mean_r ~1.00
+```
+
+Hiphotic reads the previous frame too (`color_blend(prev, col, 64)`) and is clean, so it is not
+feedback as such -- it is blur. The arithmetic says why the balance is delicate: at blur 32 the
+fork's FastLED rounding makes each interior pixel emit 224/256 + 2x17/256 = 1.0078 of what it
+held, a 0.78 % gain per pass, and the only sink is the carryover dropped at each row and column
+end. Interior gain and edge loss very nearly cancel, so a small difference anywhere in that loop
+moves the steady-state dim tail a lot while leaving star positions and peak brightness untouched --
+exactly the measured signature.
+
+Next step for whoever picks this up: instrument the equilibrium rather than the aggregate. Drive
+both lamps to a static single-pixel injection with fade and blur running, capture the decay
+envelope, and compare it cell by cell against `blackhole_model.py`. That isolates the loop from
+the effect.
+
+### Black Hole: what is now excluded, and the one thing left
+
+The blur helpers were read to the bottom. `blurRow` (0x420178e4) computes `keep = amount ^ 255`,
+`seep = amount >> 1`, then scales two copies of the pixel through `0x4214ea48` and accumulates
+through `0x4214ea14`:
+
+```text
+0x4214ea48  nscale8x3   addi.n a3,a3,1 ; mul16u ; srai 8    -- FastLED's +1 IS present
+0x4214ea14  qadd8x3     add ; min 255                        -- saturating, per channel
+```
+
+So the fork's blur is exactly what the port implements, `+1` and all. An earlier model result
+suggesting the `+1` should be dropped was wrong and is not to be acted on -- the binary settles it.
+
+Excluded by measurement, with both lamps on preset 11:
+
+- inputs: `sx 210, ix 50, c1 40, c2 20, c3 16, bri 255, o1 false`, segment 0..20 x 0..6, grp 1,
+  spc 0 -- identical on both lamps, only fx and pal differ as designed;
+- star colours: most common brightest-cell values are `#ce4f00`/`#cd0000` on the fork against
+  `#cd5000`/`#cf0000` on the port, so the palette lookup agrees to a few LSB;
+- star trajectories: same rows occupied, same column profile (above);
+- peak brightness: `peak_r` 1.01.
+
+What remains is only this: with identical inputs, identical algorithm, identical star colours and
+identical star paths, the port holds ~29 % more cells just above the lit threshold. Everything
+energetic, geometric and temporal has been ruled out, so the next step is to instrument the decay
+envelope itself rather than the effect -- inject one pixel, let fade and blur run, and compare the
+per-cell falloff on both lamps against `blackhole_model.py`.
+
+### Black Hole: the render loop is instruction-proven; suspect the comparison, not the effect
+
+Every arithmetic stage of the fork's fade/blur loop has now been read out of the binary and
+matches `blackhole_model.py` exactly (addresses in the IROM/IRAM segments produced by
+`parse_image.py`, disassembled with `disasm.sh`):
+
+```text
+0x420194f4  fade_out        keep = 255 XOR fadeBy; per pixel color_fade(c, keep, video=0)
+0x4214ff60  color_fade      video=0 branch at 0x4214fff4: (v * (keep+1)) >> 8   <- FIXED +1
+0x420195a0  blur dispatch   rows (0x420178e4) then columns (0x42017a20), structurally identical
+0x420178e4  blurRow         keep = 255 XOR amount, seep = amount >> 1, carryover init 0,
+                            scales via 0x4214ea48, saturating adds, write-back order as modeled
+0x4214ea48  nscale8x3       (v * (s+1)) >> 8                                    <- FIXED +1
+0x42026220  color_add       per-channel add with min(...,255) saturation (RGBW)
+0x42017864  addPixelColorXY get -> color_add -> set
+0x40375538  setPixelColorXY scales by currentBri(opacity)+1 only when != 255; presets 10/11
+                            run seg bri 255 / on -> identity in steady state
+0x42018ed4  color_from_palette  the (i*241)>>8 fold visible inline               <- FIXED +1
+frame order fade -> stars -> blur, matching the model
+```
+
+Also ruled out with capture data: the 40 ledmap hole cells read #000000 on BOTH firmwares'
+liveview (so the port is not counting phantom hole cells), and no physical LED is shared by two
+cells.
+
+Two consequences:
+
+1. The FASTLED_SCALE8_FIXED question is settled: the fork build uses the +1 semantics
+   everywhere that matters. Truncation variants of the model move its lit excess from x1.6 to
+   only x1.33 anyway (rounding cannot explain the gap), and they are now also disproven.
+
+2. Since model == port == binary for the whole loop, the residual lit excess against the fork
+   CAPTURE cannot come from the modeled loop. Before instrumenting lamps again, re-establish the
+   comparison itself on pinned builds: the capture sets in captures/ span at least three
+   different target firmwares (exact-pal, final, audit -- the audit build's p11 UNDERSHOOTS,
+   lit 16.6 vs ref 20.25), and decay-envelope numbers taken across them do not describe one
+   port. Remaining unverified stages, in order of suspicion: the effect body's derivation of the
+   blur AMOUNT argument (the model assumes constant 32), getPixelColorXY's tail
+   (0x4201741c; grouping/spacing multiply observed, identity at grouping 1 / spacing 0 --
+   unfinished read), and the model's own transliteration fidelity (its ms timebase and star
+   count laws were never diffed against the body the way the helpers now are).
+
+### CORRECTION: the model matches neither firmware — its table above is not reproducible
+
+Re-measured from scratch (committed model run verbatim; lit counts recomputed from the raw
+captures, every 5th frame, V > 0.05):
+
+```text
+                         p11      p10
+fork (ref), all 3 runs   19.8-20.1  37.2-37.4     <- stable; the 20.16/36.93 targets were honest
+port  exact-pal build    21.5       38.2
+port  final build        25.9       45.0
+port  audit build        16.6       14.3
+committed model          32.3       59.7          <- x1.61 vs fork, matches NO port build
+```
+
+The table earlier in this section ("sim lit 24.41 ... x1.21, matches the hardware's lit_r") does
+not reproduce from the committed blackhole_model.py; the only change to the file since that text
+was written is a removed unused import, so the recorded run must have used uncommitted
+parameters. Treat every conclusion that leaned on "the model reproduces the port" as unsupported.
+
+What actually stands: the helper functions are binary-proven (previous section), and the fork's
+lit equilibrium is stable and known. What does not stand: the model's frame loop (ms timebase,
+star count/injection, blur amount) has never matched either lamp, so it cannot arbitrate
+hypotheses. Before anything else, bring the model to reproduce the FORK's 19.8/37.3 from the
+body disassembly alone — a model that cannot reproduce the reference cannot indict the port.
+
+### RESOLVED offline: the Black Hole residual is the ledmap holes, not the effect
+
+0.14.4 writes effects through the ledmap: setPixelColorXY on one of the 40 unmapped cells is
+dropped and reads back black, so the holes are permanent energy sinks inside the fade/blur
+feedback loop. WLED 16 renders into the logical segment buffer and applies the ledmap at the
+bus, so on the port those 40 cells stay alive as reservoirs that keep re-feeding blur spill
+into the mapped cells. Same arithmetic (binary-proven above), different topology.
+
+Proof, no parameters tuned: adding write-drop/read-black hole semantics to blackhole_model.py
+(clear the 40 hole cells before and after the blur pass) moves BOTH presets from x1.61 onto the
+fork simultaneously:
+
+```text
+                 p11 lit      p10 lit
+fork (stable)    19.8-20.1    37.2-37.4
+model, no holes  32.33        59.65        x1.61 / x1.61
+model + holes    18.97        36.67        x0.95 / x0.99   meanV 0.26 vs fork 0.25
+```
+
+This also predicts Frizzles' small off-centre residual (same loop, blur 15) and predicts that
+effects without blur are unaffected -- both observed.
+
+Port fix: the glorb_fx effects that blur (Black Hole, Frizzles) must reproduce the fork's
+topology -- black out the cells whose ledmap entry is unmapped each frame (WLED 16 exposes the
+custom mapping table; precompute the hole mask once). Verify with the gate only AFTER the model
+prediction is reproduced on the lamp.
+
+### The hole semantics, pinned to source, and built into the port
+
+Both engines read from public source, no disassembly needed for this one:
+
+- 0.14.4 `WS2812FX::setPixelColor` (FX_fcn.cpp): `if (i < customMappingSize) i =
+customMappingTable[i]; if (i >= _length) return;` — `deserializeMap` loads `-1`
+  as `0xFFFF`, so the write is dropped; `getPixelColor` returns 0 the same way.
+  `strip.set/getPixelColorXY` are `setPixelColor(y*maxWidth + x)` (FX.h), and
+  `Segment::setPixelColorXY` routes through them — every effect access, mapped
+  at once.
+- WLED 16 `Segment::set/getPixelColorXY` (FX_2Dfcn.cpp) end in
+  `pixels[x + y*vWidth()]` — the raw segment buffer, no ledmap anywhere in the
+  path; the map is applied in `show()` via `getMappedPixelIndex(i)` over the
+  same `y*maxWidth+x` logical layout.
+
+Two corrections to the section above, from making the model committed and exact:
+
+- The x1.61 was the model scoring all 120 raster cells. Scored through the
+  ledmap (mapped cells only, the only cells either lamp can show — same rule the
+  gate uses), the committed no-holes model gives lit x1.21/x1.20, which is the
+  measured gate ratio. Same conclusion, now with the magnitudes matching the
+  instrument. `blackhole_model.py` now carries `holes=` and mapped-only scoring:
+  fork semantics x0.94/x0.99, port-before-fix x1.21/x1.20.
+- The fix must gate **every access**, not black holes out per frame: within one
+  blur pass the row sweep deposits carry into a hole that the column sweep would
+  read back. glorb_fx now wraps get/set/add in `glorb_cellMapped()` (asks
+  `strip.getMappedPixelIndex` — the engine's own table, not a reparse of the
+  file) and routes all six effects' pixel accesses through the wrappers, so the
+  topology is the fork's at every step, not just at frame boundaries.
+
+### RESOLVED on hardware: 12/12
+
+Gate run after flashing the hole-topology fix (`verify-2026-09-01-holes.log`,
+firmware at 5b2e901): every preset passes every criterion. Black Hole, the
+last holdout, lands at lit_r 1.00/0.99 and mean_r 0.99/0.99 — the model's
+prediction, reproduced on the lamp before the gate was consulted, per the
+protocol above. Preset 11's first window was refused for a 2.59 s stream gap
+(instrument fault, not a verdict) and re-measured clean; `verify` now retries
+unhealthy windows itself, and only those.
+
+### Final gate: 12/12 in one run
+
+`verify-2026-09-01-final.log`: full sweep on the shipped firmware (7eb5f31 —
+adds the review's `color_blend` blend-255 early return), every preset PASS in
+a single uninterrupted run, no capture retries needed. This supersedes
+`verify-2026-09-01-holes.log` as the acceptance evidence; that log remains as
+the record of the hole-topology fix landing.

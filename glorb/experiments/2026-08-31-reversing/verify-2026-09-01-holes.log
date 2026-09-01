@@ -1,0 +1,21 @@
+verify: presets.json sha256 5dde8cb917179b40c96d042e6294f2e6d8da5226b5d5eedf95b0d6dbd82b3531
+  ref 10.27.4.160: ver 0.14.4-GLORB.1.3 fps 43 maxpwr 2800 cpalcount 0 rssi -41
+  target 10.27.4.158: ver 16.0.1 fps 42 maxpwr 2800 cpalcount 6 rssi -46
+verify: 12 presets, 100 s each (~24 min); both lamps end on preset 4
+  preset  1 Colorwaves - Analogous     ref  1103 mA  target  1138 mA  ratio 1.032  hz 17.8/22.6 cov 0.998/0.999 gap 0.198/0.113 cells 120/120  vhist 0.04 hue 0.05 sstd_r 0.98 act_r 1.04 peak_r 1.00 lit_r 1.00 sat_d 0.000 mean_r 1.02 rgbsum_r 1.02  PASS
+  preset  2 Hiphotic - Tertiary        ref  1287 mA  target  1302 mA  ratio 1.011  hz 18.0/22.7 cov 0.997/0.999 gap 0.186/0.103 cells 120/120  vhist 0.03 hue 0.45 sstd_r 1.03 act_r 1.02 peak_r 1.00 lit_r 1.00 sat_d 0.002 mean_r 1.01 rgbsum_r 1.00  PASS
+  preset  4 Running - Atlantica        ref  1014 mA  target  1038 mA  ratio 1.024  hz 18.0/22.6 cov 0.997/0.998 gap 0.204/0.123 cells 120/120  vhist 0.01 hue 0.03 sstd_r 1.00 act_r 1.02 peak_r 1.01 lit_r 1.00 sat_d 0.002 mean_r 1.00 rgbsum_r 1.01  PASS
+  preset  5 Running - Analogous        ref   961 mA  target   978 mA  ratio 1.017  hz 18.2/22.6 cov 0.996/0.999 gap 0.178/0.129 cells 120/120  vhist 0.01 hue 0.04 sstd_r 0.99 act_r 0.99 peak_r 1.00 lit_r 1.00 sat_d 0.000 mean_r 0.99 rgbsum_r 1.00  PASS
+  preset  9 Frizzles - Fire            ref   431 mA  target   457 mA  ratio 1.058  hz 18.0/22.6 cov 0.998/0.999 gap 0.187/0.104 cells 120/120  vhist 0.01 hue 0.01 sstd_r 0.99 act_r 1.00 peak_r 0.99 lit_r 0.98 sat_d 0.000 mean_r 0.98 rgbsum_r 1.00  PASS
+  preset 11 Black Hole - Sunset        ref   325 mA  target   342 mA  ratio 1.051  hz 14.5/18.9 cov 0.997/0.999 gap 1.048/2.593 cells 120/120  capture UNHEALTHY (tgt: gap > 2 s)  FAIL capture
+  preset 12 Tartan - Fairy Reaf        ref  1403 mA  target  1445 mA  ratio 1.030  hz 18.4/22.7 cov 0.997/0.999 gap 0.171/0.102 cells 120/120  vhist 0.01 hue 0.08 sstd_r 1.01 act_r 1.01 peak_r 1.00 lit_r 1.00 sat_d 0.020 mean_r 1.01 rgbsum_r 1.02  PASS
+  preset  3 Colorwaves - Sunset        ref   925 mA  target   921 mA  ratio 0.995  hz 17.9/22.7 cov 0.998/0.998 gap 0.176/0.097 cells 120/120  vhist 0.04 hue 0.02 sstd_r 1.05 act_r 1.03 peak_r 0.99 lit_r 1.00 sat_d 0.001 mean_r 0.96 rgbsum_r 0.96  PASS
+  preset 13 Tartan - Analogous         ref  1486 mA  target  1500 mA  ratio 1.009  hz 18.1/22.7 cov 0.998/0.999 gap 0.242/0.129 cells 120/120  vhist 0.02 hue 0.08 sstd_r 1.00 act_r 1.01 peak_r 1.00 lit_r 1.00 sat_d 0.000 mean_r 0.99 rgbsum_r 1.00  PASS
+  preset 14 Hiphotic - Fire            ref  1185 mA  target  1194 mA  ratio 1.008  hz 17.7/22.6 cov 0.998/0.999 gap 0.189/0.146 cells 120/120  vhist 0.02 hue 0.00 sstd_r 0.99 act_r 1.00 peak_r 0.99 lit_r 0.99 sat_d 0.000 mean_r 0.98 rgbsum_r 0.99  PASS
+  preset 10 Black Hole - Tertiary      ref   446 mA  target   466 mA  ratio 1.043  hz 17.4/22.4 cov 0.997/0.999 gap 0.209/0.111 cells 120/120  vhist 0.01 hue 0.02 sstd_r 1.00 act_r 1.00 peak_r 1.00 lit_r 1.00 sat_d 0.000 mean_r 0.99 rgbsum_r 1.00  PASS
+  preset  7 Frizzles - Analogous       ref   367 mA  target   385 mA  ratio 1.049  hz 17.3/22.4 cov 0.998/0.998 gap 0.222/0.103 cells 120/120  vhist 0.01 hue 0.05 sstd_r 0.99 act_r 1.01 peak_r 0.99 lit_r 0.98 sat_d 0.000 mean_r 0.98 rgbsum_r 0.99  PASS
+verify: FAIL ['11']
+
+re-measure of preset 11 (first window had a 2.59 s stream gap on the target; the gate refused to score it):
+  preset 11 Black Hole - Sunset        ref   325 mA  target   345 mA  ratio 1.062  hz 17.5/22.5 cov 0.997/0.999 gap 0.208/0.117 cells 120/120  vhist 0.00 hue 0.00 sstd_r 1.00 act_r 1.00 peak_r 1.00 lit_r 0.99 sat_d 0.000 mean_r 0.99 rgbsum_r 1.00  PASS
+verify: PASS

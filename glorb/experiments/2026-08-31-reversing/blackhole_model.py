@@ -1,0 +1,168 @@
+"""Offline Black Hole model: integer-exact FastLED/0.14 arithmetic on a 20x6 buffer.
+
+Scores lit-cell count the way wledlab's structural_stats does. Mean V is close to but
+not identical to the gate's mean_r numerator: structural_stats averages V over the
+ever-lit cell set (dark samples of a lit cell count), this model averages only cells
+currently above the lit threshold -- compare model V against fork V recomputed with
+the same rule, never against the gate line. Lets a hypothesis be tested against the
+measured lamp numbers without flashing anything.
+"""
+import json
+import os
+
+W, H = 20, 6
+
+# The ledmap sends 40 of the 120 raster cells to -1. On 0.14.4 every effect-side
+# pixel access goes through the ledmap at once (WS2812FX::setPixelColor:
+# i = customMappingTable[i]; if (i >= _length) return; getPixelColor likewise
+# returns 0), so those cells hold no state: writes vanish, reads come back
+# black, and blur loses the energy that seeps into a hole. WLED 16 renders the
+# segment into its own full buffer and maps only at show time, so on the port
+# the holes store and re-emit seep. run(holes=True) models the fork,
+# holes=False the (unfixed) port. Scoring always counts mapped cells only —
+# they are the only cells either lamp can show.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_LEDMAP = json.load(open(os.path.join(_HERE, "..", "..", "wled16-port", "ledmap.json")))["map"]
+MAPPED = [[_LEDMAP[y * W + x] >= 0 for x in range(W)] for y in range(H)]
+
+def sin8(theta):
+    tbl = [0, 49, 49, 41, 90, 27, 117, 10]
+    theta &= 0xFF
+    offset = theta
+    if theta & 0x40: offset = (255 - offset) & 0xFF
+    offset &= 0x3F
+    sec = offset & 0x0F
+    if theta & 0x40: sec += 1
+    s = offset >> 4
+    b, m16 = tbl[s * 2], tbl[s * 2 + 1]
+    y = (((m16 * sec) >> 4) + b) & 0xFF
+    if y >= 128: y -= 256
+    if theta & 0x80: y = -y
+    return (y + 128) & 0xFF
+
+def scale8(i, s):   return ((i * (s + 1)) >> 8) & 0xFF
+def nscale8(c, s):  return tuple(((v * (s + 1)) >> 8) & 0xFF for v in c)
+def qadd(c1, c2):   return tuple(min(255, a + b) for a, b in zip(c1, c2))
+
+def beat8(ms, bpm):
+    bpm88 = bpm << 8 if bpm < 256 else bpm
+    return ((ms * bpm88 * 280) >> 24) & 0xFF
+
+def beatsin8(ms, bpm, lo, hi, phase=0):
+    return (lo + scale8(sin8(beat8(ms, bpm) + phase), (hi - lo) & 0xFF)) & 0xFF
+
+def load16(stops):
+    """FastLED loadDynamicGradientPalette -> 16 slots."""
+    ent = []
+    for k in range(16):
+        idx = k * 17
+        prev = stops[0]
+        for s in stops:
+            if s[0] <= idx: prev = s
+            else: break
+        nxt = next((s for s in stops if s[0] > idx), stops[-1])
+        span = nxt[0] - prev[0]
+        f = 0 if span == 0 else ((idx - prev[0]) * 255) // span
+        ent.append(tuple(prev[1 + c] + (((nxt[1 + c] - prev[1 + c]) * f) >> 8) for c in range(3)))
+    return ent
+
+def from_palette(ent, i, bri=255):
+    hi4, lo4 = (i >> 4) & 15, i & 15
+    c1, c2 = ent[hi4], ent[(hi4 + 1) & 15]
+    f2 = (lo4 << 4) & 0xFF
+    c = tuple(((a * (255 - f2)) >> 8) + ((b * f2) >> 8) for a, b in zip(c1, c2))
+    return nscale8(c, bri) if bri < 255 else c
+
+def blur_pass(get, put, amount):
+    keep, seep = (255 - amount) & 0xFF, amount >> 1
+    for y in range(H):
+        carry = (0, 0, 0)
+        for x in range(W):
+            cur = get(x, y)
+            part = nscale8(cur, seep)
+            out = qadd(nscale8(cur, keep), carry)
+            if x: put(x - 1, y, qadd(get(x - 1, y), part))
+            put(x, y, out)
+            carry = part
+    for x in range(W):
+        carry = (0, 0, 0)
+        for y in range(H):
+            cur = get(x, y)
+            part = nscale8(cur, seep)
+            out = qadd(nscale8(cur, keep), carry)
+            if y: put(x, y - 1, qadd(get(x, y - 1), part))
+            put(x, y, out)
+            carry = part
+
+def run(stops, sx, ix, c1, c2, frames=900, dt=23, blur=32, count_law=lambda c: (c >> 6) + 2,
+        fade_law=lambda c: c >> 4, phase_as_timebase=False, holes=True):
+    ent = load16(stops)
+    buf = [[(0, 0, 0)] * W for _ in range(H)]
+    # per-ACCESS, not per-frame: within one blur_pass the row sweep would
+    # otherwise deposit into a hole that the column sweep then reads back
+    def get(x, y):
+        return buf[y][x] if (MAPPED[y][x] or not holes) else (0, 0, 0)
+    def put(x, y, c):
+        if MAPPED[y][x] or not holes: buf[y][x] = c
+    lits, means = [], []
+    for f in range(frames):
+        ms = 100000 + f * dt
+        for y in range(H):
+            for x in range(W):
+                put(x, y, nscale8(get(x, y), (255 - fade_law(c2)) & 0xFF))
+        t8 = (ms >> 7) & 0xFFFFFFFF
+        n = count_law(c1)
+        for i in range(n):
+            xph = (i * ((t8 - 128) & 0xFF)) & 0xFF
+            yph = ((192 if i & 1 else 64) + i * t8) & 0xFF
+            if phase_as_timebase:
+                xm, ym = ms - xph, ms - yph
+                x = beatsin8(xm, (sx >> 5) + 1, W // 2, (W * 5) // 2 - 1)
+                y = beatsin8(ym, (ix >> 4) + 1, 1, H - 2)
+            else:
+                x = beatsin8(ms, (sx >> 5) + 1, W // 2, (W * 5) // 2 - 1, xph)
+                y = beatsin8(ms, (ix >> 4) + 1, 1, H - 2, yph)
+            col = from_palette(ent, (i * 63) & 0xFF)
+            xx, yy = x % W, min(y, H - 1)
+            put(xx, yy, qadd(get(xx, yy), col))
+        blur_pass(get, put, blur)
+        if f > 200:  # let the loop reach steady state
+            vs = [max(get(x, y)) / 255 for y in range(H) for x in range(W) if MAPPED[y][x]]
+            lits.append(sum(1 for v in vs if v > 0.05))
+            means.append(sum(v for v in vs if v > 0.05) / max(1, sum(1 for v in vs if v > 0.05)))
+    return sum(lits) / len(lits), sum(means) / len(means)
+
+PALX = json.load(open(os.path.join(_HERE, "..", "..", "factory-0.14.4-GLORB.1.3", "palx.json")))
+SUNSET = [tuple(s) for s in PALX["palettes"]["13"]]
+TERTIARY = [tuple(s) for s in PALX["palettes"]["34"]]
+
+if __name__ == "__main__":
+    print(f"{'variant':<26} {'p11 lit':>8} {'p11 V':>7} {'p10 lit':>8} {'p10 V':>7}")
+    print(f"{'FORK (measured)':<26} {20.16:8.2f} {0.247:7.3f} {36.93:8.2f} {0.252:7.3f}")
+    for name, holes in (("fork semantics (holes)", True), ("port before fix (no holes)", False)):
+        a = run(SUNSET, 210, 50, 40, 20, holes=holes)
+        b = run(TERTIARY, 136, 168, 220, 92, holes=holes)
+        print(f"{name:<26} {a[0]:8.2f} {a[1]:7.3f} {b[0]:8.2f} {b[1]:7.3f}"
+              f"   lit x{a[0]/20.16:.2f}/x{b[0]/36.93:.2f}")
+
+def sweep():
+    targets = {"p11": (20.16, 0.247), "p10": (36.93, 0.252)}
+    cases = {
+        "as implemented (blur32 rows+cols)": dict(blur=32),
+        "blur 16":                            dict(blur=16),
+        "blur 8":                             dict(blur=8),
+        "no blur":                            dict(blur=0),
+        "count (c1>>6)+1":                    dict(blur=32, count_law=lambda c: (c >> 6) + 1),
+        "count (c1>>7)+2":                    dict(blur=32, count_law=lambda c: (c >> 7) + 2),
+        "fade c2>>3":                         dict(blur=32, fade_law=lambda c: c >> 3),
+        "fade c2>>2":                         dict(blur=32, fade_law=lambda c: c >> 2),
+        "fade c2 raw":                        dict(blur=32, fade_law=lambda c: c),
+    }
+    print(f"{'case':<36} {'p11 lit':>8} {'p11 V':>7} {'p10 lit':>8} {'p10 V':>7}   verdict")
+    print(f"{'FORK (measured)':<36} {20.16:8.2f} {0.247:7.3f} {36.93:8.2f} {0.252:7.3f}")
+    for name, kw in cases.items():
+        a = run(SUNSET, 210, 50, 40, 20, **kw)
+        b = run(TERTIARY, 136, 168, 220, 92, **kw)
+        ra, rb = a[0] / targets["p11"][0], b[0] / targets["p10"][0]
+        ok = "<-- both within 15%" if 0.85 <= ra <= 1.15 and 0.85 <= rb <= 1.15 else f"lit x{ra:.2f}/x{rb:.2f}"
+        print(f"{name:<36} {a[0]:8.2f} {a[1]:7.3f} {b[0]:8.2f} {b[1]:7.3f}   {ok}")
