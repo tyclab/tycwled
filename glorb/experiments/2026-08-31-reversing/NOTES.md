@@ -1098,3 +1098,13 @@ Two corrections to the section above, from making the model committed and exact:
   `strip.getMappedPixelIndex` — the engine's own table, not a reparse of the
   file) and routes all six effects' pixel accesses through the wrappers, so the
   topology is the fork's at every step, not just at frame boundaries.
+
+### RESOLVED on hardware: 12/12
+
+Gate run after flashing the hole-topology fix (`verify-2026-09-01-holes.log`,
+firmware at 5b2e901): every preset passes every criterion. Black Hole, the
+last holdout, lands at lit_r 1.00/0.99 and mean_r 0.99/0.99 — the model's
+prediction, reproduced on the lamp before the gate was consulted, per the
+protocol above. Preset 11's first window was refused for a 2.59 s stream gap
+(instrument fault, not a verdict) and re-measured clean; `verify` now retries
+unhealthy windows itself, and only those.
