@@ -1108,3 +1108,11 @@ prediction, reproduced on the lamp before the gate was consulted, per the
 protocol above. Preset 11's first window was refused for a 2.59 s stream gap
 (instrument fault, not a verdict) and re-measured clean; `verify` now retries
 unhealthy windows itself, and only those.
+
+### Final gate: 12/12 in one run
+
+`verify-2026-09-01-final.log`: full sweep on the shipped firmware (7eb5f31 —
+adds the review's `color_blend` blend-255 early return), every preset PASS in
+a single uninterrupted run, no capture retries needed. This supersedes
+`verify-2026-09-01-holes.log` as the acceptance evidence; that log remains as
+the record of the hole-topology fix landing.
