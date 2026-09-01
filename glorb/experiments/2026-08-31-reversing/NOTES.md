@@ -1074,7 +1074,7 @@ prediction is reproduced on the lamp.
 Both engines read from public source, no disassembly needed for this one:
 
 - 0.14.4 `WS2812FX::setPixelColor` (FX_fcn.cpp): `if (i < customMappingSize) i =
-  customMappingTable[i]; if (i >= _length) return;` — `deserializeMap` loads `-1`
+customMappingTable[i]; if (i >= _length) return;` — `deserializeMap` loads `-1`
   as `0xFFFF`, so the write is dropped; `getPixelColor` returns 0 the same way.
   `strip.set/getPixelColorXY` are `setPixelColor(y*maxWidth + x)` (FX.h), and
   `Segment::setPixelColorXY` routes through them — every effect access, mapped
