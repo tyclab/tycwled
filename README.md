@@ -160,6 +160,14 @@ Two measurement rules the gate learned the hard way:
   copying it to the port applies a transform the reference lamp does not —
   which cost half the light output. Verified: setting `gc` to 1.0 moved the
   current ratios on presets 4/2/9 from 0.473/0.588/0.699 to 1.047/1.104/0.979.
+- **Unmapped raster cells are part of the algorithm.** The ledmap sends 40 of
+  the 120 raster cells to -1, and 0.14.4 maps every effect pixel access through
+  the ledmap immediately — writes to those cells are dropped and reads come
+  back black, so they drain the fade/blur feedback loop. WLED 16 renders into
+  a full segment buffer and maps only at show, which kept those cells alive as
+  blur reservoirs and lit 20-30% extra dim cells on the blurred effects. The
+  usermod gates every pixel access on the engine's mapping table to restore
+  the fork's topology (`glorb_cellMapped`).
 - Every factory preset is single-segment at `bri 255`, `c3 16`, with `o1/o2/o3`
   off. Translating a preset means changing its `fx` and `pal` numbers and
   nothing else.
