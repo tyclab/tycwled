@@ -8,8 +8,8 @@
 //
 // The fork's check1 "Sound Reactive" branches (Colorwaves, Running) are
 // implemented from the same disassembly, so audioreactive must be built in,
-// though every factory preset ships with the toggle off. Details still carrying
-// MED confidence are marked NOTE-MED for follow-up against gate measurements.
+// though every factory preset ships with the toggle off. Every constant and
+// argument position is now pinned against the disassembly; no NOTE-MED remain.
 
 #define PALETTE_SOLID_WRAP (paletteBlend == 1 || paletteBlend == 3)
 
@@ -26,10 +26,12 @@ static um_data_t* glorb_getAudioData() {
   return um_data;
 }
 
-// fork's triangle(hPhase): fold a 16-bit phase into a triangle wave
+// fork's triangle(hPhase): fold a 16-bit phase into a triangle wave.
+// The fold is a bitwise complement of the DOUBLED value (0x42043453 slli, 0x42043464 xor -1),
+// not 65535-in doubled -- those differ by one, which shifts the palette index at 1 in 128 phases.
 static inline uint16_t glorb_triwave16(uint16_t in) {
-  if (in & 0x8000) in = 65535 - in;
-  return in << 1;
+  const uint16_t v = (uint16_t)(in << 1);
+  return (in & 0x8000) ? (uint16_t)~v : v;
 }
 
 // ---- the fork's helper stack ---------------------------------------------
@@ -190,7 +192,7 @@ static void glorb_mode_hiphotic(void) {
 }
 static const char _data_FX_MODE_GLORB_HIPHOTIC[] PROGMEM = "Hiphotic@Speed,Hue variation,X scale,Y scale;!;!;2g";
 
-// ---- Black Hole (fork fx 192) — HIGH structure / MED x-phase -------------
+// ---- Black Hole (fork fx 192) — decompiled, HIGH -------------------------
 // sx=X scale (bpm), ix=Y scale (bpm), c1=Intensity (star count 2..5),
 // c2=Fade rate. Delta vs stock: single star loop (inner stars + white dot
 // removed), X beat range widened to [cols/2, cols*5/2-1] then wrapped %cols,
@@ -203,7 +205,11 @@ static void glorb_mode_blackhole(void) {
   const uint32_t t8 = strip.now >> 7;  // == millis()/128
   const uint8_t count = (SEGMENT.custom1 >> 6) + 2;
   for (size_t i = 0; i < count; i++) {
-    const uint8_t xphase = (uint8_t)(i * (uint8_t)(t8 - 128));  // NOTE-MED exact x-phase term
+    // Phases are the fork helper's 4th argument. That helper (0x4204307c) takes
+    // (bpm, lowest, highest, phase_offset) and has NO timebase: after entry, arg4 lands in a5
+    // and 0x420430a3 adds it straight to the beat angle before sin8. Passing these as a
+    // timebase instead bunches the stars into near-unison and collapses the lit-cell count.
+    const uint8_t xphase = (uint8_t)(i * (uint8_t)(t8 - 128));
     const uint8_t yphase = ((i & 1) ? 192 : 64) + (uint8_t)(i * t8);
     const int x = glorb_beatsin8((SEGMENT.speed >> 5) + 1, cols / 2, (cols * 5) / 2 - 1, 0, xphase);
     const int y = glorb_beatsin8((SEGMENT.intensity >> 4) + 1, 1, rows - 2, 0, yphase);
@@ -214,7 +220,7 @@ static void glorb_mode_blackhole(void) {
 }
 static const char _data_FX_MODE_GLORB_BLACKHOLE[] PROGMEM = "Black Hole@X scale,Y scale,Intensity,Fade rate;!;!;2g";
 
-// ---- Frizzles (fork fx 191) — HIGH wiring / MED exact bpm shifts ---------
+// ---- Frizzles (fork fx 191) — decompiled, HIGH ---------------------------
 // sx=X scale, ix=Y scale, c1=Blur, c2=Intensity (point count 1..8).
 // Delta vs stock: variable count, X range widened + wrapped %cols,
 // Y in [1, rows-2], fade 8, blur (c1>>4)+4.
@@ -225,8 +231,10 @@ static void glorb_mode_frizzles(void) {
   glorb_fadeToBlackBy(8);
   const int count = (SEGMENT.custom2 >> 5) + 1;
   for (int i = count; i > 0; i--) {
-    const int x = glorb_beatsin8(i + (SEGMENT.speed >> 5), cols / 2, (cols * 5) / 2 - 1);  // NOTE-MED shift
-    const int y = glorb_beatsin8((SEGMENT.intensity >> 6) + 8 - i, 1, rows - 2);           // NOTE-MED shift
+    // both bpm terms confirmed against the binary (0x4204360b: i + speed>>5;
+    // 0x42043632: (intensity>>6) + 8 - i), both with timebase 0
+    const int x = glorb_beatsin8(i + (SEGMENT.speed >> 5), cols / 2, (cols * 5) / 2 - 1);
+    const int y = glorb_beatsin8((SEGMENT.intensity >> 6) + 8 - i, 1, rows - 2);
     const uint32_t c = ColorFromPalette(SEGPALETTE, glorb_beatsin8(12, 0, 255), 255, LINEARBLEND);
     SEGMENT.addPixelColorXY(x % cols, y, c);
   }
@@ -277,7 +285,8 @@ static void glorb_mode_colorwaves(void) {
       const uint16_t bri16 = (uint32_t)((uint32_t)b16 * (uint32_t)b16) / 65536;
       uint8_t bri8 = (uint32_t)(((uint32_t)bri16) * brightdepth) / 65536;
       bri8 += (255 - brightdepth);
-      SEGMENT.blendPixelColorXY(x, y, SEGMENT.color_from_palette(hue8, false, PALETTE_SOLID_WRAP, 0, bri8), 128);
+      const uint32_t col = SEGMENT.color_from_palette(hue8, false, PALETTE_SOLID_WRAP, 0, bri8);
+      SEGMENT.setPixelColorXY(x, y, glorb_color_blend(SEGMENT.getPixelColorXY(x, y), col, 128));
     }
   }
   SEGENV.step = sPseudotime;
@@ -328,21 +337,24 @@ static void glorb_mode_tartan(void) {
   const int offsetX = glorb_beatsin16(3, -amp, amp);
   const int offsetY = glorb_beatsin16(2, -amp, amp);
   const int sharpness = SEGMENT.custom1 >> 6;
-  const uint16_t hmul = glorb_beatsin16(10, 1, 10);
+  // One global palette index for the whole frame, mapped from the slow Y offset sine
+  // (0x42043bd5 sign-extends it, 0x42043bde maps it to 0..255, 0x42043be1 stores it once
+  // before both loops). Stock colours Tartan by position instead; the fork's sine dwells at
+  // the palette ends, which is where Fairy Reaf keeps its magenta.
+  const int16_t offYs = (int16_t)offsetY;
+  const uint8_t ghue = (uint8_t)(((int32_t)(offYs + amp) * 255) / (2 * amp));
   for (int x = 0; x < cols; x++) {
     for (int y = 0; y < rows; y++) {
       uint8_t bri = glorb_sin8((uint8_t)(x * SEGMENT.speed / 2 + offsetX));
       size_t inten = bri;
       for (int i = 0; i < sharpness; i++) inten *= bri;
       inten >>= 8 * sharpness;
-      uint8_t hue = x * hmul + offsetY;
-      SEGMENT.setPixelColorXY(x, y, ColorFromPalette(SEGPALETTE, hue, inten, LINEARBLEND));
+      SEGMENT.setPixelColorXY(x, y, ColorFromPalette(SEGPALETTE, ghue, inten, LINEARBLEND));
       bri = glorb_sin8((uint8_t)(y * SEGMENT.intensity / 2 + offsetY));
       inten = bri;
       for (int i = 0; i < sharpness; i++) inten *= bri;
       inten >>= 8 * sharpness;
-      hue = y * 3 + offsetX;
-      SEGMENT.addPixelColorXY(x, y, ColorFromPalette(SEGPALETTE, hue, inten, LINEARBLEND));
+      SEGMENT.addPixelColorXY(x, y, ColorFromPalette(SEGPALETTE, ghue, inten, LINEARBLEND));
     }
   }
 }

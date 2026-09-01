@@ -61,6 +61,17 @@ class Effects(unittest.TestCase):
         used = {s["fx"] for p in PORT.values() if isinstance(p, dict) for s in effect_segments(p)}
         self.assertEqual(used, known, "presets.json and effects.json disagree about the effect IDs")
 
+    def test_every_preset_runs_the_effect_its_name_promises(self):
+        # injectivity alone lets two effect IDs swap and stay green; the factory names every preset
+        # "<Effect> - <Palette>", so the ID must resolve to that effect by name
+        effects = json.load(open(os.path.join(HERE, "..", "glorb", "wled16-port", "effects.json")))
+        for k, p in PORT.items():
+            if not isinstance(p, dict) or not p:
+                continue
+            for s in effect_segments(p):
+                self.assertEqual(effects[str(s["fx"])], p["n"].split(" - ")[0],
+                                 f"preset {k} ({p['n']}) points fx {s['fx']} at the wrong effect")
+
 
 class Translation(unittest.TestCase):
     def test_fx_translation_is_one_to_one(self):
