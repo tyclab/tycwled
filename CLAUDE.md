@@ -41,7 +41,7 @@ agreement. If something looks wrong, the fix is never to re-fit these files; fin
 ## Workflow
 
 - `make lint test check-palettes check-ledmaps` before pushing; `make verify REF=<factory lamp>
-  TARGET=<port lamp>` is the acceptance gate (~24 min, occupies both lamps, restores presets).
+TARGET=<port lamp>` is the acceptance gate (~24 min, occupies both lamps, restores presets).
 - PR-only main, merge commits. Verify evidence: commit the gate log (see
   `glorb/experiments/2026-08-31-reversing/verify-*.log`); capture JSONs stay untracked.
 - NEVER commit anything under `glorb/firmware/` or `*/segments/` — carved vendor firmware, not
