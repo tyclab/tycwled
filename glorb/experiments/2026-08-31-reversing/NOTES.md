@@ -1041,3 +1041,30 @@ lit equilibrium is stable and known. What does not stand: the model's frame loop
 star count/injection, blur amount) has never matched either lamp, so it cannot arbitrate
 hypotheses. Before anything else, bring the model to reproduce the FORK's 19.8/37.3 from the
 body disassembly alone — a model that cannot reproduce the reference cannot indict the port.
+
+### RESOLVED offline: the Black Hole residual is the ledmap holes, not the effect
+
+0.14.4 writes effects through the ledmap: setPixelColorXY on one of the 40 unmapped cells is
+dropped and reads back black, so the holes are permanent energy sinks inside the fade/blur
+feedback loop. WLED 16 renders into the logical segment buffer and applies the ledmap at the
+bus, so on the port those 40 cells stay alive as reservoirs that keep re-feeding blur spill
+into the mapped cells. Same arithmetic (binary-proven above), different topology.
+
+Proof, no parameters tuned: adding write-drop/read-black hole semantics to blackhole_model.py
+(clear the 40 hole cells before and after the blur pass) moves BOTH presets from x1.61 onto the
+fork simultaneously:
+
+```text
+                 p11 lit      p10 lit
+fork (stable)    19.8-20.1    37.2-37.4
+model, no holes  32.33        59.65        x1.61 / x1.61
+model + holes    18.97        36.67        x0.95 / x0.99   meanV 0.26 vs fork 0.25
+```
+
+This also predicts Frizzles' small off-centre residual (same loop, blur 15) and predicts that
+effects without blur are unaffected -- both observed.
+
+Port fix: the glorb_fx effects that blur (Black Hole, Frizzles) must reproduce the fork's
+topology -- black out the cells whose ledmap entry is unmapped each frame (WLED 16 exposes the
+custom mapping table; precompute the hole mask once). Verify with the gate only AFTER the model
+prediction is reproduced on the lamp.
