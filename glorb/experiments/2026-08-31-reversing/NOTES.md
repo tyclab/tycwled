@@ -974,3 +974,45 @@ identical star paths, the port holds ~29 % more cells just above the lit thresho
 energetic, geometric and temporal has been ruled out, so the next step is to instrument the decay
 envelope itself rather than the effect -- inject one pixel, let fade and blur run, and compare the
 per-cell falloff on both lamps against `blackhole_model.py`.
+
+### Black Hole: the render loop is instruction-proven; suspect the comparison, not the effect
+
+Every arithmetic stage of the fork's fade/blur loop has now been read out of the binary and
+matches `blackhole_model.py` exactly (addresses in the IROM/IRAM segments produced by
+`parse_image.py`, disassembled with `disasm.sh`):
+
+```text
+0x420194f4  fade_out        keep = 255 XOR fadeBy; per pixel color_fade(c, keep, video=0)
+0x4214ff60  color_fade      video=0 branch at 0x4214fff4: (v * (keep+1)) >> 8   <- FIXED +1
+0x420195a0  blur dispatch   rows (0x420178e4) then columns (0x42017a20), structurally identical
+0x420178e4  blurRow         keep = 255 XOR amount, seep = amount >> 1, carryover init 0,
+                            scales via 0x4214ea48, saturating adds, write-back order as modeled
+0x4214ea48  nscale8x3       (v * (s+1)) >> 8                                    <- FIXED +1
+0x42026220  color_add       per-channel add with min(...,255) saturation (RGBW)
+0x42017864  addPixelColorXY get -> color_add -> set
+0x40375538  setPixelColorXY scales by currentBri(opacity)+1 only when != 255; presets 10/11
+                            run seg bri 255 / on -> identity in steady state
+0x42018ed4  color_from_palette  the (i*241)>>8 fold visible inline               <- FIXED +1
+frame order fade -> stars -> blur, matching the model
+```
+
+Also ruled out with capture data: the 40 ledmap hole cells read #000000 on BOTH firmwares'
+liveview (so the port is not counting phantom hole cells), and no physical LED is shared by two
+cells.
+
+Two consequences:
+
+1. The FASTLED_SCALE8_FIXED question is settled: the fork build uses the +1 semantics
+   everywhere that matters. Truncation variants of the model move its lit excess from x1.6 to
+   only x1.33 anyway (rounding cannot explain the gap), and they are now also disproven.
+
+2. Since model == port == binary for the whole loop, the residual lit excess against the fork
+   CAPTURE cannot come from the modeled loop. Before instrumenting lamps again, re-establish the
+   comparison itself on pinned builds: the capture sets in captures/ span at least three
+   different target firmwares (exact-pal, final, audit -- the audit build's p11 UNDERSHOOTS,
+   lit 16.6 vs ref 20.25), and decay-envelope numbers taken across them do not describe one
+   port. Remaining unverified stages, in order of suspicion: the effect body's derivation of the
+   blur AMOUNT argument (the model assumes constant 32), getPixelColorXY's tail
+   (0x4201741c; grouping/spacing multiply observed, identity at grouping 1 / spacing 0 --
+   unfinished read), and the model's own transliteration fidelity (its ms timebase and star
+   count laws were never diffed against the body the way the helpers now are).
