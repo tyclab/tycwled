@@ -899,3 +899,24 @@ brightness, and effective frame rate from 20 to 120 fps.
 Every instruction matches the binary and the mean V of lit cells matches the fork to ~1.07, so the
 excess is spatial, not energetic. The cause is not in the effect body. Next step is a differential
 harness against the real fork's captured frames with the phase fitted, not another gate cycle.
+
+### Black Hole: star trajectories are correct (narrowing the residual)
+
+Comparing where the brightest cell sits, over a 100 s window, is phase-independent and tests the
+star paths directly. Fork capture against the model, preset 11:
+
+```text
+row    fork  0.000 0.241 0.236 0.234 0.289 0.000
+      model  0.000 0.288 0.202 0.218 0.292 0.000
+col    fork  peaks at columns 9-11 (0.099 0.093 0.098)
+      model  peaks at columns 9-11 (0.091 0.102 0.114)
+```
+
+Same rows occupied, same column profile. So `beatsin8`'s phase handling is right -- which is the
+independent confirmation that treating the phase as a timebase was wrong -- and the star geometry
+is not the defect.
+
+Combined with mean V of lit cells matching to ~1.07, the residual is now pinned to one thing: the
+port keeps about 20 % more cells in the dim tail just above the 0.05 lit threshold, with correct
+star positions and correct brightness. It is a low-end decay equilibrium difference in the
+fade/blur loop, not geometry, energy, or timing.
