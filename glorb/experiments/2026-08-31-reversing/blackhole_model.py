@@ -3,7 +3,7 @@
 Scores lit-cell count and mean V the same way wledlab's structural_stats does, so a
 hypothesis can be tested against the measured lamp numbers without flashing anything.
 """
-import json, sys
+import json
 
 W, H = 20, 6
 
