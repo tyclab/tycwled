@@ -1,26 +1,10 @@
 #!/usr/bin/env python3
 """Generate glorb/wled16-port/paletteN.json from the factory /json/palx dump.
 
-The factory presets use six built-in palettes. WLED re-encoded most of its
-built-in gradient palettes after 0.14 (they are regenerated from cpt-city
-.c3g sources and stored brighter, expecting output gamma to bring them back
-down), so the same palette ID no longer holds the same bytes:
-
-    Analogous 18, red channel   fork  3  23  67 142 255
-                                WLED 16   38  86 139 196 255
-
-Only Atlantica 51 survives byte-identical -- and Atlantica was the one preset
-that matched the factory lamp before this file was rewritten.
-
-So the port cannot use the built-in palettes. It ships the factory stops
-verbatim as WLED custom palettes and points the presets at those IDs. No
-fitting, no re-encoding, no approximation: the same numbers the fork holds,
-rendered by effects decompiled from the fork, under the factory's own gamma.
-
-An earlier revision of this file fitted 8-slot approximations by least squares
-because the port was running stock WLED effects that swept the palette
-differently. The effects are now exact reimplementations, so the palettes are
-taken verbatim and the fitting is gone.
+WLED re-encoded its built-in gradient palettes after 0.14, so the same palette ID no
+longer holds the same bytes. The port therefore ships the factory stops verbatim as
+WLED custom palettes and points the presets at those IDs — do not substitute a
+built-in ID or refit an approximation.
 
 `--check` verifies the committed files instead of writing them (make lint).
 """
