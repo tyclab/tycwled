@@ -34,6 +34,13 @@ agreement. If something looks wrong, the fix is never to re-fit these files; fin
 - The six fork effects live at fx 189–193 and 195 (194 is stock Swirl). On the port they are
   auto-assigned 142/169/170/171/220/221 — `glorb/wled16-port/effects.json` pins the mapping and
   `install --effects` asserts it against the lamp; a WLED version bump can renumber them.
+- The GLORB's PDM mic (ESP32-S3) only yields samples with `-D I2S_USE_16BIT_SAMPLES` in
+  `glorb/usermod/glorb_fx/platformio_override.ini`. Without it WLED's 32→16-bit `/65536` downscale
+  rounds every sample to zero: `PDM digital - quiet`, AGC pinned at exactly `1.00 x`, GEQ black.
+  Keep the flag across WLED bumps; no pin, gain or squelch setting substitutes for it.
+- Prove a mic with AGC gain correlated against an independent sound meter, with a known-good mic
+  as positive control. `peak %` is post-AGC and frame-change is gated on `sampleAvg > 0.25` — both
+  produced false positives, and a working mic scores near zero on `peak %`.
 - Measure over >= 100 s: colour cycles run 30–50 s and short windows swing hue phase +-25 %.
 - Liveview is pre-gamma on both firmwares; it cannot see the output stage — only the current
   ratio can.
