@@ -38,5 +38,16 @@ The format is based on [Keep a Changelog], and this project adheres to
   offline `blackhole_model.py`, and the committed 12/12 gate log
   (`verify-2026-09-01-holes.log`).
 
+### Fixed
+
+- **The lamp's microphone works on the port.** The build override now sets
+  `-D I2S_USE_16BIT_SAMPLES`. ESP32-S3 PDM amplitude is low enough
+  (espressif/esp-idf#8660) that WLED's 32→16-bit `/65536.0f` downscale rounds
+  every sample to zero, so the mic reported `quiet` with AGC pinned at
+  `1.00 x` and the sound-reactive effects rendered black. Confirmed on both
+  lamps against an independent sound-level meter: AGC-vs-dBA correlation
+  -0.903 on a patched lamp against -0.968 for a known-good reference
+  microphone, and no signal at all on an unpatched one.
+
 [Keep a Changelog]: https://keepachangelog.com/en/1.1.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html

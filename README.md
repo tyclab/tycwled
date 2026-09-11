@@ -45,7 +45,10 @@ cd WLED && pio run -e glorb_port
 ```
 
 `audioreactive` must stay in `custom_usermods` — two of the fork's effects have
-Sound Reactive branches, and the GLORB has a PDM microphone (`dmType 5`).
+Sound Reactive branches, and the GLORB has a PDM microphone (`dmType 5`). The
+override also sets `-D I2S_USE_16BIT_SAMPLES`; without it that microphone reads
+silence on the ESP32-S3 and every sound-reactive effect renders black. See the
+PDM entry under GLORB facts.
 
 ### 2. Flash it
 
@@ -181,6 +184,23 @@ Two measurement rules the gate learned the hard way:
   which is what `capture` uses, and both serve it pre-gamma. That the two are in
   the same space is checkable: gamma raises saturation sharply, and a matching
   preset measures S = 0.910 on the fork against S = 0.909 on the port.
+- **The S3's PDM microphone reads exactly zero without
+  `-D I2S_USE_16BIT_SAMPLES`.** ESP32-S3 PDM delivers very low amplitude
+  (espressif/esp-idf#8660) and WLED's 32→16-bit downscale
+  `newSamples[i] / 65536.0f` rounds those samples away completely, so
+  `/json/info` reports `PDM digital - quiet` with `AGC Gain` pinned at exactly
+  `1.00 x` and the sound-reactive effects render black. No pin, gain or squelch
+  value helps, because the samples are already zero — asking I2S for 16-bit
+  samples skips the downscale instead. A classic ESP32 is unaffected; this is
+  S3-only, and upstream wled/WLED#4583 is the same report.
+- **Prove a microphone with AGC gain, never with `peak %`.** `peak %` is
+  reported after AGC, which exists to normalise the common signal away: a
+  known-good mic correlates only -0.299 against an independent sound-level
+  meter while its AGC gain correlates -0.968. AGC is a slow integrator, so it
+  also survives coarse polling. Frame-change proves nothing either — the
+  effects are gated on `sampleAvg > 0.25`, so a panel is static in a quiet room
+  and animates as soon as anything opens the gate, audio or not. Both traps
+  produced false positives here.
 - Rollback OTA needs form field `skipValidation=1` (16 rejects unsigned images
   otherwise); the partition table is still factory. `ota.same-subnet=true` in
   the factory cfg blocks cross-VLAN OTA.
