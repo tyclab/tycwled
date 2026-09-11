@@ -184,15 +184,16 @@ Two measurement rules the gate learned the hard way:
   which is what `capture` uses, and both serve it pre-gamma. That the two are in
   the same space is checkable: gamma raises saturation sharply, and a matching
   preset measures S = 0.910 on the fork against S = 0.909 on the port.
-- **The S3's PDM microphone reads exactly zero without
-  `-D I2S_USE_16BIT_SAMPLES`.** ESP32-S3 PDM delivers very low amplitude
-  (espressif/esp-idf#8660) and WLED's 32→16-bit downscale
-  `newSamples[i] / 65536.0f` rounds those samples away completely, so
-  `/json/info` reports `PDM digital - quiet` with `AGC Gain` pinned at exactly
-  `1.00 x` and the sound-reactive effects render black. No pin, gain or squelch
-  value helps, because the samples are already zero — asking I2S for 16-bit
-  samples skips the downscale instead. A classic ESP32 is unaffected; this is
-  S3-only, and upstream wled/WLED#4583 is the same report.
+- **The S3's PDM microphone is silent unless the build sets
+  `-D I2S_USE_16BIT_SAMPLES`.** With WLED's default 32-bit samples,
+  `/json/info` reports `PDM digital - quiet`, `AGC Gain` stays pinned at exactly
+  `1.00 x` and the sound-reactive effects render black; no pin, gain or squelch
+  value moves it. With 16-bit samples the same mic tracks the room. That is
+  measured on both lamps, but the mechanism is not proven: WLED's 32→16-bit
+  conversion is a float divide (`/ 65536.0f`), not a truncation, so it does not
+  zero samples by itself. The nearest upstream reports are
+  espressif/esp-idf#8660 (low S3 PDM amplitude) and wled/WLED#4583 (same
+  symptom, unresolved). A classic ESP32 is unaffected.
 - **Prove a microphone with AGC gain, never with `peak %`.** `peak %` is
   reported after AGC, which exists to normalise the common signal away: a
   known-good mic correlates only -0.299 against an independent sound-level
