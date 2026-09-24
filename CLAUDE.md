@@ -1,18 +1,18 @@
 # tycwled — working rules
 
-Port of the GLORB lamp (closed WLED 0.14.4 fork) to stock WLED 16 with measured, gated
+Port of the GLORB lamp (closed WLED 0.14.4 fork) to stock WLED 16 with measured, verified
 equivalence. Read README.md first; the reversing record lives in
 `glorb/experiments/2026-08-31-reversing/NOTES.md`.
 
 ## The one rule that has bitten every shortcut
 
-**The gate confirms, it never searches.** Do not iterate fixes against `make verify` (flash,
-measure, theorize from the metric signature, tweak, repeat) — the gate has been satisfied by
+**`make verify` confirms a fix; it is not a search tool.** Do not iterate fixes against `make verify` (flash,
+measure, theorize from the metric signature, tweak, repeat) — `make verify` has passed on
 cancelling errors twice in this repo's history. When port output differs from the factory lamp:
 prove the mechanism first, offline, against ground truth — the factory dump in
 `glorb/factory-0.14.4-GLORB.1.3/`, the disassembly in NOTES.md, or an offline model
 (`glorb/experiments/2026-08-31-reversing/blackhole_model.py` is the worked example) — then flash,
-then let the gate confirm. Never widen a tolerance to make a preset pass; tolerance changes are
+then let `make verify` confirm. Never widen a tolerance to make a preset pass; tolerance changes are
 argued from `wledlab.py rescore` over saved captures, offline.
 
 ## Verbatim, not fitted
@@ -27,7 +27,7 @@ agreement. If something looks wrong, the fix is never to re-fit these files; fin
 
 - WLED 16 gammas every rendered pixel; the fork does not. The port runs `gc` 1.0
   (`glorb/wled16-port/cfg-overrides.json`). With matched gamma, the lamps' own mA estimates are
-  comparable and `verify` gates on the current ratio.
+  comparable and `verify` checks the current ratio.
 - 0.14 writes effects THROUGH the ledmap: the 40 unmapped cells drop writes and read black —
   energy sinks in fade/blur loops. The usermod reproduces this via `glorb_cellMapped()` in
   `glorb_fx.cpp`; do not remove that gating.
@@ -48,8 +48,8 @@ agreement. If something looks wrong, the fix is never to re-fit these files; fin
 ## Workflow
 
 - `make lint test check-palettes check-ledmaps` before pushing; `make verify REF=<factory lamp>
-TARGET=<port lamp>` is the acceptance gate (~24 min, occupies both lamps, restores presets).
-- PR-only main, merge commits. Verify evidence: commit the gate log (see
+TARGET=<port lamp>` is the acceptance check (~24 min, occupies both lamps, restores presets).
+- PR-only main, merge commits. Verify evidence: commit the verify log (see
   `glorb/experiments/2026-08-31-reversing/verify-*.log`); capture JSONs stay untracked.
 - NEVER commit anything under `glorb/firmware/` or `*/segments/` — carved vendor firmware, not
   redistributable. gitignored; keep it that way.

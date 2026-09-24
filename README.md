@@ -112,20 +112,20 @@ lit-cell count. Both lamps end on preset 4. `wledlab.py rescore` re-runs the
 same criteria offline over saved captures, so a tolerance change never costs
 another 24 minutes on the lamps.
 
-A red gate is the finding; do not tune by eye on top of it.
+A failed verify run is the finding; do not tune by eye on top of it.
 
-Two measurement rules the gate learned the hard way:
+Two measurement rules learned the hard way:
 
 - **Current is the only instrument that sees the output stage.** Both firmwares
   serve the liveview _pre-gamma_, so two lamps can match on every captured
   metric and still look completely different to the eye. That is exactly what
   happened: with `gc` set to the factory's 2.8 the port's frames matched the
   fork's to within 2 % while it drew half the current, because WLED 16
-  gamma-corrects every rendered pixel and 0.14.4 never does. So `verify` gates
+  gamma-corrects every rendered pixel and 0.14.4 never does. So `verify` checks
   the current ratio, and a ratio far off 1.0 while the frame metrics agree means
   the two lamps disagree about gamma.
 - **V alone cannot see a washed-out port.** Saturation is its own criterion.
-  `rgbsum_r` is reported as an analogue of draw but never gated: at equal V and
+  `rgbsum_r` is reported as an analogue of draw but never checked: at equal V and
   saturation a secondary hue sums twice a primary, so it moves with hue drift
   the hue axis already judges.
 
