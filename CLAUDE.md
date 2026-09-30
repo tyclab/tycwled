@@ -4,11 +4,11 @@ Port of the GLORB lamp (closed WLED 0.14.4 fork) to stock WLED 16 with measured,
 equivalence. Read README.md first; the reversing record lives in
 `glorb/experiments/2026-08-31-reversing/NOTES.md`.
 
-## The one rule that has bitten every shortcut
+## The one rule
 
 **`make verify` confirms a fix; it is not a search tool.** Do not iterate fixes against `make verify` (flash,
-measure, theorize from the metric signature, tweak, repeat) — `make verify` has passed on
-cancelling errors twice in this repo's history. When port output differs from the factory lamp:
+measure, theorize from the metric signature, tweak, repeat) — `make verify` can pass on
+cancelling errors. When port output differs from the factory lamp:
 prove the mechanism first, offline, against ground truth — the factory dump in
 `glorb/factory-0.14.4-GLORB.1.3/`, the disassembly in NOTES.md, or an offline model
 (`glorb/experiments/2026-08-31-reversing/blackhole_model.py` is the worked example) — then flash,

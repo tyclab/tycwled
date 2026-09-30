@@ -21,9 +21,9 @@ Subcommands
   install          upload ledmap / presets / palettes byte-exact, reload, verify
   flash            OTA a firmware image, wait for the reboot, prove cfg and
                    presets came through unchanged
-  verify           acceptance gate: every preset on both lamps, current ratio
+  verify           acceptance check: every preset on both lamps, current ratio
                    plus structural criteria from a same-window capture
-  rescore          re-run the gate's criteria offline over saved captures
+  rescore          re-run the check's criteria offline over saved captures
 
 Metrics printed by analyse/compare: bri_* from all lit cells (0-255, liveview
 is pre-brightness), sat/hue from cells above 20 % brightness (black has no
@@ -979,7 +979,7 @@ def main():
     s.add_argument("--host", required=True, help="lamp IP or hostname"); s.add_argument("--seconds", type=float, default=120, help="capture length (default 120)")
     s.add_argument("--out", required=True, help="output JSON (directory is created)"); s.set_defaults(fn=cmd_capture)
     s = sub.add_parser("analyse", help="fingerprint one or more captures side by side"); s.add_argument("file", nargs="+"); s.set_defaults(fn=cmd_analyse)
-    s = sub.add_parser("rescore", help="re-run the gate's structural scoring and verdict over saved verify captures, offline")
+    s = sub.add_parser("rescore", help="re-run the check's structural scoring and verdict over saved verify captures, offline")
     s.add_argument("file", nargs="+"); add_tolerances(s); s.set_defaults(fn=cmd_rescore)
     s = sub.add_parser("compare", help="capture two lamps at the same time and print metrics side by side")
     s.add_argument("--ref", required=True, help="reference lamp (factory firmware)"); s.add_argument("--target", required=True, help="lamp under test")
@@ -996,7 +996,7 @@ def main():
     s = sub.add_parser("push-frame", help="push one identical frame to both lamps via the per-LED JSON API")
     s.add_argument("--ref"); s.add_argument("--target"); s.add_argument("--frame", help="JSON list of hex colours, default: uniform grey 40")
     s.add_argument("--ref-input-gamma", action="store_true", help="ref is 0.14 (gamma-corrects per-LED input)"); s.add_argument("--target-input-gamma", action="store_true"); s.set_defaults(fn=cmd_push_frame)
-    s = sub.add_parser("verify", help="acceptance gate: current ratio plus structural criteria (V-hist, hue EMD, saturation, spatial std, activity, peak, lit, mean V) from a same-window liveview capture")
+    s = sub.add_parser("verify", help="acceptance check: current ratio plus structural criteria (V-hist, hue EMD, saturation, spatial std, activity, peak, lit, mean V) from a same-window liveview capture")
     s.add_argument("--ref", required=True, help="factory lamp"); s.add_argument("--target", required=True, help="ported lamp"); s.add_argument("--presets-file", required=True)
     s.add_argument("--samples", type=int, default=200, help="current samples per preset (default 200)"); s.add_argument("--interval", type=float, default=0.5, help="seconds between samples (default 0.5 → 100 s window)")
     s.add_argument("--tolerance", type=float, default=0.15, help="allowed deviation of target/ref current (default 0.15)")
