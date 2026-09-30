@@ -29,6 +29,15 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
+- `usermods/syslog_events/`: boot with reset reason and the previous run's last
+  breadcrumb, a panic-hook crash record with backtrace, Wi-Fi loss/reconnect with
+  RSSI and reason, heap-low crossings, OTA, WLED error codes and an hourly status
+  line, as RFC3164 over UDP, rate-limited and kept off the LED output path.
+- `fleet/`: build envs for our four lamps (stock-equivalent `ESP32` plus syslog for
+  the Couch strip and the Moon, `glorb_port` plus syslog for the GLORBs) and
+  `fleet/build.sh`.
+- `wledlab.py flash`: OTA with a before-snapshot, then fails on any cfg change
+  beyond the build stamp and a new usermod block, or any presets change.
 - `wledlab.py verify`: structural acceptance gate (brightness histogram, hue
   EMD, saturation, spatial structure, activity, peak, lit cells, mean V,
   current ratio) over a simultaneous 100 s window per preset; refuses
