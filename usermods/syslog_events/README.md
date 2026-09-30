@@ -13,7 +13,7 @@ RFC3164 lines over UDP:
 | `wifi: connected …` / `wifi: reconnected after Ns offline, drops=… last reason=… rssi before/now …` | info / warning               | first connect / every reconnect                                     |
 | `heap: low …` / `heap: recovered …`                                                                 | warning / notice             | largest free block crosses `heap-low-kb` (4 KB hysteresis)          |
 | `ota: upload started …` / `ota: update failed or aborted …`                                         | notice / warning             | web `/update`                                                       |
-| `error: code=N (…) preset=…`                                                                        | err                          | WLED `errorFlag` (missing preset, FS, JSON, RAM, heap-guard resets) |
+| `error: code=N (…) [requested ps=N]`                                                                | err                          | WLED `errorFlag` (missing preset, FS, JSON, RAM, heap-guard resets) |
 | `status: up=… heap=… blk=… minheap=… rssi=… fps=… on=… bri=… ps=… sent=… dropped=…`                 | info                         | every `heartbeat-min` (60)                                          |
 | `syslog: dropped N lines`                                                                           | warning                      | after the queue overflowed                                          |
 
@@ -52,7 +52,9 @@ does not survive power loss. After a power-on, only the reset reason is reported
 ## What it cannot see
 
 - UDP delivery is not confirmed; a lost datagram is lost.
-- Playlist load failures return silently in WLED and never set `errorFlag`.
+- Playlist load failures return silently in WLED and never set `errorFlag`. A
+  missing preset names its id only when it was requested over the JSON API;
+  playlists, buttons and timers apply presets without one.
   `errorFlag` itself is cleared by the next `/json/state` read, so a busy UI can
   hide a code between two loop passes.
 - ArduinoOTA uploads block the loop and never call the usermod hook; they show

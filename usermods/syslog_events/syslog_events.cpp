@@ -19,6 +19,7 @@
 
 #include <WiFiUdp.h>
 #include <esp_system.h>
+#include <esp_heap_caps.h>
 #include <esp_attr.h>
 #include <rom/rtc.h>
 #include <soc/soc_caps.h>
@@ -63,6 +64,12 @@ RTC_NOINIT_ATTR RtcRecord rtcRec;
 // Set from other tasks (Wi-Fi event task, async web server); word-sized, read in loop().
 volatile uint32_t wifiLostAt = 0, wifiDrops = 0, wifiReason = 0;
 volatile uint8_t  otaEvent = 0;   // 1 = upload started, 2 = upload failed
+// presetToApply is file-static in WLED, so the id behind ERR_FS_PLOAD is only knowable for JSON requests.
+volatile int16_t  lastPresetReq = 0;
+volatile uint32_t lastPresetReqAt = 0;
+
+// Same caps as WLED's getFreeHeapSize(); ESP.getMinFreeHeap() counts more and reads above it.
+inline size_t minFreeHeap() { return heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT); }
 
 const char *resetName(esp_reset_reason_t r) {
   switch (r) {
@@ -245,7 +252,7 @@ class SyslogEvents : public Usermod {
     rtcRec.upSec = now / 1000;
     rtcRec.freeHeap = freeHeap;
     rtcRec.maxBlock = maxBlock;
-    rtcRec.minHeap = ESP.getMinFreeHeap();
+    rtcRec.minHeap = minFreeHeap();
     rtcRec.rssi = lastRssi;
     rtcRec.wifiUp = WLED_CONNECTED;
     rtcRec.crumbMagic = CRUMB_MAGIC;
@@ -263,8 +270,11 @@ class SyslogEvents : public Usermod {
   void pollEvents(uint32_t now) {
     uint8_t e = errorFlag;  // cleared by the next /json/state serialisation, so poll every pass
     if (e != lastErr) {
-      if (e != ERR_NONE && e != ERR_SYS_REBOOT && e != ERR_SYS_BROWNOUT)  // those two are in the boot line
-        post(3, "error: code=%u (%s) preset=%u", e, errName(e), currentPreset);
+      if (e == ERR_FS_PLOAD && lastPresetReq > 0 && now - lastPresetReqAt < 2000)  // stale id = some other path failed
+        post(3, "error: code=%u (%s) requested ps=%d", e, errName(e), lastPresetReq);
+      else if (e != ERR_NONE && e != ERR_SYS_REBOOT && e != ERR_SYS_BROWNOUT)  // those two are in the boot line
+        post(3, "error: code=%u (%s)", e, errName(e));
+      lastPresetReq = 0;
       lastErr = e;
     }
     uint8_t o = otaEvent;
@@ -291,7 +301,7 @@ class SyslogEvents : public Usermod {
     if (beatMin && now - lastBeat >= beatMin * 60000UL) {
       lastBeat = now;
       post(6, "status: up=%us heap=%u blk=%u minheap=%u rssi=%d fps=%u on=%d bri=%u ps=%u sent=%u dropped=%u",
-           (unsigned)(now / 1000), freeHeap, maxBlock, ESP.getMinFreeHeap(), lastRssi, strip.getFps(), bri > 0, bri, currentPreset, sent, dropped);
+           (unsigned)(now / 1000), freeHeap, maxBlock, minFreeHeap(), lastRssi, strip.getFps(), bri > 0, bri, currentPreset, sent, dropped);
     }
   }
 
@@ -347,6 +357,11 @@ class SyslogEvents : public Usermod {
   void onUpdateBegin(bool init) override {
     if (init) { rtcRec.otaFromVid = VERSION; rtcRec.otaMagic = OTA_MAGIC; otaEvent = 1; }
     else      { rtcRec.otaMagic = 0; otaEvent = 2; }
+  }
+
+  void readFromJsonState(JsonObject &root) override {
+    JsonVariant ps = root["ps"];
+    if (ps.is<int>()) { lastPresetReq = ps.as<int>(); lastPresetReqAt = millis(); }  // "1~5~" cycling strings are not ids
   }
 
   void addToJsonInfo(JsonObject &root) override {
