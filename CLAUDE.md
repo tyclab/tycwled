@@ -54,3 +54,6 @@ TARGET=<port lamp>` is the acceptance check (~24 min, occupies both lamps, resto
 - NEVER commit anything under `glorb/firmware/` or `*/segments/` — carved vendor firmware, not
   redistributable. gitignored; keep it that way.
 - `wledlab.py` is stdlib-only; keep it that way.
+- Our lamps run `fleet/` builds (stock WLED updates would drop the syslog usermod): build
+  with `fleet/build.sh`, flash one lamp at a time with `wledlab.py flash`, which refuses
+  cfg or preset drift.

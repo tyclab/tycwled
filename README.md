@@ -139,6 +139,10 @@ Two measurement rules learned the hard way:
   `ledmap.json`, `palx.json` (rollback set and source of truth for the port).
 - `glorb/wled16-port/` — what to upload: byte-exact `ledmap.json`, translated
   `presets.json`, the six palettes `mkpalettes.py` emits, and `cfg-overrides.json`.
+- `usermods/syslog_events/` — WLED events (boot and crash reason, Wi-Fi, heap,
+  OTA, errors) as RFC3164 syslog, for any ESP32 WLED 16 build.
+- `fleet/` — the builds our own four lamps run, and how they are flashed
+  (`wledlab.py flash`).
 
 ## GLORB facts worth not rediscovering
 

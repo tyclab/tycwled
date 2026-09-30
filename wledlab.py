@@ -19,6 +19,8 @@ Subcommands
   push-frame       push one identical frame to both lamps (per-LED JSON API,
                    inverse gamma for 0.14 which gamma-corrects that input)
   install          upload ledmap / presets / palettes byte-exact, reload, verify
+  flash            OTA a firmware image, wait for the reboot, prove cfg and
+                   presets came through unchanged
   verify           acceptance gate: every preset on both lamps, current ratio
                    plus structural criteria from a same-window capture
   rescore          re-run the gate's criteria offline over saved captures
@@ -898,6 +900,76 @@ def cmd_install(a):
         print("preset verification:", "all OK" if not bad else f"MISMATCH {bad}")
 
 
+def cfg_drift(before, after):
+    """cfg paths that changed across a flash. Two changes are the flash itself and pass:
+    the top-level "vid" build stamp, and a usermod block that did not exist before (a
+    new usermod writes its defaults on first boot)."""
+    out, missing = [], object()
+
+    def walk(path, x, y):
+        if isinstance(x, dict) and isinstance(y, dict):
+            for k in sorted(set(x) | set(y)):
+                walk(path + [k], x.get(k, missing), y.get(k, missing))
+        elif x != y:
+            if path == ["vid"] or (len(path) >= 2 and path[0] == "um" and x is missing and len(path) == 2):
+                return
+            out.append(f"{'.'.join(path)}: {'<absent>' if x is missing else json.dumps(x)} -> "
+                       f"{'<absent>' if y is missing else json.dumps(y)}")
+
+    walk([], before, after)
+    return out
+
+
+def cmd_flash(a):
+    info0, cfg0, pre0 = get(a.host, "/json/info"), get(a.host, "/json/cfg"), readback(a.host, "/presets.json")
+    state0 = get(a.host, "/json/state")
+    snap = a.snapshot or os.path.join("captures", "flash", f"{a.host}-{int(time.time())}")
+    os.makedirs(snap, exist_ok=True)
+    for name, data in (("info.json", json.dumps(info0, indent=1).encode()), ("cfg.json", json.dumps(cfg0, indent=1).encode()),
+                       ("state.json", json.dumps(state0, indent=1).encode()), ("presets.json", pre0)):
+        open(os.path.join(snap, name), "wb").write(data)
+    print(f"{a.host} before: {info0['ver']} vid {info0['vid']} rel {info0.get('release')} up {info0['uptime']}s -> snapshot {snap}")
+    cmd = ["curl", "-s", "-m", "300", "-F", f"update=@{a.firmware}", f"http://{a.host}/update"]
+    if a.skip_validation:  # only when the release name changes on purpose; it guards against wrong-board images
+        cmd[4:4] = ["-F", "skipValidation=1"]
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0 or "success" not in r.stdout.lower():
+        sys.exit(f"OTA refused or failed (curl {r.returncode}): {r.stdout.strip()[:300]} {r.stderr.strip()}")
+    info1, t0 = None, time.time()
+    time.sleep(8)
+    while time.time() - t0 < a.timeout:
+        try:
+            info1 = json.load(urllib.request.urlopen(f"http://{a.host}/json/info", timeout=4))
+            if info1["uptime"] < time.time() - t0 + 5:
+                break
+        except (urllib.error.URLError, TimeoutError, ConnectionError, ValueError):
+            pass
+        info1 = None
+        time.sleep(3)
+    if info1 is None:
+        sys.exit(f"{a.host} did not come back within {a.timeout}s -- stop, do not flash further lamps")
+    time.sleep(5)  # first boot after a flash rewrites cfg.json; read it after that settles
+    cfg1, pre1 = get(a.host, "/json/cfg"), readback(a.host, "/presets.json")
+    # A reboot lands on the boot preset; put back what the lamp was showing.
+    post(a.host, "/json/state", {k: state0[k] for k in ("on", "bri", "mainseg", "seg") if k in state0} | {"tt": 0})
+    time.sleep(1.5)
+    state1, keys = get(a.host, "/json/state"), ("id", "start", "stop", "on", "bri", "fx", "sx", "ix", "pal", "col")
+    same = state1.get("on") == state0.get("on") and state1.get("bri") == state0.get("bri") and \
+        [{k: g.get(k) for k in keys} for g in state1.get("seg", [])] == [{k: g.get(k) for k in keys} for g in state0.get("seg", [])]
+    print("  state:", "restored" if same else "DIFFERS from before the flash")
+    print(f"{a.host} after:  {info1['ver']} vid {info1['vid']} rel {info1.get('release')} up {info1['uptime']}s "
+          f"usermods {sorted(info1.get('u', {}))}")
+    drift = cfg_drift(cfg0, cfg1)
+    for d in drift:
+        print("  cfg drift:", d)
+    print("  cfg:", "unchanged (vid / new usermod block only)" if not drift else "CHANGED",
+          "| presets.json:", "byte-identical" if pre1 == pre0 else "CHANGED")
+    if a.release and info1.get("release") != a.release:
+        sys.exit(f"release is {info1.get('release')!r}, expected {a.release!r}")
+    if drift or pre1 != pre0:
+        sys.exit("flash changed more than the firmware; restore from the snapshot")
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--width", type=int, default=W, help="raster width the lamp reports (GLORB 20)")
@@ -936,6 +1008,12 @@ def main():
     s.add_argument("--host", required=True); s.add_argument("--ledmap"); s.add_argument("--presets"); s.add_argument("--palette", action="append", help="palette file; paletteN.json in order, repeatable")
     s.add_argument("--effects", help="JSON map of fx ID -> effect name to assert against /json/eff (the usermod's IDs are assigned at boot)")
     s.add_argument("--reboot", action="store_true", help="reboot after upload instead of live reload"); s.set_defaults(fn=cmd_install)
+    s = sub.add_parser("flash", help="OTA a firmware image, wait for the reboot, prove cfg and presets unchanged")
+    s.add_argument("--host", required=True); s.add_argument("--firmware", required=True, help="firmware.bin")
+    s.add_argument("--release", help="release name the lamp must report afterwards")
+    s.add_argument("--skip-validation", action="store_true", help="send skipValidation=1 (the release name changes on purpose)")
+    s.add_argument("--snapshot", help="where to keep the before-state (default captures/flash/<host>-<time>)")
+    s.add_argument("--timeout", type=int, default=150, help="seconds to wait for the lamp to come back"); s.set_defaults(fn=cmd_flash)
     a = p.parse_args(); a.fn(a)
 
 
