@@ -12,12 +12,10 @@ use a single stock effect — every one of them calls a custom effect the fork
 added at fx 189–193 and 195 (Colorwaves, Running, Frizzles, Black Hole, Hiphotic,
 Tartan). There is no source release.
 
-Earlier revisions of this repo tried to approximate those effects with stock
-WLED effects, segment composites and least-squares-fitted palettes. That was
-the wrong foundation and it never converged. The six effects have since been
-disassembled out of the public factory firmware image and reimplemented as a
-WLED 16 usermod, and the factory palettes are shipped verbatim. The port is now
-the same algorithms and the same colour data, not a lookalike.
+The six effects are disassembled out of the public factory firmware image and
+reimplemented as a WLED 16 usermod, and the factory palettes are shipped
+verbatim. The port is the same algorithms and the same colour data, not a
+lookalike.
 
 Three pieces, all in this repo:
 
@@ -78,13 +76,15 @@ those. If yours differ, remap the `fx` values before installing.
 python3 wledlab.py install --host <lamp> \
   --ledmap glorb/wled16-port/ledmap.json \
   --presets glorb/wled16-port/presets.json \
+  --effects glorb/wled16-port/effects.json \
   $(for n in 0 1 2 3 4 5; do echo --palette glorb/wled16-port/palette$n.json; done)
 curl -X POST -H 'Content-Type: application/json' \
   --data @glorb/wled16-port/cfg-overrides.json http://<lamp>/json/cfg
 ```
 
 `install` reads every file back byte-for-byte, then recalls each preset and
-compares every segment field. The cfg post sets gamma, FPS and the power
+compares every segment field; `--effects` first refuses a lamp whose fx IDs
+differ from `effects.json`. The cfg post sets gamma, FPS and the power
 cap — see the gamma note under "GLORB facts" for why it is 1.0 and not the
 factory's 2.8.
 
@@ -108,9 +108,12 @@ factory firmware images are not redistributed here — fetch them from SNRGY.
 `make verify REF=<factory> TARGET=<ported>` recalls all twelve presets on both
 lamps and captures them over the same window (100 s each, ~24 min), scoring
 brightness distribution, hue, saturation, spatial structure, activity, peak and
-lit-cell count. Both lamps end on preset 4. `wledlab.py rescore` re-runs the
-same criteria offline over saved captures, so a tolerance change never costs
-another 24 minutes on the lamps.
+lit-cell count, plus the current ratio. Both lamps end on preset 4.
+`wledlab.py rescore` re-runs the structural criteria offline over saved
+captures, so a tolerance change never costs another 24 minutes on the lamps.
+
+`make verify` runs `make lint` first (pre-commit over the whole tree).
+It passes `--restore-preset 4`; `wledlab.py verify` alone defaults to 1.
 
 A failed verify run is the finding; do not tune by eye on top of it.
 
@@ -131,7 +134,8 @@ Two measurement rules learned the hard way:
 
 ## Layout
 
-- `wledlab.py` — stdlib-only CLI (`--help` documents every subcommand).
+- `wledlab.py` — stdlib-only CLI (`--help` documents every subcommand,
+  including `analyse`, `calibrate-speed`, `check-ledmap` and `push-frame`).
 - `glorb/usermod/glorb_fx/` — the six decompiled effects as a WLED 16 usermod.
 - `glorb/experiments/2026-08-31-reversing/` — how they were recovered from the
   firmware image: disassembly, notes, per-effect confidence.
@@ -207,8 +211,9 @@ Two measurement rules learned the hard way:
   and animates as soon as anything opens the gate, audio or not. Both traps
   produced false positives here.
 - Rollback OTA needs form field `skipValidation=1` (16 rejects unsigned images
-  otherwise); the partition table is still factory. `ota.same-subnet=true` in
-  the factory cfg blocks cross-VLAN OTA.
+  otherwise); the partition table is still factory. `ota.same-subnet` is a
+  WLED 16 setting (default true; the factory 0.14.4 cfg has no such key) that
+  blocks cross-VLAN OTA; `cfg-overrides.json` sets it false.
 
 ## Checks (each one exists because we got it wrong once)
 
@@ -219,5 +224,8 @@ Two measurement rules learned the hard way:
 | No preset may point at a built-in palette ID                                                                          | `tests/test_palettes.py`                                        |
 | Ledmap: exact bytes `"map":[`, valid JSON, `width`/`height` before `map`                                              | `make lint`, `install` refuses                                  |
 | Ledmap and palettes read back byte-exact, presets compared JSON-equal; every preset applied and all segments compared | `install`                                                       |
-| Current is not a cross-firmware criterion; brightness and saturation are measured from the frames                     | `verify`                                                        |
+| Current ratio within ±15 % (n/a under 50 mA ABL estimate); brightness and saturation measured from the frames         | `verify`                                                        |
 | Both lamps captured simultaneously over the same window; hue/saturation only from cells bright enough to have a hue   | `verify`, `compare`                                             |
+
+CI (`.github/workflows/ci.yml`) runs `make lint`, `make test` and a gitleaks
+scan of the full git history on every pull request and push to main.
