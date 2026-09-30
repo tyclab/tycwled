@@ -1,0 +1,4 @@
+{
+  "name": "syslog_events",
+  "build": { "libArchive": false }
+}
