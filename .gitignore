@@ -7,3 +7,6 @@ pushed_frame.json
 # vendor GLORB firmware images — downloaded, never redistributed from this repo
 glorb/firmware/
 glorb/experiments/2026-08-31-reversing/segments/
+
+# fleet/build.sh output: our own builds, flashed from here, never committed
+fleet/out/
