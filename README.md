@@ -83,8 +83,10 @@ curl -X POST -H 'Content-Type: application/json' \
 ```
 
 `install` reads every file back byte-for-byte, then recalls each preset and
-compares every segment field; `--effects` first refuses a lamp whose fx IDs
-differ from `effects.json`. The cfg post sets gamma, FPS and the power
+compares every segment field. `--effects` compares the lamp's `/json/eff`
+against `effects.json` only after the uploads and exits on a mismatch, so
+check the IDs (`GET /json/eff`) before running `install` on a new build. The
+cfg post sets gamma, FPS and the power
 cap — see the gamma note under "GLORB facts" for why it is 1.0 and not the
 factory's 2.8.
 
