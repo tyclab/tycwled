@@ -24,7 +24,7 @@ test:
 # make verify REF=<factory lamp> TARGET=<ported lamp>
 REF ?=
 TARGET ?=
-# acceptance gate against the lamps: every ported preset within 15 % of the factory lamp's current estimate
+# acceptance check against the lamps: current ratio within 15 % of the factory lamp plus the structural criteria (see README, Checks)
 verify: lint
 	@test -n "$(REF)" -a -n "$(TARGET)" || { echo "usage: make verify REF=<factory lamp IP> TARGET=<ported lamp IP>"; exit 2; }
 	python3 wledlab.py verify --ref $(REF) --target $(TARGET) --presets-file glorb/wled16-port/presets.json --restore-preset 4
