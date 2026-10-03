@@ -848,6 +848,19 @@ def cmd_install(a):
     if a.presets:
         print("presets:", upload(a.host, "/presets.json", a.presets), "| readback ok:",
               json.loads(readback(a.host, "/presets.json")) == json.load(open(a.presets)))
+    if a.cfg:
+        overrides = json.load(open(a.cfg)); before = get(a.host, "/json/cfg")
+        post(a.host, "/json/cfg", cfg_payload(overrides, before)); time.sleep(1)
+        after = get(a.host, "/json/cfg")
+        bad = cfg_unapplied(overrides, after)
+        remotes0, remotes1 = (c.get("nw", {}).get("linked_remote") for c in (before, after))
+        if remotes0 != remotes1:
+            bad.append(f"nw.linked_remote: {json.dumps(remotes0)} -> {json.dumps(remotes1)}")
+        print("cfg:", "applied" if not bad else "MISMATCH")
+        for b in bad:
+            print("  ", b)
+        if bad:
+            sys.exit("cfg overrides did not land as written")
     if a.reboot:
         post(a.host, "/json/state", {"rb": True})
         for _ in range(30):
@@ -898,6 +911,38 @@ def cmd_install(a):
             print(f"  preset {k:>2} {v.get('n', ''):<26} {'OK' if ok else 'MISMATCH'}")
             bad += [] if ok else [k]
         print("preset verification:", "all OK" if not bad else f"MISMATCH {bad}")
+
+
+def cfg_payload(overrides, current):
+    """The /json/cfg body for `overrides` on a lamp whose cfg reads `current`.
+
+    WLED 16 clears the paired ESP-NOW remotes on every /json/cfg write that carries no
+    "nw" block: cfg.cpp runs linked_remotes.clear() before it looks for nw.linked_remote
+    (since PR 4654, 16.0.0 through main). So the lamp's own espnow flag and remote list
+    ride along, unless the overrides set "nw" themselves."""
+    payload = json.loads(json.dumps(overrides))
+    nw = current.get("nw") if isinstance(current, dict) else None
+    if "nw" not in payload and isinstance(nw, dict):
+        carry = {k: nw[k] for k in ("espnow", "linked_remote") if k in nw}
+        if carry:
+            payload["nw"] = carry
+    return payload
+
+
+def cfg_unapplied(overrides, after):
+    """Override paths the lamp does not read back as written."""
+    out, missing = [], object()
+
+    def walk(path, want, got):
+        if isinstance(want, dict):
+            for k, v in want.items():
+                walk(path + [k], v, got.get(k, missing) if isinstance(got, dict) else missing)
+        elif want != got:
+            out.append(f"{'.'.join(path)}: wanted {json.dumps(want)}, lamp has "
+                       f"{'<absent>' if got is missing else json.dumps(got)}")
+
+    walk([], overrides, after)
+    return out
 
 
 def cfg_drift(before, after):
@@ -1007,6 +1052,7 @@ def main():
     s = sub.add_parser("install", help="upload files byte-exact, reload, verify every preset")
     s.add_argument("--host", required=True); s.add_argument("--ledmap"); s.add_argument("--presets"); s.add_argument("--palette", action="append", help="palette file; paletteN.json in order, repeatable")
     s.add_argument("--effects", help="JSON map of fx ID -> effect name to assert against /json/eff (the usermod's IDs are assigned at boot)")
+    s.add_argument("--cfg", help="cfg overrides JSON to POST to /json/cfg, carrying the lamp's ESP-NOW remotes along (WLED 16 drops them otherwise); each key is read back")
     s.add_argument("--reboot", action="store_true", help="reboot after upload instead of live reload"); s.set_defaults(fn=cmd_install)
     s = sub.add_parser("flash", help="OTA a firmware image, wait for the reboot, prove cfg and presets unchanged")
     s.add_argument("--host", required=True); s.add_argument("--firmware", required=True, help="firmware.bin")
