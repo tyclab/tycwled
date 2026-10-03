@@ -49,6 +49,11 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Fixed
 
+- `install --cfg` replaces the README's bare `curl` of `cfg-overrides.json`.
+  WLED 16 clears every paired ESP-NOW remote on a `/json/cfg` write without an
+  `nw` block (`cfg.cpp`, since PR 4654); the new step carries the lamp's
+  `espnow` flag and remote list along and reads each override back.
+
 - **The lamp's microphone works on the port.** The build override sets
   `-D I2S_USE_16BIT_SAMPLES`. With WLED's default 32-bit samples the S3's PDM
   mic reported `quiet` with AGC pinned at `1.00 x` and the sound-reactive
