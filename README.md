@@ -77,18 +77,21 @@ python3 wledlab.py install --host <lamp> \
   --ledmap glorb/wled16-port/ledmap.json \
   --presets glorb/wled16-port/presets.json \
   --effects glorb/wled16-port/effects.json \
-  $(for n in 0 1 2 3 4 5; do echo --palette glorb/wled16-port/palette$n.json; done)
-curl -X POST -H 'Content-Type: application/json' \
-  --data @glorb/wled16-port/cfg-overrides.json http://<lamp>/json/cfg
+  $(for n in 0 1 2 3 4 5; do echo --palette glorb/wled16-port/palette$n.json; done) \
+  --cfg glorb/wled16-port/cfg-overrides.json
 ```
 
 `install` reads every file back byte-for-byte, then recalls each preset and
 compares every segment field. `--effects` compares the lamp's `/json/eff`
 against `effects.json` only after the uploads and exits on a mismatch, so
-check the IDs (`GET /json/eff`) before running `install` on a new build. The
-cfg post sets gamma, FPS and the power
-cap — see the gamma note under "GLORB facts" for why it is 1.0 and not the
-factory's 2.8.
+check the IDs (`GET /json/eff`) before running `install` on a new build.
+`--cfg` posts the overrides — gamma, FPS and the power cap; see the gamma
+note under "GLORB facts" for why it is 1.0 and not the factory's 2.8 — and
+reads every key back. Do not post that file with a bare `curl`: WLED 16
+drops every paired ESP-NOW remote on a `/json/cfg` write that carries no
+`nw` block (`cfg.cpp` clears the list before it looks for one, since
+PR 4654), so `--cfg` sends the lamp's own `espnow` flag and remote list
+along with the overrides.
 
 ### Rolling back to factory firmware
 
