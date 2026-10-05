@@ -10,9 +10,11 @@ install-hooks:
 lint: check-ledmaps check-palettes
 	pre-commit run --all-files
 
-# WLED 16 scans ledmap files for the exact bytes "map":[ — a space breaks the mapping silently
+# WLED 16 scans ledmap files for the exact bytes "map":[ — a space breaks the mapping silently;
+# the curtain's committed ledmap must equal its generator output
 check-ledmaps:
-	@for f in glorb/*/ledmap.json; do grep -q '"map":\[' "$$f" || { echo "$$f: missing exact \"map\":[ — WLED 16 would ignore it"; exit 1; }; done; echo "ledmaps ok"
+	@for f in glorb/*/ledmap.json curtain/ledmap.json; do grep -q '"map":\[' "$$f" || { echo "$$f: missing exact \"map\":[ — WLED 16 would ignore it"; exit 1; }; done; echo "ledmaps ok"
+	@python3 curtain/mkledmap.py --check
 # committed palettes must equal the generator output and respect WLED's 18-stop / 0..255 rules
 check-palettes:
 	@python3 glorb/mkpalettes.py --check
