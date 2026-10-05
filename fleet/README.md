@@ -143,13 +143,16 @@ driver held about 23 KB of heap, which the 68 × 42 canvas, the Image effect's G
 
 ### Power
 
-The global limit `hw.led.maxpwr` is 0, so each output limits itself: 4000 mA at 15 mA per
+The global limit `hw.led.maxpwr` is 0, so each output limits itself: 2500 mA at 30 mA per
 LED. WLED 16 applies a non-zero global limit instead of the per-output ones
 (`BusManager::applyABL`), and a global limit that leaves less than 1 mA per LED (WLED's idle
-estimate, 1560 mA here) after the ESP's reserve holds the curtain near black. The 15 mA per
-LED is derived from the budget of the Govee 36 V 3 A (108 W) adapter for 1560 LEDs, not
-measured. The three 4 A limits at 5 V cap the estimate at about 60 W, well under the adapter.
-A reading of the adapter on a metering plug refines it.
+estimate, 1560 mA here) after the ESP's reserve holds the curtain near black.
+
+Measured on a metering plug: with 4000 mA per output at 15 mA per LED, full white drew about
+118 W at the wall and tripped the Govee 36 V 3 A (108 W) adapter's protection, so the real
+current is about twice that estimate. 30 mA per LED keeps WLED's estimate close to the real
+draw, and three 2.5 A outputs at 5 V cap full white at about 38 W, under half the adapter.
+The controller runs on its own USB supply, so an adapter trip does not reset it.
 
 The curtain boots off at brightness 16 and ignores incoming WLED sync. Realtime input (DDP
 from the lightshow) runs at full brightness (`if.live.maxbri`) through the ledmap
