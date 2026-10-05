@@ -33,6 +33,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
+- Curtain: the TycStation logo GIF and the controller's presets (preset 1 "TycStation",
+  the Image effect on the segment named `tycstation.gif`).
+
 - `usermods/syslog_events/`: boot with reset reason and the previous run's last
   breadcrumb, a panic-hook crash record with backtrace, Wi-Fi loss/reconnect with
   RSSI and reason, heap-low crossings, OTA, WLED error codes and an hourly status

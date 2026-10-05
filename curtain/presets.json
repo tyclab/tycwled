@@ -1,0 +1,147 @@
+{
+  "0": {},
+  "1": {
+    "on": true,
+    "bri": 160,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 68,
+        "startY": 0,
+        "stopY": 42,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "tycstation.gif",
+        "col": [
+          [255, 160, 80],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 53,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 220,
+        "c2": 30,
+        "c3": 21,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "TycStation"
+  }
+}
