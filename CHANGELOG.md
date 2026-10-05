@@ -26,6 +26,10 @@ The format is based on [Keep a Changelog], and this project adheres to
 - The usermod gates every pixel access on the ledmap (`glorb_cellMapped`):
   0.14.4 gives unmapped raster cells no storage, and losing that topology made
   the blurred effects light 20–30 % extra dim cells.
+- The curtain's ledmap places every string at its measured position: one
+  square cell per door-panel string spacing, LED rows at the measured 1.66×
+  that spacing, all panels level. 68 × 42 cells, 1560 mapped; `mkledmap.py`
+  carries the measured positions.
 
 ### Added
 
@@ -33,7 +37,7 @@ The format is based on [Keep a Changelog], and this project adheres to
   breadcrumb, a panic-hook crash record with backtrace, Wi-Fi loss/reconnect with
   RSSI and reason, heap-low crossings, OTA, WLED error codes and an hourly status
   line, as RFC3164 over UDP, rate-limited and kept off the LED output path.
-- `curtain/`: configuration overlay and 60 × 40 ledmap for the three-panel H70B5
+- `curtain/`: configuration overlay and ledmap for the three-panel H70B5
   curtain on the Gledopto GL-C-618WL, with the generator `mkledmap.py`; `make lint`
   checks the committed map against it.
 - `fleet/`: build envs for our four lamps (stock-equivalent `ESP32` plus syslog for
