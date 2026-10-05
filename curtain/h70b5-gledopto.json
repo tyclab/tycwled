@@ -1,0 +1,126 @@
+{
+  "id": {
+    "name": "Curtain Bench",
+    "mdns": "tyccurtain"
+  },
+  "def": {
+    "ps": 0,
+    "on": false,
+    "bri": 16
+  },
+  "hw": {
+    "led": {
+      "maxpwr": 0,
+      "ins": [
+        {
+          "start": 0,
+          "len": 520,
+          "pin": [16],
+          "order": 1,
+          "rev": false,
+          "skip": 0,
+          "type": 22,
+          "ref": false,
+          "rgbwm": 0,
+          "freq": 0,
+          "drv": 0,
+          "text": "",
+          "maxpwr": 4000,
+          "ledma": 15
+        },
+        {
+          "start": 520,
+          "len": 520,
+          "pin": [12],
+          "order": 1,
+          "rev": false,
+          "skip": 0,
+          "type": 22,
+          "ref": false,
+          "rgbwm": 0,
+          "freq": 0,
+          "drv": 0,
+          "text": "",
+          "maxpwr": 4000,
+          "ledma": 15
+        },
+        {
+          "start": 1040,
+          "len": 520,
+          "pin": [4],
+          "order": 1,
+          "rev": false,
+          "skip": 0,
+          "type": 22,
+          "ref": false,
+          "rgbwm": 0,
+          "freq": 0,
+          "drv": 0,
+          "text": "",
+          "maxpwr": 4000,
+          "ledma": 15
+        }
+      ],
+      "matrix": {
+        "mpc": 3,
+        "panels": [
+          {
+            "b": false,
+            "r": true,
+            "v": true,
+            "s": false,
+            "x": 40,
+            "y": 0,
+            "h": 26,
+            "w": 20
+          },
+          {
+            "b": false,
+            "r": true,
+            "v": true,
+            "s": false,
+            "x": 20,
+            "y": 0,
+            "h": 26,
+            "w": 20
+          },
+          {
+            "b": false,
+            "r": true,
+            "v": true,
+            "s": false,
+            "x": 0,
+            "y": 0,
+            "h": 26,
+            "w": 20
+          }
+        ]
+      }
+    }
+  },
+  "ota": {
+    "same-subnet": false
+  },
+  "um": {
+    "Syslog": {
+      "hostname": "tyccurtain"
+    }
+  },
+  "if": {
+    "sync": {
+      "recv": {
+        "bri": false,
+        "col": false,
+        "fx": false,
+        "pal": false,
+        "grp": 0,
+        "seg": false,
+        "sb": false
+      }
+    },
+    "live": {
+      "maxbri": true,
+      "rlm": true
+    }
+  }
+}

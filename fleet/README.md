@@ -1,13 +1,13 @@
 # fleet — the firmware our own lamps run
 
-| Lamp            | IP          | Syslog host (Loki `host`)                                           | Hardware                                                    | Env              |
-| --------------- | ----------- | ------------------------------------------------------------------- | ----------------------------------------------------------- | ---------------- |
-| Led Strip Couch | 10.27.4.58  | `wled-couch` (`um.Syslog.hostname`; its mDNS name is `wled-1271e8`) | ESP32, 4 MB flash, 300 LEDs on GPIO 2                       | `fleet_esp32`    |
-| Moon            | 10.27.4.59  | `wled-moon`                                                         | ESP32, 8 MB flash in the 4 MB layout, 8×8 on GPIO 18        | `fleet_esp32`    |
-| GLORB           | 10.27.4.60  | `wled-glorb-links`                                                  | ESP32-S3, 8 MB                                              | `fleet_glorb`    |
-| GLORB           | 10.27.4.61  | `wled-glorb-rechts`                                                 | ESP32-S3, 8 MB                                              | `fleet_glorb`    |
-| Curtain Bench   | 10.27.4.221 | `tyccurtain`                                                        | Gledopto GL-C-618WL, ESP32, one 520-pixel output on GPIO 16 | `fleet_gledopto` |
-| WLED Spare      | 10.27.4.222 | `tycledspare`                                                       | DOMRAEM DOM-WLE-ADM, ESP32, two outputs on GPIOs 16/2       | `fleet_esp32`    |
+| Lamp            | IP          | Syslog host (Loki `host`)                                           | Hardware                                                             | Env              |
+| --------------- | ----------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------------- |
+| Led Strip Couch | 10.27.4.58  | `wled-couch` (`um.Syslog.hostname`; its mDNS name is `wled-1271e8`) | ESP32, 4 MB flash, 300 LEDs on GPIO 2                                | `fleet_esp32`    |
+| Moon            | 10.27.4.59  | `wled-moon`                                                         | ESP32, 8 MB flash in the 4 MB layout, 8×8 on GPIO 18                 | `fleet_esp32`    |
+| GLORB           | 10.27.4.60  | `wled-glorb-links`                                                  | ESP32-S3, 8 MB                                                       | `fleet_glorb`    |
+| GLORB           | 10.27.4.61  | `wled-glorb-rechts`                                                 | ESP32-S3, 8 MB                                                       | `fleet_glorb`    |
+| Curtain Bench   | 10.27.4.221 | `tyccurtain`                                                        | Gledopto GL-C-618WL, ESP32, three 520-pixel outputs on GPIOs 16/12/4 | `fleet_gledopto` |
+| WLED Spare      | 10.27.4.222 | `tycledspare`                                                       | DOMRAEM DOM-WLE-ADM, ESP32, two outputs on GPIOs 16/2                | `fleet_esp32`    |
 
 All envs are WLED v16.0.1 plus [`syslog_events`](../usermods/syslog_events/),
 sending to our collector at 10.27.2.41:1515.
@@ -32,9 +32,9 @@ Remove it only when the fleet's pinned release includes the fix.
   retaining the `ESP32_Ethernet` release name for the GL-C-618WL. Its GPIOs, Ethernet
   type, relay polarity and microphone settings remain device configuration. Gledopto
   Ethernet support is already in v16.0.1; no vendor firmware overlay is needed.
-  Use its existing Wi-Fi connection for the curtain rollout. The `ESP32_Ethernet`
-  build supports Wi-Fi too; Ethernet cabling is optional. Preserve the Wi-Fi settings
-  and use Wi-Fi MAC `70:4b:ca:48:91:c8` for the host reservation.
+  The curtain runs on Wi-Fi. The `ESP32_Ethernet` build supports Wi-Fi too;
+  Ethernet cabling is optional. Preserve the Wi-Fi settings and use Wi-Fi MAC
+  `70:4b:ca:48:91:c8` for the host reservation.
   Build it explicitly with `fleet/build.sh ../WLED fleet_gledopto`.
 
 The DOMRAEM DOM-WLE-ADM uses `fleet_esp32`, retaining its `ESP32` release name and
@@ -97,28 +97,81 @@ digital mic 26/5/21. Image hashes (build 2610050):
 be0e2a5b532bc03f44e31bc22959a15418ce409b0c59e8fcc079f6a115b3a17b  fleet_esp32.bin
 ```
 
-## Curtain bench
+## Curtain
 
-[`h70b5-gledopto-bench.json`](../curtain/h70b5-gledopto-bench.json) is applied to the
-power-only GL-C-618WL after its fleet firmware upgrade. It starts
-with **one** 520-pixel panel on GPIO 16: WS281x, RGB, 20 × 26, vertical,
-non-serpentine, first pixel top left. It boots off at brightness 16, disables incoming
-WLED sync, and retains the controller's factory 850 mA software limit for initial tests.
-The controller reports a 20 × 26 matrix and is off at brightness 16 after reboot.
-The overlay leaves Ethernet, relay, microphone and Wi-Fi settings alone. Use the patched fleet
-build so partial configuration writes preserve unrelated settings.
+The Govee H70B5 curtain hangs as three panels of 20 vertical strings × 26 LEDs on the
+GL-C-618WL. [`h70b5-gledopto.json`](../curtain/h70b5-gledopto.json) is its configuration
+overlay, [`ledmap.json`](../curtain/ledmap.json) its 2D map, generated by
+[`mkledmap.py`](../curtain/mkledmap.py); `make lint` fails when the committed map differs
+from the generator output. `id.name` stays `Curtain Bench`, the device name Home Assistant
+uses. The overlay leaves Ethernet, relay, microphone and Wi-Fi settings alone. Apply it with
+the patched fleet build, which preserves unrelated settings on a partial configuration write:
 
-This layout is a [Curtain Lights 2 community recipe](https://www.reddit.com/r/WLED/comments/1poi691/),
-not yet verified on this H70B5. Before connecting anything, measure and identify the
-panel's supply, ground and data connections; retain the factory power conversion and
-never feed its 36 V adapter directly into the Gledopto (5–24 V input). Disconnect the
-original data driver, share ground, and initially keep curtain power separate from
-the controller's LED power terminals. Verify voltage before using any factory 5 V
-rail to power the controller. Do not remove the reported end-of-string resistor until
-its function and the signal fault are established on this hardware.
+```sh
+python3 wledlab.py install --host 10.27.4.221 --cfg curtain/h70b5-gledopto.json
+```
 
-Confirm the first and last pixels, colour order and all 520 addresses before expanding
-to GPIOs 16 / 12 / 4, three 520-pixel outputs and a 60 × 26 canvas. Size the final
-power limit from the verified power path and load; 850 mA is only a conservative
-single-panel bench setting, not a useful three-panel limit. Then reserve a fleet
-hostname/address and add HA, the party watchdog and the lightshow's DDP output.
+### Wiring
+
+Each panel has its own data line from the controller, on the data conductor of the panel's
+original 3-wire cable. The pixels carry factory addresses 0–519 in every panel, so panels on
+a shared line repeat one picture. The cable's 36 V and GND conductors and each panel's
+converter board stay as built; GND is shared between the controller and the panels. The
+epoxy blob at the end of the top string, a resistor on the data line, is cut off. The 36 V
+adapter never connects to the Gledopto (5–24 V input).
+
+### Outputs and panel order
+
+| Output | GPIO | LEDs      | Panel, seen from inside the room |
+| ------ | ---- | --------- | -------------------------------- |
+| 1      | 16   | 0–519     | right                            |
+| 2      | 12   | 520–1039  | middle, over the balcony door    |
+| 3      | 4    | 1040–1559 | left                             |
+
+Every output is WS281x (type 22), RGB (order 1), 520 pixels. Each panel runs vertical, top
+first, non-serpentine, with string 0 on the panel's right side, so the curtain is the mirror
+image of the [Curtain Lights 2 community recipe](https://www.reddit.com/r/WLED/comments/1poi691/)'s
+"first pixel top left". At each join the left panel's string 0 hangs next to the right
+panel's string 19.
+
+### Power
+
+The global limit `hw.led.maxpwr` is 0, so each output limits itself: 4000 mA at 15 mA per
+LED. WLED 16 applies a non-zero global limit instead of the per-output ones
+(`BusManager::applyABL`), and a global limit that leaves less than 1 mA per LED (WLED's idle
+estimate, 1560 mA here) after the ESP's reserve holds the curtain near black. The 15 mA per
+LED is derived from the budget of the Govee 36 V 3 A (108 W) adapter for 1560 LEDs, not
+measured. The three 4 A limits at 5 V cap the estimate at about 60 W, well under the adapter.
+A reading of the adapter on a metering plug refines it.
+
+The curtain boots off at brightness 16 and ignores incoming WLED sync. Realtime input (DDP
+from the lightshow) runs at full brightness (`if.live.maxbri`) through the ledmap
+(`if.live.rlm`).
+
+### Ledmap
+
+The ledmap is a 60 × 40 virtual grid in true proportions. The vertical LED pitch is 1.5 ×
+the string pitch (1.4–1.6 measured from a straight-on photo; the strings hang closer together
+than Govee spaced them, at their original heights). The middle panel hangs half to one LED
+lower because of the door frame; the map sets it one virtual row lower. WLED reports a
+60 × 40 matrix of 2400 cells, 1560 of them mapped, and an outline 16 strings wide and 16 rows
+tall photographs square.
+
+```sh
+python3 wledlab.py install --host 10.27.4.221 --ledmap curtain/ledmap.json
+```
+
+`install` refuses a map without the exact bytes `"map":[`, uploads it as `/ledmap.json`, reads
+it back byte for byte and reloads it. By hand:
+`curl -F "data=@curtain/ledmap.json;filename=/ledmap.json" http://10.27.4.221/upload`, then
+`POST /json/state` with `{"ledmap":0}`.
+
+Without a `ledmap.json` on the controller the cfg matrix applies: three 20 × 26 panels at
+x = 40 / 20 / 0 in output order, vertical, string 0 on the right, a 60 × 26 canvas without
+the row pitch or the middle panel's offset.
+
+### Door
+
+In ledmap columns (0 is the leftmost string seen from inside the room), the door frame spans
+about 19.5–40.5: string 20 hangs in front of its left side, strings 39 and 40 in front of its
+right side. The door glass spans about 20.5–38.5.
