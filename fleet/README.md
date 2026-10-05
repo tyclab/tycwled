@@ -152,8 +152,11 @@ from the lightshow) runs at full brightness (`if.live.maxbri`) through the ledma
 
 The ledmap is a 60 × 40 virtual grid in true proportions. The vertical LED pitch is 1.5 ×
 the string pitch (1.4–1.6 measured from a straight-on photo; the strings hang closer together
-than Govee spaced them, at their original heights). The middle panel hangs half to one LED
-lower because of the door frame; the map sets it one virtual row lower. WLED reports a
+than Govee spaced them, at their original heights). All three panels sit level in the map;
+the middle panel hangs about half a row low at its left join and level at its right join. On
+the integer grid the 1.5 pitch puts every panel's LED rows on grid rows 0, 2, 3, 5, 6, … 38,
+so every third grid row is empty and a line one row thin can fall into a gap. Row 39 has no
+LEDs either; it keeps the grid at the 60 × 40 of the lightshow's fixture. WLED reports a
 60 × 40 matrix of 2400 cells, 1560 of them mapped, and an outline 16 strings wide and 16 rows
 tall photographs square.
 
@@ -168,7 +171,7 @@ it back byte for byte and reloads it. By hand:
 
 Without a `ledmap.json` on the controller the cfg matrix applies: three 20 × 26 panels at
 x = 40 / 20 / 0 in output order, vertical, string 0 on the right, a 60 × 26 canvas without
-the row pitch or the middle panel's offset.
+the row pitch.
 
 ### Door
 
