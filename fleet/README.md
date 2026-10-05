@@ -206,3 +206,17 @@ about 19.5–40.5: string 20 hangs in front of its left side, strings 39 and 40 
 right side. The door glass spans about 20.5–38.5. In ledmap columns string 20 sits on column
 26 and strings 39 and 40 on columns 45 and 46; the door panel's strings take one column each,
 26–45.
+
+### Logo
+
+[`tycstation.gif`](../curtain/tycstation.gif) is the TycStation Krake mark (the site's
+`favicon.svg` without its tile), 46 × 40 pixels placed at x 13, y 1 of a 68 × 42 frame, so it
+sits centred on the door in the ledmap grid. WLED's Image effect (fx 53) draws the GIF named
+by its segment, so the segment is named `tycstation.gif`;
+[`presets.json`](../curtain/presets.json) keeps that as preset 1 "TycStation", which Home
+Assistant's Evening look "TycStation" recalls. Both files upload like the ledmap
+(`curl -F "data=@curtain/tycstation.gif;filename=/tycstation.gif" http://<host>/upload`,
+the same for `/presets.json`). Rebuild the GIF with the tile removed from the SVG, then
+`rsvg-convert -w 840 -h 840 -b black krake.svg -o krake.png` and
+`magick krake.png -trim +repage -filter Box -resize 46x40! -modulate 100,140 -level 0%,80% m.png`,
+`magick -size 68x42 xc:black m.png -geometry +13+1 -composite -strip tycstation.gif`.
