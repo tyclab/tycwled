@@ -32,9 +32,10 @@ repos:
     hooks:
       - id: prettier
         types_or: [markdown, json]
-        # Lamp files are byte-exact (ledmap is scanned raw, palettes are
-        # generator output, cfg is the factory dump); never reformat them.
-        exclude: ^glorb/.*\.json$
+        # Lamp files are byte-exact (ledmaps are scanned raw, palettes and the
+        # curtain ledmap are generator output, cfg is the factory dump); never
+        # reformat them.
+        exclude: ^(glorb/.*|curtain/ledmap)\.json$
 
   # E9 + F are the defect rules (syntax errors, undefined names, unused imports);
   # ruff's default set is style-heavy and would only argue taste.
