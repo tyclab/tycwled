@@ -122,5 +122,8 @@
       "maxbri": true,
       "rlm": true
     }
+  },
+  "eth": {
+    "type": 0
   }
 }
