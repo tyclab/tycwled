@@ -965,14 +965,76 @@ def cfg_drift(before, after):
     return out
 
 
+def cfg_migrate_015_to_16(before, info):
+    """Expected v16.0.1 serialization of our two classic ESP32 spares.
+
+    Source: WLED v0.15.3/v16.0.1 cfg.cpp, const.h, network.cpp and wled.cpp.
+    This is an opt-in, version-bound migration, not a list of ignored drift paths.
+    Unsupported hardware/timers fail before upload; all other settings stay exact.
+    """
+    if info.get("ver") not in ("0.15.1", "0.15.3") or info.get("arch") != "esp32" or \
+            info.get("release") not in ("ESP32", "ESP32_Ethernet"):
+        raise ValueError("0.15-to-16.0.1 migration requires a 0.15.1/0.15.3 classic ESP32 fleet spare")
+    out = json.loads(json.dumps(before))
+    if out.get("timers", {}).get("ins") != []:
+        raise ValueError("timer migration has not been reviewed; expected no configured timers")
+    led = out["hw"]["led"]
+    if not led.get("ins") or any(bus.get("type") != 22 for bus in led["ins"]):
+        raise ValueError("migration has only been reviewed for WS281x RGB outputs")
+    for key in ("ledma", "ld", "prl"):
+        led.pop(key, None)  # obsolete global current/buffer/parallel flags
+    for bus in led["ins"]:
+        bus.setdefault("drv", 0)  # v16 defaults old outputs to RMT, even when prl was true
+        bus.setdefault("text", "")
+    for wifi in out["nw"]["ins"]:
+        wifi.setdefault("bssid", "")  # fillMAC2Str serializes an all-zero MAC as empty
+    remote = out["nw"].get("linked_remote")
+    if isinstance(remote, str):
+        out["nw"]["linked_remote"] = [remote]  # includes the legacy empty string
+    buttons = out["hw"]["btn"]["ins"]
+    unused = {"type": 0, "pin": [-1], "macros": [0, 0, 0]}
+    if any(button.get("pin", [-1])[0] < 0 and button != unused for button in buttons):
+        raise ValueError("unassigned button contains settings; review before migration")
+    out["hw"]["btn"]["ins"] = [b for b in buttons if b != unused]
+    out["hw"]["btn"]["max"] = 32  # compiled capacity (const.h), not a user setting
+    for key in ("mode", "fx", "pal"):
+        out["light"]["tr"].pop(key, None)  # v16 no longer serializes global transition switches
+    out["ota"].setdefault("same-subnet", True)
+    # These fleet environments enable DMX input; no pins are assigned by default.
+    dmx = out["if"]["live"]["dmx"]
+    for key, value in (("inputRxPin", -1), ("inputTxPin", -1), ("inputEnablePin", -1), ("dmxInputPort", 2)):
+        dmx.setdefault(key, value)
+    # initInterfaces() fills an unset Hue IP prefix from the connected interface.
+    # v16's /json/cfg reflects runtime state; 0.15 served the stored cfg instead.
+    hue = out["if"]["hue"]
+    if hue["ip"][0] == 0:
+        prefix = [int(x) for x in info["ip"].split(".")]
+        if len(prefix) != 4 or any(x < 0 or x > 255 for x in prefix):
+            raise ValueError("expected a valid source IPv4 address for Hue IP normalization")
+        hue["ip"][:3] = prefix[:3]
+    return out
+
+
 def cmd_flash(a):
     info0, cfg0, pre0 = get(a.host, "/json/info"), get(a.host, "/json/cfg"), readback(a.host, "/presets.json")
+    if a.mac and info0.get("mac", "").lower() != a.mac.replace(":", "").lower():
+        sys.exit("REFUSED: controller MAC does not match --mac")
+    expected_cfg = cfg0
+    if a.cfg_migration:
+        try:
+            expected_cfg = cfg_migrate_015_to_16(cfg0, info0)
+        except (ValueError, KeyError, IndexError, TypeError) as e:
+            sys.exit(f"REFUSED: {e}")
+        if a.release and a.release != info0.get("release"):
+            sys.exit("REFUSED: reviewed migration must retain the release name")
+        print("cfg migration: 0.15-to-16.0.1 (source-reviewed schema; all other settings remain strict)")
     state0 = get(a.host, "/json/state")
     snap = a.snapshot or os.path.join("captures", "flash", f"{a.host}-{int(time.time())}")
-    os.makedirs(snap, exist_ok=True)
+    os.makedirs(snap, mode=0o700, exist_ok=True)
     for name, data in (("info.json", json.dumps(info0, indent=1).encode()), ("cfg.json", json.dumps(cfg0, indent=1).encode()),
                        ("state.json", json.dumps(state0, indent=1).encode()), ("presets.json", pre0)):
-        open(os.path.join(snap, name), "wb").write(data)
+        with os.fdopen(os.open(os.path.join(snap, name), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "wb") as f:
+            f.write(data)
     print(f"{a.host} before: {info0['ver']} vid {info0['vid']} rel {info0.get('release')} up {info0['uptime']}s -> snapshot {snap}")
     cmd = ["curl", "-s", "-m", "300", "-F", f"update=@{a.firmware}", f"http://{a.host}/update"]
     if a.skip_validation:  # only when the release name changes on purpose; it guards against wrong-board images
@@ -993,6 +1055,10 @@ def cmd_flash(a):
         time.sleep(3)
     if info1 is None:
         sys.exit(f"{a.host} did not come back within {a.timeout}s -- stop, do not flash further lamps")
+    if info1.get("mac") != info0.get("mac"):
+        sys.exit("REFUSED: a different controller answered after OTA; no state was restored")
+    if a.cfg_migration and (info1.get("ver") != "16.0.1" or info1.get("release") != info0.get("release")):
+        sys.exit("firmware does not match the reviewed 16.0.1 migration; stop")
     time.sleep(5)  # first boot after a flash rewrites cfg.json; read it after that settles
     cfg1, pre1 = get(a.host, "/json/cfg"), readback(a.host, "/presets.json")
     # A reboot lands on the boot preset; put back what the lamp was showing.
@@ -1004,10 +1070,11 @@ def cmd_flash(a):
     print("  state:", "restored" if same else "DIFFERS from before the flash")
     print(f"{a.host} after:  {info1['ver']} vid {info1['vid']} rel {info1.get('release')} up {info1['uptime']}s "
           f"usermods {sorted(info1.get('u', {}))}")
-    drift = cfg_drift(cfg0, cfg1)
+    drift = cfg_drift(expected_cfg, cfg1)
     for d in drift:
         print("  cfg drift:", d)
-    print("  cfg:", "unchanged (vid / new usermod block only)" if not drift else "CHANGED",
+    clean = "matches reviewed migration" if a.cfg_migration else "unchanged (vid / new usermod block only)"
+    print("  cfg:", clean if not drift else "CHANGED",
           "| presets.json:", "byte-identical" if pre1 == pre0 else "CHANGED")
     if a.release and info1.get("release") != a.release:
         sys.exit(f"release is {info1.get('release')!r}, expected {a.release!r}")
@@ -1057,6 +1124,8 @@ def main():
     s = sub.add_parser("flash", help="OTA a firmware image, wait for the reboot, prove cfg and presets unchanged")
     s.add_argument("--host", required=True); s.add_argument("--firmware", required=True, help="firmware.bin")
     s.add_argument("--release", help="release name the lamp must report afterwards")
+    s.add_argument("--mac", help="refuse upload unless the controller has this Wi-Fi MAC")
+    s.add_argument("--cfg-migration", choices=["0.15-to-16.0.1"], help="verify the source-reviewed 0.15.1/0.15.3 ESP32 spare migration; all other cfg fields stay strict")
     s.add_argument("--skip-validation", action="store_true", help="send skipValidation=1 (the release name changes on purpose)")
     s.add_argument("--snapshot", help="where to keep the before-state (default captures/flash/<host>-<time>)")
     s.add_argument("--timeout", type=int, default=150, help="seconds to wait for the lamp to come back"); s.set_defaults(fn=cmd_flash)
