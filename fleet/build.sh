@@ -13,6 +13,18 @@ envs=("$@")
 tag=$(git -C "$wled" describe --tags --exact-match 2>/dev/null || true)
 [ "$tag" = v16.0.1 ] || { echo "WLED checkout is at '${tag:-untagged}', expected v16.0.1" >&2; exit 1; }
 
+# Pending upstream fixes belong to every fleet build. Accept an already-applied
+# patch on a repeat build; fail before compiling if the source no longer matches.
+for patch in "$repo"/fleet/patches/*.patch; do
+  if git -C "$wled" apply --reverse --check "$patch" 2>/dev/null; then
+    echo "already applied: $(basename "$patch")"
+  else
+    git -C "$wled" apply --check "$patch"
+    git -C "$wled" apply "$patch"
+    echo "applied: $(basename "$patch")"
+  fi
+done
+
 ln -sfn "$repo/glorb/usermod/glorb_fx" "$wled/usermods/glorb_fx"
 ln -sfn "$repo/usermods/syslog_events" "$wled/usermods/syslog_events"
 cat "$repo/glorb/usermod/glorb_fx/platformio_override.ini" "$repo/fleet/platformio_override.ini" \
