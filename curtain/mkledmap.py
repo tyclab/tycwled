@@ -2,8 +2,8 @@
 """Generate curtain/ledmap.json: the H70B5 curtain on a 60 x 40 grid in true proportions.
 
 LEDs 0-519 are the right panel (seen from the room), 520-1039 the middle, 1040-1559 the left;
-each is 20 vertical strings of 26, top first, non-serpentine, string 0 on the panel's right.
-`--check` verifies the committed file instead of writing it (make lint).
+each is 20 vertical strings of 26, top first, non-serpentine, string 0 on the panel's right,
+all three panels level. `--check` verifies the committed file instead of writing it (make lint).
 """
 import json
 import os
@@ -13,10 +13,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "ledmap.json")
 
 PANELS, STRINGS, LEDS = 3, 20, 26
-WIDTH = PANELS * STRINGS
-# vertical LED pitch over string pitch (photo: 1.4-1.6), so shapes keep true proportions
+# the LEDs end on row 38; 40 rows keep the lightshow fixture's 60 x 40 grid
+WIDTH, HEIGHT = PANELS * STRINGS, 40
+# vertical LED pitch over string pitch (photo: 1.4-1.6): rows land on 0, 2, 3, 5, 6, ...
 ROW_PITCH = 1.5
-MIDDLE_DROP = 1.0
 
 
 def build():
@@ -25,19 +25,18 @@ def build():
         panel, k = divmod(led, STRINGS * LEDS)
         string, row = divmod(k, LEDS)
         x = (PANELS - 1 - panel) * STRINGS + (STRINGS - 1 - string)
-        y = int(ROW_PITCH * row + (MIDDLE_DROP if panel == 1 else 0) + 0.5)
-        if (x, y) in cells:
-            raise SystemExit(f"LEDs {cells[(x, y)]} and {led} both land on cell {x},{y}")
+        y = int(ROW_PITCH * row + 0.5)
+        if y >= HEIGHT or (x, y) in cells:
+            raise SystemExit(f"LED {led} on cell {x},{y}: outside the grid or taken")
         cells[(x, y)] = led
     return cells
 
 
 def render(cells):
-    height = max(y for _, y in cells) + 1
-    grid = [cells.get((x, y), -1) for y in range(height) for x in range(WIDTH)]
+    grid = [cells.get((x, y), -1) for y in range(HEIGHT) for x in range(WIDTH)]
     # compact: WLED 16 scans the raw file for the exact bytes "map":[
-    text = json.dumps({"n": "curtain", "width": WIDTH, "height": height, "map": grid}, separators=(",", ":"))
-    return text, f"{WIDTH} x {height}, {len(cells)} of {len(grid)} cells mapped"
+    text = json.dumps({"n": "curtain", "width": WIDTH, "height": HEIGHT, "map": grid}, separators=(",", ":"))
+    return text, f"{WIDTH} x {HEIGHT}, {len(cells)} of {len(grid)} cells mapped"
 
 
 def main():
