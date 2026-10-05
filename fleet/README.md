@@ -148,17 +148,43 @@ The curtain boots off at brightness 16 and ignores incoming WLED sync. Realtime 
 from the lightshow) runs at full brightness (`if.live.maxbri`) through the ledmap
 (`if.live.rlm`).
 
+### Geometry
+
+On the floor plan the window front is 2.78 m: left pane ≈ 0.86 m, balcony door ≈ 1.10 m
+frame to frame, right pane ≈ 0.82 m. The left panel extends ≈ 0.4 m past the window and the
+right panel ≈ 0.25 m, both behind the sheers.
+
+The string positions are measured from a straight-on photo with every 5th string and each
+panel's last string lit (`LIT` in [`mkledmap.py`](../curtain/mkledmap.py), px at 4000 px
+wide); the strings between are interpolated. String spacing relative to the door panel:
+
+| Part                                   | Spacing                                            |
+| -------------------------------------- | -------------------------------------------------- |
+| left panel, outer half (strings 0–10)  | ≈ 1.5×, near Govee's 7.5 cm, behind the sheer      |
+| left panel, inner half (strings 10–19) | ≈ 1.1×                                             |
+| middle (door) panel (strings 20–39)    | 1.0×, ≈ 5.1 cm (the door is 1.10 m frame to frame) |
+| right panel (strings 40–59)            | ≈ 1.05–1.1×                                        |
+| panel joins (19–20, 39–40)             | ≈ 1.3×                                             |
+
+The LED rows are 53 px apart in every panel, 1.66× the door-panel spacing (≈ 8.5 cm); the
+string heights are as built.
+
 ### Ledmap
 
-The ledmap is a 60 × 40 virtual grid in true proportions. The vertical LED pitch is 1.5 ×
-the string pitch (1.4–1.6 measured from a straight-on photo; the strings hang closer together
-than Govee spaced them, at their original heights). All three panels sit level in the map;
-the middle panel hangs about half a row low at its left join and level at its right join. On
-the integer grid the 1.5 pitch puts every panel's LED rows on grid rows 0, 2, 3, 5, 6, … 38,
-so every third grid row is empty and a line one row thin can fall into a gap. Row 39 has no
-LEDs either; it keeps the grid at the 60 × 40 of the lightshow's fixture. WLED reports a
-60 × 40 matrix of 2400 cells, 1560 of them mapped, and an outline 16 strings wide and 16 rows
-tall photographs square.
+The ledmap is a 68 × 42 grid of square cells, one door-panel string spacing (32 px) each way,
+so a shape square on the grid is square on the curtain. The strings take columns left to
+right at their measured position, rounded, each at least one column past its neighbour. A
+column stays empty where the rounded positions skip one: every second gap in the left panel's
+outer half (1.4–1.6 spacings; columns 1, 4, 7, 10, 13), and where the wider spacing of the
+left panel's inner half and the right panel adds up to a whole column (23, 48, 60). The
+joins skip none. LED row r sits on grid row r × 53/32 rounded half up (0, 2, 3, 5, 7, 8, …
+41), so 16 of the 42 rows are empty. All three panels sit level. No two empty columns and no
+two empty rows are adjacent: content drawn with strokes at least 2 cells wide in both
+directions always reaches LEDs, a line 1 cell thin can fall into a gap. WLED reports a
+68 × 42 matrix of 2856 cells, 1560 of them mapped.
+
+The lightshow's `Curtain` fixture is patched from WLED's own report (`POST /api/wled/add`
+with `mode: "pixels"`), so it takes the grid size WLED reports: 68 × 42, 2856 cells.
 
 ```sh
 python3 wledlab.py install --host 10.27.4.221 --ledmap curtain/ledmap.json
@@ -170,11 +196,13 @@ it back byte for byte and reloads it. By hand:
 `POST /json/state` with `{"ledmap":0}`.
 
 Without a `ledmap.json` on the controller the cfg matrix applies: three 20 × 26 panels at
-x = 40 / 20 / 0 in output order, vertical, string 0 on the right, a 60 × 26 canvas without
-the row pitch.
+x = 40 / 20 / 0 in output order, vertical, string 0 on the right, a 60 × 26 canvas of
+evenly spaced strings and rows.
 
 ### Door
 
-In ledmap columns (0 is the leftmost string seen from inside the room), the door frame spans
+In strings counted from the left (0–59, seen from inside the room), the door frame spans
 about 19.5–40.5: string 20 hangs in front of its left side, strings 39 and 40 in front of its
-right side. The door glass spans about 20.5–38.5.
+right side. The door glass spans about 20.5–38.5. In ledmap columns string 20 sits on column
+26 and strings 39 and 40 on columns 45 and 46; the door panel's strings take one column each,
+26–45.
