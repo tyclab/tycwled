@@ -25,8 +25,8 @@
           "freq": 0,
           "drv": 0,
           "text": "",
-          "maxpwr": 4000,
-          "ledma": 15
+          "maxpwr": 2500,
+          "ledma": 30
         },
         {
           "start": 520,
@@ -41,8 +41,8 @@
           "freq": 0,
           "drv": 0,
           "text": "",
-          "maxpwr": 4000,
-          "ledma": 15
+          "maxpwr": 2500,
+          "ledma": 30
         },
         {
           "start": 1040,
@@ -57,8 +57,8 @@
           "freq": 0,
           "drv": 0,
           "text": "",
-          "maxpwr": 4000,
-          "ledma": 15
+          "maxpwr": 2500,
+          "ledma": 30
         }
       ],
       "matrix": {
