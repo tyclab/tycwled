@@ -15,6 +15,7 @@ lint: check-ledmaps check-palettes
 check-ledmaps:
 	@for f in glorb/*/ledmap.json curtain/ledmap.json; do grep -q '"map":\[' "$$f" || { echo "$$f: missing exact \"map\":[ — WLED 16 would ignore it"; exit 1; }; done; echo "ledmaps ok"
 	@python3 curtain/mkledmap.py --check
+	@if python3 -c 'import PIL' 2>/dev/null; then python3 curtain/meteor_gif.py --check; else uv run -q --with pillow python curtain/meteor_gif.py --check; fi
 # committed palettes must equal the generator output and respect WLED's 18-stop / 0..255 rules
 check-palettes:
 	@python3 glorb/mkpalettes.py --check

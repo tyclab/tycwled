@@ -238,3 +238,15 @@ the same for `/presets.json`). Rebuild the GIF with the tile removed from the SV
 `rsvg-convert -w 840 -h 840 -b black krake.svg -o krake.png` and
 `magick krake.png -trim +repage -filter Box -resize 46x40! -modulate 100,140 -level 0%,80% m.png`,
 `magick -size 68x42 xc:black m.png -geometry +13+1 -composite -strip tycstation.gif`.
+
+### Meteor shower
+
+[`meteor.gif`](../curtain/meteor.gif) is the Govee firmware's "Music: Meteor shower" look
+redrawn for the Image effect: a diagonal front sweeps a lattice of blue dots across the
+68 × 42 frame behind a white-cyan edge, the lattice winks out into drifting cyan and white
+sparkles, and the loop restarts (190 frames, 120 ms, about 23 s a loop).
+[`meteor_gif.py`](../curtain/meteor_gif.py) generates it (Pillow; `--check` verifies the
+committed file, run by `make lint`); the pace lives in the frames because the Image effect's
+speed slider only moves the loop between about 9 s and 12 s for a 9 s GIF. Preset 2 "Meteor
+shower" names the segment `meteor.gif` at brightness 100; Home Assistant's Evening look
+"Meteor shower" recalls it. Upload both like the logo.
