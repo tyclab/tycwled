@@ -4,9 +4,9 @@ from PIL import Image, ImageDraw
 gif, cap, out = sys.argv[1], sys.argv[2], sys.argv[3]; fxs=[int(x) for x in sys.argv[4:]]
 names=json.load(open(f"{cap}/../census-scored.json"))["effects"]
 W,H=34,42; SC=4; COLS=6; TW=W*SC; TH=H*SC; PAD=6; LAB=16
-im=Image.open(gif); n=im.n_frames; vid=[im.seek(i) or im.convert("RGB").copy() for i in range(0,n,max(1,n//COLS))][:COLS]
+im=Image.open(gif); n=im.n_frames; vid=[im.seek(i) or im.convert("RGB").crop((75,70,250,450)) for i in range(0,n,max(1,n//COLS))][:COLS]
 rows=1+len(fxs); sheet=Image.new("RGB",(COLS*(TW+PAD)+PAD, rows*(TH+PAD+LAB)+PAD),(24,24,24)); d=ImageDraw.Draw(sheet)
-y=PAD; d.text((PAD,y),"video 2026-10-05 04:42 (phone)",fill=(220,220,220)); y+=LAB
+y=PAD; d.text((PAD,y),"video 2026-10-05 04:42 (phone, window crop)",fill=(220,220,220)); y+=LAB
 for c,f in enumerate(vid):
     sheet.paste(f.resize((TW,TH)), (PAD+c*(TW+PAD), y))
 y+=TH+PAD

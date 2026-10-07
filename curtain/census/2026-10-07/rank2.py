@@ -3,6 +3,8 @@ import json, sys, os, colorsys
 CAP=sys.argv[1]; EFF=sys.argv[2]; N=int(sys.argv[3]) if len(sys.argv)>3 else 25
 SOLID=None
 V=dict(lit=0.73, chg=0.10, blue=0.89, white=0.0, sat=0.71, val=0.68)
+if len(sys.argv)>4:
+    V=json.load(open(sys.argv[4]))
 def hsv(c): return colorsys.rgb_to_hsv(int(c[:2],16)/255,int(c[2:4],16)/255,int(c[4:],16)/255)
 rows=[json.loads(l) for l in open(EFF)]
 res={}
