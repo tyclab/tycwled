@@ -1,0 +1,79 @@
+{
+  "id": {
+    "name": "Led Strip Couch",
+    "mdns": "wled-couch",
+    "inv": "Light"
+  },
+  "def": {
+    "ps": 2,
+    "on": false,
+    "bri": 30
+  },
+  "um": {
+    "Syslog": {
+      "hostname": "wled-couch"
+    },
+    "AudioReactive": {
+      "add-palettes": true,
+      "dynamics": {
+        "limiter": false
+      }
+    }
+  },
+  "if": {
+    "sync": {
+      "recv": {
+        "bri": true,
+        "col": true,
+        "fx": true,
+        "pal": true,
+        "grp": 1,
+        "seg": false,
+        "sb": false
+      },
+      "send": {
+        "hue": false
+      }
+    },
+    "live": {
+      "maxbri": true,
+      "rlm": true
+    },
+    "nodes": {
+      "list": false,
+      "bcast": false
+    }
+  },
+  "hw": {
+    "led": {
+      "total": 300,
+      "maxpwr": 8000,
+      "fps": 42,
+      "ins": [
+        {
+          "start": 0,
+          "len": 300,
+          "pin": [16],
+          "order": 0,
+          "rev": false,
+          "skip": 0,
+          "type": 22,
+          "ref": false,
+          "rgbwm": 0,
+          "freq": 0,
+          "maxpwr": 0,
+          "ledma": 55,
+          "drv": 0,
+          "text": ""
+        }
+      ]
+    }
+  },
+  "nw": {
+    "espnow": true,
+    "linked_remote": ["704bcac8d198", "704bcaca4b78"]
+  },
+  "ota": {
+    "same-subnet": false
+  }
+}

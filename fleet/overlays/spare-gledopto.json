@@ -1,0 +1,91 @@
+{
+  "id": {
+    "name": "WLED Spare",
+    "mdns": "tycledspare"
+  },
+  "def": {
+    "ps": 0,
+    "on": true,
+    "bri": 128
+  },
+  "hw": {
+    "led": {
+      "total": 120,
+      "maxpwr": 850,
+      "ins": [
+        {
+          "start": 0,
+          "len": 30,
+          "pin": [16],
+          "order": 0,
+          "rev": false,
+          "skip": 0,
+          "type": 22,
+          "ref": false,
+          "rgbwm": 0,
+          "freq": 0,
+          "maxpwr": 250,
+          "ledma": 55,
+          "drv": 0,
+          "text": ""
+        },
+        {
+          "start": 30,
+          "len": 30,
+          "pin": [12],
+          "order": 0,
+          "rev": false,
+          "skip": 0,
+          "type": 22,
+          "ref": false,
+          "rgbwm": 0,
+          "freq": 0,
+          "maxpwr": 250,
+          "ledma": 55,
+          "drv": 0,
+          "text": ""
+        },
+        {
+          "start": 60,
+          "len": 30,
+          "pin": [4],
+          "order": 0,
+          "rev": false,
+          "skip": 0,
+          "type": 22,
+          "ref": false,
+          "rgbwm": 0,
+          "freq": 0,
+          "maxpwr": 250,
+          "ledma": 55,
+          "drv": 0,
+          "text": ""
+        },
+        {
+          "start": 90,
+          "len": 30,
+          "pin": [2],
+          "order": 0,
+          "rev": false,
+          "skip": 0,
+          "type": 22,
+          "ref": false,
+          "rgbwm": 0,
+          "freq": 0,
+          "maxpwr": 250,
+          "ledma": 55,
+          "drv": 0,
+          "text": ""
+        }
+      ]
+    }
+  },
+  "ota": {
+    "same-subnet": false
+  },
+  "um": {
+    "Syslog": {
+      "hostname": "tycledspare"
+    }
+  }
+}
