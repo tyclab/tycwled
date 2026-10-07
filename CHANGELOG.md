@@ -35,6 +35,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 - Curtain: the TycStation logo GIF and the controller's presets (preset 1 "TycStation",
   the Image effect on the segment named `tycstation.gif`).
+- Curtain: presets 2 and 3 "PS Fuzzy Noise", the operator's pick of 2026-10-07 (palette
+  Ocean, Speed 62, Particles 26, Bounce 104, Friction 67, Scale 5, Collide on, brightness
+  28). hatyc's Evening look of that name recalls preset 3.
 
 - `usermods/syslog_events/`: boot with reset reason and the previous run's last
   breadcrumb, a panic-hook crash record with backtrace, Wi-Fi loss/reconnect with
