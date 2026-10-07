@@ -12,6 +12,12 @@
   "um": {
     "Syslog": {
       "hostname": "wled-couch"
+    },
+    "AudioReactive": {
+      "add-palettes": true,
+      "dynamics": {
+        "limiter": false
+      }
     }
   },
   "if": {
@@ -24,11 +30,18 @@
         "grp": 1,
         "seg": false,
         "sb": false
+      },
+      "send": {
+        "hue": false
       }
     },
     "live": {
       "maxbri": true,
       "rlm": true
+    },
+    "nodes": {
+      "list": false,
+      "bcast": false
     }
   },
   "hw": {
@@ -55,5 +68,12 @@
         }
       ]
     }
+  },
+  "nw": {
+    "espnow": true,
+    "linked_remote": ["704bcac8d198", "704bcaca4b78"]
+  },
+  "ota": {
+    "same-subnet": false
   }
 }
