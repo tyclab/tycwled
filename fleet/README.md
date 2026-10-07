@@ -1,18 +1,19 @@
 # fleet — the firmware our own lamps run
 
-| Lamp            | IP          | Syslog host (Loki `host`)                                           | Hardware                                                             | Env              |
-| --------------- | ----------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------------- |
-| Led Strip Couch | 10.27.4.58  | `wled-couch` (`um.Syslog.hostname`; its mDNS name is `wled-1271e8`) | ESP32, 4 MB flash, 300 LEDs on GPIO 2                                | `fleet_esp32`    |
-| Moon            | 10.27.4.59  | `wled-moon`                                                         | ESP32, 8 MB flash in the 4 MB layout, 8×8 on GPIO 18                 | `fleet_esp32`    |
-| GLORB           | 10.27.4.60  | `wled-glorb-links`                                                  | ESP32-S3, 8 MB                                                       | `fleet_glorb`    |
-| GLORB           | 10.27.4.61  | `wled-glorb-rechts`                                                 | ESP32-S3, 8 MB                                                       | `fleet_glorb`    |
-| Curtain Bench   | 10.27.4.221 | `tyccurtain`                                                        | Gledopto GL-C-618WL, ESP32, three 520-pixel outputs on GPIOs 16/12/4 | `fleet_gledopto` |
-| WLED Spare      | 10.27.4.222 | `tycledspare`                                                       | DOMRAEM DOM-WLE-ADM, ESP32, two outputs on GPIOs 16/2                | `fleet_esp32`    |
+| Lamp            | IP          | Syslog host (Loki `host`)         | Hardware                                                                                  | Env              |
+| --------------- | ----------- | --------------------------------- | ----------------------------------------------------------------------------------------- | ---------------- |
+| Led Strip Couch | 10.27.4.58  | `wled-couch` (also its mDNS name) | DOMRAEM DOM-WLE-ADM `04:b2:47:85:c8:14`, 300 LEDs on GPIO 16 (output 1)                   | `fleet_esp32`    |
+| Moon            | 10.27.4.59  | `wled-moon`                       | ESP32, 8 MB flash in the 4 MB layout, 8×8 on GPIO 18                                      | `fleet_esp32`    |
+| GLORB           | 10.27.4.60  | `wled-glorb-links`                | ESP32-S3, 8 MB                                                                            | `fleet_glorb`    |
+| GLORB           | 10.27.4.61  | `wled-glorb-rechts`               | ESP32-S3, 8 MB                                                                            | `fleet_glorb`    |
+| Curtain Bench   | 10.27.4.221 | `tyccurtain`                      | Gledopto GL-C-618WL (white) `70:4b:ca:5b:bd:d0`, three 520-pixel outputs on GPIOs 16/12/4 | `fleet_gledopto` |
+| WLED Spare      | 10.27.4.222 | `tycledspare`                     | Gledopto GL-C-618WL (black) `70:4b:ca:48:91:c8`, four 30-pixel outputs on GPIOs 16/12/4/2 | `fleet_gledopto` |
 
 All envs are WLED v16.0.1 plus [`syslog_events`](../usermods/syslog_events/),
 sending to our collector at 10.27.2.41:1515.
 
-The curtain and spare run build 2610050 with #5885. Older lamps are not automatically
+The curtain, the couch and the spare run build 2610050 with #5885; the overlays below rely on its
+partial-config fix, so apply them only to that build. Older lamps are not automatically
 updated by rebuilding here.
 
 Rebuilding now also applies [`patches/5885-partial-config.patch`](patches/5885-partial-config.patch),
@@ -33,13 +34,14 @@ Remove it only when the fleet's pinned release includes the fix.
   type, relay polarity and microphone settings remain device configuration. Gledopto
   Ethernet support is already in v16.0.1; no vendor firmware overlay is needed.
   The curtain runs on Wi-Fi. The `ESP32_Ethernet` build supports Wi-Fi too;
-  Ethernet cabling is optional. Preserve the Wi-Fi settings and use Wi-Fi MAC
-  `70:4b:ca:48:91:c8` for the host reservation.
+  Ethernet cabling is optional. Preserve the Wi-Fi settings and use the controller's Wi-Fi
+  MAC for the host reservation (the curtain's is `70:4b:ca:5b:bd:d0` since 2026-10-07).
   Build it explicitly with `fleet/build.sh ../WLED fleet_gledopto`.
 
 The DOMRAEM DOM-WLE-ADM uses `fleet_esp32`, retaining its `ESP32` release name and
-its own microphone, relay and output configuration. Its fleet identity and central
-OTA access are in [`domraem-spare.json`](domraem-spare.json).
+its own microphone, relay and output configuration. As the couch controller its identity,
+output, limits, remotes and central OTA access are in
+[`overlays/couch-domraem.json`](overlays/couch-domraem.json).
 
 Pin, LED and mic settings live in each lamp's cfg.json, not in the build. OTA retains
 the filesystem, but a new WLED version can migrate its configuration schema on boot.
@@ -86,16 +88,47 @@ access. Neither GPIO changes nor lost microphone, Wi-Fi or preset settings are i
 The fleet config overlays then explicitly retain cross-subnet OTA access for updates
 from the management network, matching the existing fleet.
 
-Both spares passed this migration and retained byte-identical presets. The Gledopto
+The Gledopto and the DOMRAEM, both spares at the time, passed this migration and retained
+byte-identical presets. The Gledopto
 was verified against its saved before/after snapshots after the initial strict check
 identified the capacity/default/runtime-format differences above. Hardware preserved:
-Gledopto relay 18 (not inverted), PDM mic 32/15; DOMRAEM relay 12 (not inverted),
-digital mic 26/5/21. Image hashes (build 2610050):
+Gledopto relay 18 and DOMRAEM relay 12, both cfg `rev: false`, which is the ticked Invert box
+(WLED loads the key as the opposite of its relay mode; the GL-C-618WL manual prescribes Invert);
+Gledopto PDM mic 32/15, DOMRAEM digital mic 26/5/21. Image hashes (build 2610050; the second Gledopto
+image is the 2026-10-07 rebuild at the same stamp, flashed to the white controller):
 
 ```text
-35179a8e089edfccde25703b53e25f2748d36b54c00ec25fd9877e56d098380e  fleet_gledopto.bin
+35179a8e089edfccde25703b53e25f2748d36b54c00ec25fd9877e56d098380e  fleet_gledopto.bin (2026-10-05)
+895bbaf45f50a8912f2c607661b5157cdcc9b50a8a8e03111f2f6dc94de91616  fleet_gledopto.bin (2026-10-07 rebuild)
 be0e2a5b532bc03f44e31bc22959a15418ce409b0c59e8fcc079f6a115b3a17b  fleet_esp32.bin
 ```
+
+### Controller swap, 2026-10-07
+
+The white GL-C-618WL took over the curtain: flashed from stock 0.15.3 with
+`wledlab.py flash --cfg-migration 0.15-to-16.0.1`, then the first controller's `/json/cfg`
+(outputs, matrix, power limits, Ethernet off, live input, sync, OTA, syslog name), `ledmap.json`,
+`presets.json`, `tycstation.gif` and `pftools.json` were installed byte-exact; the only keys that
+differ from the black one afterwards are the MQTT client id and topic, which WLED derives from
+the MAC. The black GL-C-618WL became the spare: [`overlays/spare-gledopto.json`](overlays/spare-gledopto.json)
+holds its four 30-pixel outputs and identity; switching 2D off (`/settings/2D`, which drops the
+matrix) and deleting `ledmap.json` and `tycstation.gif` are manual steps an overlay cannot express.
+The DOMRAEM became the couch controller: [`overlays/couch-domraem.json`](overlays/couch-domraem.json)
+holds every key the swap changed on it (identity, output 1 on GPIO 16, limits, ESP-NOW remotes,
+node and sync settings, AudioReactive options), checked key by key against the live controller;
+[`overlays/couch-presets.json`](overlays/couch-presets.json) are the couch's presets. The strip
+moved from the old ESP32's GPIO 2 to the DOMRAEM's output 1. The reservations moved with the roles in tycnetwork !998. Full
+pre-swap file sets of all four controllers are kept outside git in
+`~/.local/share/tycwled/backups/2026-10-07-swap/` (they hold no Wi-Fi secrets; WLED keeps
+those in `wsec.json`, which it never serves). The old couch ESP32 (`08:d1:f9:12:71:e8`) is
+retired for good: on the couch strip and its 8 A supply it logged a brownout reset 6 s into white at
+brightness 128 (and ten brownout resets on 6 and 7 October), while the DOMRAEM on the same strip
+and supply did not reset during white stepped up to brightness 255 nor during a 30 s strobe at 255
+(uptime polled every 2 s). The DOMRAEM is the permanent couch controller. Its per-LED current is
+the 5 V model (`ledma` 55) with an 8 A global limit, the supply's rating: WLED estimates full white
+at 16.8 A and scales it to about 120/255. Operator, 2026-10-07: at this setting the far third no
+longer shows the yellow-green cast it had at full white under the WS2815 model (`ledma` 255,
+12 mA per LED, where the cap never engaged), and raising the limit brings the cast back.
 
 ## Curtain
 
