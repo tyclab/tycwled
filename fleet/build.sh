@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Build our lamps' firmware into fleet/out/<env>.bin.
 # usage: fleet/build.sh <WLED checkout at v16.0.1> [env ...]   (default: fleet_esp32 fleet_glorb)
-# Needs pio and node on PATH, e.g. nix shell nixpkgs#platformio-core nixpkgs#nodejs --command ...
 set -euo pipefail
 repo=$(cd "$(dirname "$0")/.." && pwd)
 wled=$(cd "${1:?usage: fleet/build.sh <WLED v16.0.1 checkout> [env ...]}" && pwd)

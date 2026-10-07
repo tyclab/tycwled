@@ -5,6 +5,21 @@ the factory firmware. Made for our own two lamps, published so other GLORB
 owners can do the same, check our numbers on their lamps, and improve on them.
 Open an issue with what you see, or a pull request with what you changed.
 
+## Process
+
+```mermaid
+flowchart LR
+    Factory[Factory files and disassembly] --> Model[Prove mechanism offline]
+    Model --> Port[Usermod and verbatim palettes]
+    Port --> Checks[Offline tests and generated-file checks]
+    Checks --> Build[Build WLED and flash target]
+    Build --> Install[Install and read back configuration]
+    Install --> Verify[Compare with factory lamp]
+    Verify --> Evidence[Save acceptance evidence]
+```
+
+Repository working rules: [AGENTS.md](AGENTS.md).
+
 ## What this is now
 
 The GLORB ships a closed fork of WLED 0.14.4. Its twelve factory presets do not
@@ -150,7 +165,7 @@ Two measurement rules learned the hard way:
   `presets.json`, the six palettes `mkpalettes.py` emits, and `cfg-overrides.json`.
 - `usermods/syslog_events/` — WLED events (boot and crash reason, Wi-Fi, heap,
   OTA, errors) as RFC3164 syslog, for any ESP32 WLED 16 build.
-- `fleet/` — the builds our own four lamps run, and how they are flashed
+- `fleet/` — the builds our fleet runs, and how they are flashed
   (`wledlab.py flash`).
 
 ## GLORB facts worth not rediscovering

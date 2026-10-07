@@ -1,12 +1,10 @@
 .PHONY: install-hooks lint check-ledmaps check-palettes test verify
 
-# One-time per clone — installs the pre-commit framework hooks.
 install-hooks:
 	@command -v pre-commit >/dev/null 2>&1 || { echo "Error: pre-commit not installed (pip install pre-commit)."; exit 1; }
 	pre-commit install
 	@echo "pre-commit hooks installed. Run 'make lint' to check the whole tree."
 
-# The whole gate: pre-commit suite over the tree plus the repo's own checks.
 lint: check-ledmaps check-palettes
 	pre-commit run --all-files
 
@@ -19,11 +17,9 @@ check-ledmaps:
 check-palettes:
 	@python3 glorb/mkpalettes.py --check
 
-# Offline tests: gate math, preset/palette invariants, capture handling. Seconds.
 test:
 	python3 -m unittest discover -s tests -v
 
-# make verify REF=<factory lamp> TARGET=<ported lamp>
 REF ?=
 TARGET ?=
 # acceptance check against the lamps: current ratio within 15 % of the factory lamp plus the structural criteria (see README, Checks)
