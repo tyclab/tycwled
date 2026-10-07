@@ -115,7 +115,12 @@ the DOMRAEM's output 1, GPIO 16). The reservations moved with the roles in tycne
 pre-swap file sets of all four controllers are kept outside git in
 `~/.local/share/tycwled/backups/2026-10-07-swap/` (they hold no Wi-Fi secrets; WLED keeps
 those in `wsec.json`, which it never serves). The old couch ESP32 (`08:d1:f9:12:71:e8`) is
-unassigned.
+retired for good: on the couch strip and its 8 A supply it reset with a brownout at half-brightness
+white (and logged ten brownout resets on 6 and 7 October), while the DOMRAEM on the same strip and
+supply held static white up to full brightness and a 30 s full-brightness strobe. The DOMRAEM is the
+permanent couch controller, at a 6 A global limit. Its per-LED current is the WS2815 model the
+couch always ran with (`ledma` 255, 12 mA per LED), so WLED's estimate tops out near 4 A at full
+white and the 6 A cap does not engage.
 
 ## Curtain
 
