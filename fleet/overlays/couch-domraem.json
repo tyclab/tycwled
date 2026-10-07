@@ -1,0 +1,44 @@
+{
+  "id": { "name": "Led Strip Couch", "mdns": "wled-couch", "inv": "Light" },
+  "def": { "ps": 2, "on": false, "bri": 30 },
+  "um": { "Syslog": { "hostname": "wled-couch" } },
+  "if": {
+    "sync": {
+      "recv": {
+        "bri": true,
+        "col": true,
+        "fx": true,
+        "pal": true,
+        "grp": 1,
+        "seg": false,
+        "sb": false
+      }
+    },
+    "live": { "maxbri": true, "rlm": true }
+  },
+  "hw": {
+    "led": {
+      "total": 300,
+      "maxpwr": 6000,
+      "fps": 42,
+      "ins": [
+        {
+          "start": 0,
+          "len": 300,
+          "pin": [16],
+          "order": 0,
+          "rev": false,
+          "skip": 0,
+          "type": 22,
+          "ref": false,
+          "rgbwm": 0,
+          "freq": 0,
+          "maxpwr": 0,
+          "ledma": 255,
+          "drv": 0,
+          "text": ""
+        }
+      ]
+    }
+  }
+}

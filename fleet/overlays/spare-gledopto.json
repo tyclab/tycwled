@@ -1,0 +1,5 @@
+{
+  "id": { "name": "WLED Spare", "mdns": "tycledspare" },
+  "def": { "ps": 0, "on": false, "bri": 16 },
+  "um": { "Syslog": { "hostname": "tycledspare" } }
+}
