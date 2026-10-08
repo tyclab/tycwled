@@ -6,10 +6,8 @@
 // adaptations of stock WLED 0.14.4 (MIT) effects by Stepko/ldirko/Elliott
 // Kember/Andrew Tuline; slider layouts are verbatim from the fork binary.
 //
-// The fork's check1 "Sound Reactive" branches (Colorwaves, Running) are
-// implemented from the same disassembly, so audioreactive must be built in,
-// though every factory preset ships with the toggle off. Every constant and
-// argument position is now pinned against the disassembly; no NOTE-MED remain.
+// Colorwaves/Running Sound Reactive branches require audioreactive, even though
+// factory presets ship with the toggle off. Constants are pinned to disassembly.
 
 #define PALETTE_SOLID_WRAP (paletteBlend == 1 || paletteBlend == 3)
 
@@ -34,15 +32,8 @@ static inline uint16_t glorb_triwave16(uint16_t in) {
   return (in & 0x8000) ? (uint16_t)~v : v;
 }
 
-// ---- the fork's helper stack ---------------------------------------------
-// The fork is WLED 0.14.4 and calls FastLED's helpers. WLED 16 replaced all of
-// them with its own, and the replacements are not bit-identical: sin8_t differs
-// from FastLED's sin8 by up to 5/255, and WLED 16 dropped FastLED's "+1"
-// rounding from every scale operation, so blur and fade lose energy the fork
-// keeps. Those differences are small per frame and compound badly inside the
-// fade/inject/blur feedback loops. WLED 16 ships no FastLED trig at all, so the
-// originals are reproduced here and used in place of the WLED spellings.
-// Callee identifications and the tables are in NOTES.md section 12.
+// WLED 16 changed FastLED trig and +1 rounding. Preserve the 0.14.4 helpers:
+// small per-frame differences compound in fade/blur loops. See NOTES.md section 12.
 
 // FastLED sin8_C — table confirmed at DROM 0x3c167ab8 in the fork image
 static uint8_t glorb_sin8(uint8_t theta) {
@@ -113,28 +104,15 @@ static inline uint32_t glorb_color_blend(uint32_t c1, uint32_t c2, uint8_t blend
                 (B(c1) * inv + B(c2) * blend) >> 8, (W(c1) * inv + W(c2) * blend) >> 8);
 }
 
-// FastLED nscale8x3 — the "+1" again
 static inline uint32_t glorb_nscale8(uint32_t c, uint8_t s) {
   const uint16_t sc = (uint16_t)s + 1;
   return RGBW32((R(c) * sc) >> 8, (G(c) * sc) >> 8, (B(c) * sc) >> 8, (W(c) * sc) >> 8);
 }
 
-// The fork never gives an unmapped raster cell any storage: 0.14.4 routes every
-// effect-side pixel access through the ledmap at once (WS2812FX::setPixelColor:
-// i = customMappingTable[i]; if (i >= _length) return; getPixelColor likewise
-// returns 0), and the GLORB ledmap sends 40 of the 120 raster cells to -1.
-// Writes to those cells vanish and reads come back black, so blur loses every
-// bit of energy that seeps into a gap. WLED 16 renders a segment into its own
-// full buffer and applies the ledmap only at show time, so the same 40 cells
-// hold state, accumulate seep and feed it back to their neighbours -- measured
-// as 20-30% extra dim lit cells on the blurred effects (Black Hole lit_r
-// 1.29/1.21, Frizzles 1.11; the unblurred effects don't couple cells and were
-// unaffected) and reproduced exactly by the offline model (blackhole_model.py:
-// port semantics x1.21/x1.20 vs fork measurements, fork semantics x0.94/x0.99).
-// These wrappers restore the fork's semantics for every access the effects make.
-// Note: getMappedPixelIndex bypasses the mapping table while realtime mode is
-// active with realtimeRespectLedMaps off -- the hole topology (and the fork
-// comparison) only holds for normal effect rendering, which is all we gate.
+// Fork ledmap holes drop writes and read black immediately. WLED 16 maps only
+// at show time, which leaves feedback reservoirs in those 40 cells unless gated.
+// blackhole_model.py reproduces the extra energy. This covers normal rendering;
+// realtime mode can bypass mapping when realtimeRespectLedMaps is off.
 static bool glorb_cellMapped(int x, int y) {
   const Segment &seg = SEGMENT;
   const unsigned logical = (seg.startY + (unsigned)y) * Segment::maxWidth + seg.start + (unsigned)x;
@@ -150,12 +128,8 @@ static inline void glorb_addPixelColorXY(int x, int y, uint32_t c) {
   if (glorb_cellMapped(x, y)) SEGMENT.addPixelColorXY(x, y, c);
 }
 
-// 0.14.4 fadeToBlackBy(f) is nscale8(c, 255-f) with FastLED's rounding, keeping
-// (v*(256-f))>>8; WLED 16 keeps (v*(255-f))>>8. Delegating as fadeToBlackBy(f-1)
-// looks equivalent but breaks at f == 1, where WLED 16 treats 0 as "no fade at
-// all" -- and in a trail effect the difference between a slow decay and no decay
-// is not small: Black Hole's fade argument is custom2>>4, which is 1 on the
-// factory's preset 11, and delegating left its trails immortal (mean_r 1.72).
+// Preserve FastLED rounding. Delegating as fadeToBlackBy(f-1) fails at f=1:
+// WLED treats 0 as no fade, leaving Black Hole preset 11 with immortal trails.
 static void glorb_fadeToBlackBy(uint8_t fadeBy) {
   const uint8_t keep = 255 - fadeBy;
   const int cols = SEG_W;
