@@ -6,6 +6,7 @@ repos:
     rev: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e # frozen: v8.30.1
     hooks:
       # Scan content one file at a time; upstream git --staged sees nothing under --all-files.
+      # Several paths per call silently scan the whole tree. History is CI's gitleaks job.
       - id: gitleaks
         entry: sh -c 'printf "%s\0" "$@" | xargs -0 -n1 -P4 gitleaks dir --redact --verbose --no-banner --log-level error' --
         pass_filenames: true
