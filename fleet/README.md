@@ -36,7 +36,7 @@ Remove it only when the fleet's pinned release includes the fix.
   The curtain runs on Wi-Fi. The `ESP32_Ethernet` build supports Wi-Fi too;
   Ethernet cabling is optional. Preserve the Wi-Fi settings and use the controller's Wi-Fi
   MAC for the host reservation (the curtain's is `70:4b:ca:5b:bd:d0` since 2026-10-07).
-  Build it explicitly with `fleet/build.sh ../WLED fleet_gledopto`.
+  Build it explicitly with `fleet/build.sh ../WLED-v16.0.1 fleet_gledopto`.
 
 The DOMRAEM DOM-WLE-ADM uses `fleet_esp32`, retaining its `ESP32` release name and
 its own microphone, relay and output configuration. As the couch controller its identity,
@@ -49,9 +49,12 @@ the filesystem, but a new WLED version can migrate its configuration schema on b
 ## Build
 
 ```sh
-git clone --depth 1 --branch v16.0.1 https://github.com/wled/WLED.git ../WLED
-nix shell nixpkgs#platformio-core nixpkgs#nodejs --command fleet/build.sh ../WLED
+git clone --depth 1 --branch v16.0.1 https://github.com/wled/WLED.git ../WLED-v16.0.1
+nix shell nixpkgs#platformio-core nixpkgs#nodejs --command fleet/build.sh ../WLED-v16.0.1
 ```
+
+Keep this checkout apart from any WLED clone used for upstream work: build.sh refuses
+anything but the exact tag.
 
 This produces `fleet/out/{fleet_esp32,fleet_glorb}.{bin,elf}`. It is untracked. Keep the ELF of whatever is on the
 lamps: it decodes their crash lines. `WLED_VID=<vid>` rebuilds a given stamp.
