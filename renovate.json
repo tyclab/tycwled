@@ -19,6 +19,23 @@
       "depNameTemplate": "gitleaks/gitleaks",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "description": "The WLED release tag fleet/build.sh asserts before building the fleet firmware.",
+      "managerFilePatterns": ["/^fleet/build\\.sh$/"],
+      "matchStrings": [
+        "\\[ \"\\$tag\" = (?<currentValue>v\\d+\\.\\d+\\.\\d+) \\]"
+      ],
+      "depNameTemplate": "wled/WLED",
+      "datasourceTemplate": "github-tags"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "A WLED bump changes the firmware flashed to the lamps and the effect ids the fleet configs were checked against (glorb_fx), so it is reviewed and re-verified, never automerged.",
+      "matchDepNames": ["wled/WLED"],
+      "automerge": false
     }
   ]
 }
