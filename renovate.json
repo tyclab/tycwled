@@ -39,6 +39,16 @@
       ],
       "depNameTemplate": "wled/WLED",
       "datasourceTemplate": "github-tags"
+    },
+    {
+      "customType": "regex",
+      "description": "The Renovate release the config validator in CI runs; the app runs Renovate's latest, so this follows it.",
+      "managerFilePatterns": ["/^\\.github/workflows/ci\\.yml$/"],
+      "matchStrings": [
+        "--package renovate@(?<currentValue>\\d+\\.\\d+\\.\\d+) "
+      ],
+      "depNameTemplate": "renovate",
+      "datasourceTemplate": "npm"
     }
   ],
   "packageRules": [
