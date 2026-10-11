@@ -22,10 +22,20 @@
     },
     {
       "customType": "regex",
-      "description": "The WLED release tag fleet/build.sh asserts before building the fleet firmware.",
-      "managerFilePatterns": ["/^fleet/build\\.sh$/"],
+      "description": "The WLED release tag fleet/build.sh asserts before building the fleet firmware, and the checkout commands and paths that name it in build.sh and the READMEs: one MR moves every site.",
+      "managerFilePatterns": [
+        "/^fleet/build\\.sh$/",
+        "/^README\\.md$/",
+        "/^fleet/README\\.md$/",
+        "/^glorb/usermod/glorb_fx/README\\.md$/"
+      ],
       "matchStrings": [
-        "\\[ \"\\$tag\" = (?<currentValue>v\\d+\\.\\d+\\.\\d+) \\]"
+        "\\[ \"\\$tag\" = (?<currentValue>v\\d+\\.\\d+\\.\\d+) \\]",
+        "expected (?<currentValue>v\\d+\\.\\d+\\.\\d+)\"",
+        "<WLED checkout at (?<currentValue>v\\d+\\.\\d+\\.\\d+)>",
+        "<WLED (?<currentValue>v\\d+\\.\\d+\\.\\d+) checkout>",
+        "--branch (?<currentValue>v\\d+\\.\\d+\\.\\d+) https://github\\.com/wled/WLED\\.git",
+        "\\.\\./WLED-(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "wled/WLED",
       "datasourceTemplate": "github-tags"
