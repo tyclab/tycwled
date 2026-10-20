@@ -43,6 +43,9 @@ The format is based on [Keep a Changelog], and this project adheres to
   breadcrumb, a panic-hook crash record with backtrace, Wi-Fi loss/reconnect with
   RSSI and reason, heap-low crossings, OTA, WLED error codes and an hourly status
   line, as RFC3164 over UDP, rate-limited and kept off the LED output path.
+- `usermods/syslog_events/`: a `live override: <old> -> <new>` line on every change
+  of WLED's live override (`lor`), warning while set, naming the request path, and
+  `lor=` at the end of the status line: a lamp ignoring its live stream shows in Loki.
 - `curtain/`: configuration overlay and ledmap for the three-panel H70B5
   curtain on the Gledopto GL-C-618WL, with the generator `mkledmap.py`; `make lint`
   checks the committed map against it.

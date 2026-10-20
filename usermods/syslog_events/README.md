@@ -14,7 +14,8 @@ RFC3164 lines over UDP:
 | `heap: low …` / `heap: recovered …`                                                                 | warning / notice             | largest free block crosses `heap-low-kb` (4 KB hysteresis)          |
 | `ota: upload started …` / `ota: update failed or aborted …`                                         | notice / warning             | web `/update`                                                       |
 | `error: code=N (…) [requested ps=N]`                                                                | err                          | WLED `errorFlag` (missing preset, FS, JSON, RAM, heap-guard resets) |
-| `status: up=… heap=… blk=… minheap=… rssi=… fps=… on=… bri=… ps=… sent=… dropped=…`                 | info                         | every `heartbeat-min` (60)                                          |
+| `live override: <old> -> <new> (<mode>) <path>`                                                     | warning, notice when cleared | every change of WLED's live override (`lor`)                        |
+| `status: up=… heap=… blk=… minheap=… rssi=… fps=… on=… bri=… ps=… sent=… dropped=… lor=…`           | info                         | every `heartbeat-min` (60)                                          |
 | `syslog: dropped N lines`                                                                           | warning                      | after the queue overflowed                                          |
 
 The HOSTNAME is the mDNS name unless `hostname` is set: server names are free
@@ -57,6 +58,12 @@ does not survive power loss. After a power-on, only the reset reason is reported
   playlists, buttons and timers apply presets without one.
   `errorFlag` itself is cleared by the next `/json/state` read, so a busy UI can
   hide a code between two loop passes.
+- A live-override line names the path, not the client: `via websocket`
+  (the WLED web UI while its socket is open), `via HTTP JSON`, `via MQTT`,
+  `via preset` and so on for a JSON `lor`, taken from the JSON buffer's lock
+  holder within 2 s. `via HTTP API` is an `LO=` command (`/win`, MQTT or UDP
+  text API, IR, remote or preset macros); `after live data ended` is WLED
+  clearing "once" when the stream stops. The client IP is not available.
 - ArduinoOTA uploads block the loop and never call the usermod hook; they show
   up only as `reset=SW` on the next boot.
 - ESP32 family only.
