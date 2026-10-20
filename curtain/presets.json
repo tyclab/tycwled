@@ -3,7 +3,7 @@
   "1": {
     "on": true,
     "bri": 160,
-    "transition": 7,
+    "transition": 0,
     "bs": 0,
     "mainseg": 0,
     "seg": [
@@ -147,7 +147,7 @@
   "2": {
     "on": true,
     "bri": 28,
-    "transition": 7,
+    "transition": 0,
     "bs": 0,
     "mainseg": 0,
     "seg": [
@@ -291,7 +291,7 @@
   "3": {
     "on": true,
     "bri": 28,
-    "transition": 7,
+    "transition": 0,
     "bs": 0,
     "mainseg": 0,
     "seg": [
