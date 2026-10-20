@@ -3,8 +3,8 @@
  *
  * Boot (reset reason, the previous run's last breadcrumbs, the crash record if the panic
  * hook is built in), Wi-Fi connect/loss with RSSI, heap-low crossings, OTA start/failure,
- * WLED errorFlag codes, and an hourly status line so a log-quiet alert can tell a dead
- * lamp from a quiet one.
+ * WLED errorFlag codes, live-override changes, and an hourly status line so a log-quiet
+ * alert can tell a dead lamp from a quiet one.
  *
  * LED timing: loop() does O(1) work per pass, samples the heap every 5 s, and sends at most
  * one datagram per pass on a non-blocking socket, never while the bus is shifting pixels.
@@ -67,6 +67,9 @@ volatile uint8_t  otaEvent = 0;   // 1 = upload started, 2 = upload failed
 // presetToApply is file-static in WLED, so the id behind ERR_FS_PLOAD is only knowable for JSON requests.
 volatile int16_t  lastPresetReq = 0;
 volatile uint32_t lastPresetReqAt = 0;
+// The JSON request that carried "lor": its buffer-lock id names the path (websocket, HTTP, MQTT, preset ...).
+volatile uint8_t  lorReqSrc = 0;
+volatile uint32_t lorReqAt = 0;
 
 // Same caps as WLED's getFreeHeapSize(); ESP.getMinFreeHeap() counts more and reads above it.
 inline size_t minFreeHeap() { return heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT); }
@@ -109,6 +112,28 @@ const char *errName(uint8_t e) {
     case ERR_REBOOT_NEEDED:   return "reboot needed";
     case ERR_POWEROFF_NEEDED: return "power cycle needed";
     default:              return "unknown";
+  }
+}
+
+const char *lorName(uint8_t v) {
+  switch (v) {
+    case REALTIME_OVERRIDE_NONE: return "off";
+    case REALTIME_OVERRIDE_ONCE: return "until live data ends";
+    default:                     return "until reboot";
+  }
+}
+
+const char *lorPath(uint8_t lock) {
+  switch (lock) {
+    case JSON_LOCK_WS_RECEIVE:  return "via websocket";
+    case JSON_LOCK_SERVER:      return "via HTTP JSON";
+    case JSON_LOCK_MQTT:        return "via MQTT";
+    case JSON_LOCK_NOTIFY:      return "via UDP JSON";
+    case JSON_LOCK_PRESET_LOAD: return "via preset";
+    case JSON_LOCK_SERIAL:      return "via serial";
+    case JSON_LOCK_IR:          return "via IR";
+    case JSON_LOCK_REMOTE:      return "via remote";
+    default:                    return "via JSON";
   }
 }
 
@@ -176,7 +201,7 @@ class SyslogEvents : public Usermod {
   uint8_t tokens = BUCKET;
   uint32_t lastRefill = 0, lastSend = 0, lastSample = 0, lastBeat = 0, connectedAt = 0;
   bool firstConnect = true, reportConnect = false, heapLow = false, initDone = false;
-  uint8_t lastErr = ERR_NONE;
+  uint8_t lastErr = ERR_NONE, lastLor = REALTIME_OVERRIDE_NONE;
   size_t freeHeap = 0, maxBlock = 0;
   int32_t lastRssi = 0;
 
@@ -277,6 +302,16 @@ class SyslogEvents : public Usermod {
       lastPresetReq = 0;
       lastErr = e;
     }
+    uint8_t lor = realtimeOverride;
+    if (lor != lastLor && !jsonBufferLock) {  // a request still holding the buffer may not have named its path yet
+      uint8_t src = lorReqSrc;
+      const char *path = src && millis() - lorReqAt < 2000 ? lorPath(src)
+                       : lastLor == REALTIME_OVERRIDE_ONCE && !lor && !realtimeMode ? "after live data ended"
+                       : "via HTTP API";  // LO=: /win, MQTT/UDP text API, IR/remote/preset macros
+      post(lor ? 4 : 5, "live override: %u -> %u (%s) %s", lastLor, lor, lorName(lor), path);
+      lorReqSrc = 0;
+      lastLor = lor;
+    }
     uint8_t o = otaEvent;
     if (o) {
       otaEvent = 0;
@@ -300,8 +335,9 @@ class SyslogEvents : public Usermod {
     }
     if (beatMin && now - lastBeat >= beatMin * 60000UL) {
       lastBeat = now;
-      post(6, "status: up=%us heap=%u blk=%u minheap=%u rssi=%d fps=%u on=%d bri=%u ps=%u sent=%u dropped=%u",
-           (unsigned)(now / 1000), freeHeap, maxBlock, minFreeHeap(), lastRssi, strip.getFps(), bri > 0, bri, currentPreset, sent, dropped);
+      post(6, "status: up=%us heap=%u blk=%u minheap=%u rssi=%d fps=%u on=%d bri=%u ps=%u sent=%u dropped=%u lor=%u",
+           (unsigned)(now / 1000), freeHeap, maxBlock, minFreeHeap(), lastRssi, strip.getFps(), bri > 0, bri, currentPreset, sent, dropped,
+           realtimeOverride);
     }
   }
 
@@ -362,6 +398,7 @@ class SyslogEvents : public Usermod {
   void readFromJsonState(JsonObject &root) override {
     JsonVariant ps = root["ps"];
     if (ps.is<int>()) { lastPresetReq = ps.as<int>(); lastPresetReqAt = millis(); }  // "1~5~" cycling strings are not ids
+    if (!root["lor"].isNull()) { uint8_t l = jsonBufferLock; lorReqAt = millis(); lorReqSrc = l ? l : JSON_LOCK_UNKNOWN; }
   }
 
   void addToJsonInfo(JsonObject &root) override {
