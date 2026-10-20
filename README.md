@@ -164,7 +164,7 @@ Two measurement rules learned the hard way:
 - `glorb/wled16-port/` — what to upload: byte-exact `ledmap.json`, translated
   `presets.json`, the six palettes `mkpalettes.py` emits, and `cfg-overrides.json`.
 - `usermods/syslog_events/` — WLED events (boot and crash reason, Wi-Fi, heap,
-  OTA, errors) as RFC3164 syslog, for any ESP32 WLED 16 build.
+  OTA, errors, live override) as RFC3164 syslog, for any ESP32 WLED 16 build.
 - `fleet/` — the builds our fleet runs, and how they are flashed
   (`wledlab.py flash`).
 
