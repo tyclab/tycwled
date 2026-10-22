@@ -64,8 +64,8 @@ lamps: it decodes their crash lines. `WLED_VID=<vid>` rebuilds a given stamp.
 One lamp at a time, and stop if one does not come back:
 
 ```sh
-python3 wledlab.py flash --host 10.27.4.58 --firmware fleet/out/fleet_esp32.bin --release ESP32
-python3 wledlab.py flash --host 10.27.4.60 --firmware fleet/out/fleet_glorb.bin --release ESP32-S3_8MB_qspi
+python3 wledlab.py flash --host 10.27.4.58 --firmware fleet/out/fleet_esp32.bin --release ESP32 --credentials-file /path/to/private-couch.json
+python3 wledlab.py flash --host 10.27.4.60 --firmware fleet/out/fleet_glorb.bin --release ESP32-S3_8MB_qspi --credentials-file /path/to/private-glorb-left.json
 ```
 
 `flash` snapshots `/json/info`, `/json/cfg` and `presets.json` under
@@ -73,7 +73,15 @@ python3 wledlab.py flash --host 10.27.4.60 --firmware fleet/out/fleet_glorb.bin 
 cfg is unchanged apart from `vid` and a new usermod block, and presets are
 byte-identical. Pass `--skip-validation` only when the release name changes on
 purpose. On a GLORB, also run `install --effects glorb/wled16-port/effects.json`
-afterwards: the port presets need the glorb_fx IDs.
+afterwards with the same `--credentials-file`: the port presets need the glorb_fx IDs.
+
+The fleet's settings PIN and OTA password are stored per device in OpenBao's
+`secret/hatyc/creds` by tycpve's `bao:seed-wled-security` job. The private JSON
+file contains `pin` and `ota_password`; see
+[protected fleet maintenance](../README.md#protected-fleet-maintenance).
+The updater temporarily unlocks OTA, restores its protection before checking
+configuration, and relocks settings even after a failed upload. If the device
+cannot be reached to relock it, recover that device before continuing.
 
 For the reviewed classic-ESP32 spare upgrades from 0.15.1/0.15.3 only, add
 `--cfg-migration 0.15-to-16.0.1`. This predicts v16's configuration from the original
