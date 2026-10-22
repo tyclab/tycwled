@@ -21,6 +21,7 @@ Subcommands
   install          upload ledmap / presets / palettes byte-exact, reload, verify
   flash            OTA a firmware image, wait for the reboot, prove cfg and
                    presets came through unchanged
+  secure           set and verify the WLED 16.0.1 settings PIN and OTA locks
   verify           acceptance check: every preset on both lamps, current ratio
                    plus structural criteria from a same-window capture
   rescore          re-run the check's criteria offline over saved captures
@@ -57,6 +58,7 @@ Recorded knowledge (GLORB, WLED 16.0.1):
 import argparse
 import base64
 import colorsys
+import contextlib
 import json
 import math
 import os
@@ -67,6 +69,7 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 W, H = 20, 6  # GLORB raster; overridable via --width/--height
@@ -107,6 +110,115 @@ def upload(ip, name, path):
 
 def readback(ip, name):
     return subprocess.run(["curl", "-s", "-m", "10", f"http://{ip}{name}"], capture_output=True).stdout
+
+
+def settings_request(host, path, fields=None):
+    data = None if fields is None else urllib.parse.urlencode(fields).encode()
+    request = urllib.request.Request(f"http://{host}{path}", data=data)
+    try:
+        with urllib.request.urlopen(request, timeout=8) as response:
+            response.read()
+            return response.status
+    except urllib.error.HTTPError as error:
+        return error.code
+
+
+def load_credentials(path):
+    with open(path) as stream:
+        credentials = json.load(stream)
+    pin, password = credentials.get("pin"), credentials.get("ota_password")
+    if not isinstance(pin, str) or len(pin) != 4 or not pin.isascii() or not pin.isdigit() or pin == "0000":
+        raise ValueError("credentials need a four-digit PIN other than 0000")
+    if not isinstance(password, str) or not 16 <= len(password) <= 32 or not password.isascii():
+        raise ValueError("credentials need a 16–32 character ASCII OTA password")
+    return credentials
+
+
+class SettingsAccess:
+    """WLED 16's PIN unlock is global; keep maintenance short and always relock."""
+
+    def __init__(self, host, credentials):
+        self.host, self.credentials = host, credentials
+        self.restore = None
+
+    def unlock(self):
+        if settings_request(self.host, "/settings/sec") == 200:
+            return
+        if not self.credentials:
+            raise RuntimeError("settings are locked; supply --credentials-file")
+        time.sleep(3.1)  # firmware PIN retry cooldown, also after reboot
+        if settings_request(self.host, "/settings/sec", {"PIN": self.credentials["pin"]}) != 200:
+            raise RuntimeError("settings PIN was rejected")
+
+    def write_security(self, ota, pin=None):
+        if not self.credentials:
+            raise RuntimeError("OTA is locked; supply --credentials-file")
+        self.unlock()
+        time.sleep(3.1)  # OTA password checks share the PIN cooldown
+        fields = {"OP": self.credentials["ota_password"]}
+        if pin is not None:
+            fields["PIN"] = pin
+        for key, field in (("lock", "NO"), ("lock-wifi", "OW"), ("aota", "AO"), ("same-subnet", "SU")):
+            if ota.get(key, False):
+                fields[field] = "on"
+        if settings_request(self.host, "/settings/sec", fields) != 200:
+            raise RuntimeError("security settings request was rejected")
+        actual = get(self.host, "/json/cfg")["ota"]
+        if any(actual.get(key, False) != ota.get(key, False)
+               for key in ("lock", "lock-wifi", "aota", "same-subnet")):
+            raise RuntimeError("security settings did not apply; check the OTA credential")
+
+    def unlock_ota(self, ota):
+        if ota.get("lock"):
+            self.restore = dict(ota)
+            self.write_security(ota | {"lock": False})
+
+    def restore_ota(self):
+        if self.restore is not None:
+            self.write_security(self.restore)
+            self.restore = None
+
+
+@contextlib.contextmanager
+def settings_access(host, credentials_path=None):
+    access = SettingsAccess(host, load_credentials(credentials_path) if credentials_path else None)
+    try:
+        if credentials_path and settings_request(host, "/settings/lock") != 200:
+            raise RuntimeError("could not establish the settings lock before authentication")
+        access.unlock()
+        yield access
+    finally:
+        try:
+            access.restore_ota()
+        finally:
+            if settings_request(host, "/settings/lock") != 200:
+                raise RuntimeError("could not relock settings; check this lamp before continuing")
+
+
+def cmd_secure(a):
+    credentials = load_credentials(a.credentials_file)
+    info, before = get(a.host, "/json/info"), get(a.host, "/json/cfg")
+    if info.get("ver") != "16.0.1" or info.get("mac", "").lower() != a.mac.replace(":", "").lower():
+        raise RuntimeError("REFUSED: security form reviewed only for WLED 16.0.1 and the specified MAC")
+    presets = readback(a.host, "/presets.json")
+    json.loads(presets)  # refuse a failed/HTML read before changing the lamp
+    if settings_request(a.host, "/settings/lock") != 200:
+        raise RuntimeError("could not establish the current settings lock")
+    with settings_access(a.host, a.credentials_file) as access:
+        desired = before["ota"] | {"lock": True, "lock-wifi": True, "pskl": len(credentials["ota_password"])}
+        access.unlock_ota(before["ota"])
+        access.restore = desired
+        access.write_security(desired, pin=credentials["pin"])
+        access.restore = None
+    if settings_request(a.host, "/settings/sec") != 401 or settings_request(a.host, "/update") != 401:
+        raise RuntimeError("settings or OTA remains accessible without authentication")
+    after = get(a.host, "/json/cfg")
+    expected = json.loads(json.dumps(before))
+    expected["ota"] = desired
+    if cfg_drift(expected, after) or readback(a.host, "/presets.json") != presets:
+        raise RuntimeError("unexpected configuration or preset change during security setup")
+    get(a.host, "/json/state")
+    print(f"{a.host}: settings PIN and OTA/Wi-Fi locks verified; config/presets preserved; state API available")
 
 
 # ----------------------------------------------------------------------------- liveview
@@ -836,6 +948,12 @@ def cmd_push_frame(a):
 
 
 def cmd_install(a):
+    session = settings_access(a.host, a.credentials_file) if getattr(a, "credentials_file", None) else contextlib.nullcontext()
+    with session:
+        _cmd_install(a)
+
+
+def _cmd_install(a):
     if a.ledmap:
         raw = open(a.ledmap, "rb").read()
         if b'"map":[' not in raw:
@@ -1016,6 +1134,12 @@ def cfg_migrate_015_to_16(before, info):
 
 
 def cmd_flash(a):
+    session = settings_access(a.host, a.credentials_file) if getattr(a, "credentials_file", None) else contextlib.nullcontext()
+    with session as access:
+        _cmd_flash(a, access)
+
+
+def _cmd_flash(a, access):
     info0, cfg0, pre0 = get(a.host, "/json/info"), get(a.host, "/json/cfg"), readback(a.host, "/presets.json")
     if a.mac and info0.get("mac", "").lower() != a.mac.replace(":", "").lower():
         sys.exit("REFUSED: controller MAC does not match --mac")
@@ -1036,6 +1160,10 @@ def cmd_flash(a):
         with os.fdopen(os.open(os.path.join(snap, name), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "wb") as f:
             f.write(data)
     print(f"{a.host} before: {info0['ver']} vid {info0['vid']} rel {info0.get('release')} up {info0['uptime']}s -> snapshot {snap}")
+    if access:
+        access.unlock_ota(cfg0.get("ota", {}))
+    elif cfg0.get("ota", {}).get("lock"):
+        sys.exit("REFUSED: OTA is locked; supply --credentials-file")
     cmd = ["curl", "-s", "-m", "300", "-F", f"update=@{a.firmware}", f"http://{a.host}/update"]
     if a.skip_validation:  # only when the release name changes on purpose; it guards against wrong-board images
         cmd[4:4] = ["-F", "skipValidation=1"]
@@ -1060,6 +1188,8 @@ def cmd_flash(a):
     if a.cfg_migration and (info1.get("ver") != "16.0.1" or info1.get("release") != info0.get("release")):
         sys.exit("firmware does not match the reviewed 16.0.1 migration; stop")
     time.sleep(5)  # first boot after a flash rewrites cfg.json; read it after that settles
+    if access:
+        access.restore_ota()
     cfg1, pre1 = get(a.host, "/json/cfg"), readback(a.host, "/presets.json")
     # A reboot lands on the boot preset; put back what the lamp was showing.
     post(a.host, "/json/state", {k: state0[k] for k in ("on", "bri", "mainseg", "seg") if k in state0} | {"tt": 0})
@@ -1121,6 +1251,7 @@ def main():
     s.add_argument("--effects", help="JSON map of fx ID -> effect name to assert against /json/eff (the usermod's IDs are assigned at boot)")
     s.add_argument("--cfg", help="cfg overrides JSON to POST to /json/cfg, carrying the lamp's ESP-NOW remotes along (WLED 16 drops them otherwise); each key is read back")
     s.add_argument("--reboot", action="store_true", help="reboot after upload instead of live reload"); s.set_defaults(fn=cmd_install)
+    s.add_argument("--credentials-file", help="private JSON containing pin and ota_password; settings relock after maintenance")
     s = sub.add_parser("flash", help="OTA a firmware image, wait for the reboot, prove cfg and presets unchanged")
     s.add_argument("--host", required=True); s.add_argument("--firmware", required=True, help="firmware.bin")
     s.add_argument("--release", help="release name the lamp must report afterwards")
@@ -1129,6 +1260,11 @@ def main():
     s.add_argument("--skip-validation", action="store_true", help="send skipValidation=1 (the release name changes on purpose)")
     s.add_argument("--snapshot", help="where to keep the before-state (default captures/flash/<host>-<time>)")
     s.add_argument("--timeout", type=int, default=150, help="seconds to wait for the lamp to come back"); s.set_defaults(fn=cmd_flash)
+    s.add_argument("--credentials-file", help="private JSON containing pin and ota_password; OTA lock restored before drift checks")
+    s = sub.add_parser("secure", help="set WLED 16.0.1 settings PIN and OTA/Wi-Fi locks without changing light configuration")
+    s.add_argument("--host", required=True); s.add_argument("--mac", required=True)
+    s.add_argument("--credentials-file", required=True, help="private JSON containing pin and ota_password")
+    s.set_defaults(fn=cmd_secure)
     a = p.parse_args(); a.fn(a)
 
 
