@@ -16,6 +16,9 @@ flowchart LR
     Build --> Install[Install and read back configuration]
     Install --> Verify[Compare with factory lamp]
     Verify --> Evidence[Save acceptance evidence]
+    Credentials[Private PIN and OTA credentials] --> Unlock[Unlock settings for maintenance]
+    Unlock --> Maintain[Install files or flash firmware]
+    Maintain --> Relock[Restore OTA lock and relock settings, including on failure]
 ```
 
 Repository working rules: [AGENTS.md](AGENTS.md).
@@ -107,6 +110,29 @@ drops every paired ESP-NOW remote on a `/json/cfg` write that carries no
 `nw` block (`cfg.cpp` clears the list before it looks for one, since
 PR 4654), so `--cfg` sends the lamp's own `espnow` flag and remote list
 along with the overrides.
+
+### Protected fleet maintenance
+
+The fleet uses WLED 16.0.1's settings PIN and OTA/Wi-Fi locks. State controls,
+presets and realtime lightshow input remain available. WLED's PIN unlock is a
+global device flag, so maintenance briefly opens settings to the local network;
+the tool relocks it when finished. Keep these devices on the trusted IoT network.
+
+`secure --host <lamp> --mac <controller-mac> --credentials-file <private.json>`
+sets the locks and checks that anonymous settings and OTA pages return 401,
+while configuration, presets and the state API remain intact. The credential
+file contains `pin` (four digits, other than `0000`) and `ota_password` (16–32
+ASCII characters). Store it privately; do not commit it or pass secrets as
+command-line arguments. Fleet credentials are generated in tycpve's OpenBao CI
+seed job and passed to the tool in temporary files that CI removes afterwards.
+
+Add `--credentials-file <private.json>` to `install` or `flash` for a protected
+lamp. `flash` temporarily opens OTA and restores its original locks after reboot,
+before comparing configuration; both commands relock settings on failure too.
+If the lamp cannot be reached to restore its lock, the command fails: recover
+that lamp before continuing with the fleet. `secure` uses the security form,
+preserves the Arduino OTA and subnet settings, and never sends a partial
+`/json/cfg` update. No firmware flash is needed to enable this protection.
 
 ### Rolling back to factory firmware
 
