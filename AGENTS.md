@@ -44,6 +44,26 @@ agreement. If something looks wrong, the fix is never to re-fit these files; fin
 - Measure over >= 100 s: colour cycles run 30–50 s and short windows swing hue phase +-25 %.
 - Liveview is pre-gamma on both firmwares; it cannot see the output stage — only the current
   ratio can.
+- Set a preset with `POST /json/state {"ps":N}`; a Home Assistant `light.turn_on` overrides it.
+  One measurement job per lamp at a time. WLED silently ignores a JSON POST without
+  `Content-Type: application/json` (a bare `curl -d`).
+- WLED 16's Swirl (fx 175 on the fleet builds) is the 2D audio-reactive one (fxdata
+  `!,Sensitivity,Blur;,Bg Swirl;!;2v;ix=64,si=0`): `ix` is Sensitivity, `c1` Blur is the only
+  trail decay (0 accumulates into a solid fill; the UI applies 128 when picked). With
+  AudioReactive on and a quiet mic it draws nothing new. `{"AudioReactive":{"enabled":false}}`
+  on `/json/state` (not `on`, though the readback reports `on`) hands it to the sound
+  simulation `si`; the toggle is not persisted. The 4th fxdata field holds the flags (`2` = 2D,
+  `v`/`f` = needs audio): read it before judging an effect in a silent room. `fxdef:true` on a
+  segment applies the effect's own slider defaults.
+- The curtain answers `/json/live` with 501. Its websocket liveview (`wledlab.py capture`)
+  arrives downsampled 2:1 per row (1428 cells) at about 10–12 Hz, so strobes above ~5 Hz
+  alias; Solid lights 27.3 % of those cells, so normalise coverage by that.
+- Over a tunnel with a small MTU, large frames vanish without an error: DDP at 1440 data bytes
+  per packet lit three rows, ≤ 1200 lit the panel, and `/json/info`, `/json/cfg`, `/json/eff`
+  hang while `/json/state` works. Keep DDP packets ≤ 1200 bytes; use an HTTP client that sets
+  `TCP_MAXSEG` around 1100.
+- Identify a controller by MAC or IP (`/json/info`) before any write, never by role words:
+  boxes changed roles on 2026-10-07 (`fleet/README.md`).
 
 ## Workflow
 
@@ -57,6 +77,9 @@ TARGET=<port lamp>` is the acceptance check (~24 min, occupies both lamps, resto
 - Our lamps run `fleet/` builds (stock WLED updates would drop the syslog usermod): build
   with `fleet/build.sh`, flash one lamp at a time with `wledlab.py flash`, which refuses
   cfg or preset drift.
+- The curtain effect census of 2026-10-07 (census, scored frames, DDP strobe capture and its
+  tools) is archived outside git in `~/.local/share/tycwled/census-2026-10-07/`; its
+  `ARCHIVED.md` lists the known defects. PR #30 closed it unmerged.
 
 ## Maintenance
 
