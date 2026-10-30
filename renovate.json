@@ -6,7 +6,7 @@
   "minimumReleaseAge": "3 days",
   "prHourlyLimit": 2,
   "prConcurrentLimit": 3,
-  "platformAutomerge": false,
+  "platformAutomerge": true,
   "pre-commit": {
     "description": "Off by default in Renovate; bumps the hook `rev:` pins in .pre-commit-config.yaml.",
     "enabled": true
@@ -54,8 +54,8 @@
   ],
   "packageRules": [
     {
-      "description": "Patch and minor updates merge themselves once the branch is green and up to date with main, after the 3-day minimumReleaseAge, as in tycstation's shared preset. Majors and digest refreshes stay PRs. platformAutomerge is off so Renovate merges only a green, up-to-date branch itself instead of arming GitHub auto-merge.",
-      "matchUpdateTypes": ["patch", "minor"],
+      "description": "Patch, minor and digest updates merge themselves once the branch is green and up to date with main, after the 3-day minimumReleaseAge, as in tycstation's shared preset. Majors stay PRs. platformAutomerge arms GitHub auto-merge, which main's ruleset holds until lint, test and gitleaks pass on an up-to-date branch.",
+      "matchUpdateTypes": ["patch", "minor", "digest"],
       "automerge": true
     },
     {
