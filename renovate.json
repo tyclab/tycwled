@@ -6,6 +6,7 @@
   "minimumReleaseAge": "3 days",
   "prHourlyLimit": 2,
   "prConcurrentLimit": 3,
+  "platformAutomerge": false,
   "pre-commit": {
     "description": "Off by default in Renovate; bumps the hook `rev:` pins in .pre-commit-config.yaml.",
     "enabled": true
@@ -52,6 +53,11 @@
     }
   ],
   "packageRules": [
+    {
+      "description": "Patch and minor updates merge themselves once the branch is green and up to date with main, after the 3-day minimumReleaseAge, as in tycstation's shared preset. Majors and digest refreshes stay PRs. platformAutomerge is off so Renovate merges only a green, up-to-date branch itself instead of arming GitHub auto-merge.",
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true
+    },
     {
       "description": "A WLED bump changes the firmware flashed to the lamps and the effect ids the fleet configs were checked against (glorb_fx), so it is reviewed and re-verified, never automerged.",
       "matchDepNames": ["wled/WLED"],
