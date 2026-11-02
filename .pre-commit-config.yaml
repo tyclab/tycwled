@@ -21,11 +21,13 @@ repos:
     rev: 341e2a331ba578029e66c2e01183e7a6b5ca9ab4 # frozen: v0.24.0
     hooks:
       - id: markdownlint-cli2
+        language_version: system
 
   - repo: https://github.com/rbubley/mirrors-prettier
     rev: 331f33fa4dfbcbca7c3da3620c137fde0faab273 # frozen: v3.9.10
     hooks:
       - id: prettier
+        language_version: system
         types_or: [markdown, json]
         # Lamp files are byte-exact (ledmaps are scanned raw, palettes and the
         # curtain ledmap are generator output, cfg is the factory dump); never
