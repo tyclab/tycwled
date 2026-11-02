@@ -803,15 +803,22 @@ def white_estimate(ip, bri):
 
 
 def cmd_check_ledmap(a):
-    pr, pt = white_estimate(a.ref, a.bri), white_estimate(a.target, a.bri)
-    ratio = pt / pr if pr else float("inf")
-    print(f"white@{a.bri}: ref {pr} mA, target {pt} mA, ratio {ratio:.2f}")
-    print("OK: same physical LED count written" if 0.9 < ratio < 1.1 else
-          "SUSPECT: target writes a different number of physical LEDs (identity mapping? wrong ledmap?)")
-    raw = readback(a.target, "/ledmap.json")
-    print("ledmap.json on target contains exact `\"map\":[`:", b'"map":[' in raw)
-    for ip in (a.ref, a.target):  # leave the lamps usable: full brightness, boot preset
-        post(ip, "/json/state", {"on": True, "bri": 255, "ps": a.restore_preset})
+    try:
+        pr, pt = white_estimate(a.ref, a.bri), white_estimate(a.target, a.bri)
+        ratio = pt / pr if pr else float("inf")
+        count_ok = 0.9 < ratio < 1.1
+        print(f"white@{a.bri}: ref {pr} mA, target {pt} mA, ratio {ratio:.2f}")
+        print("OK: same physical LED count written" if count_ok else
+              "SUSPECT: target writes a different number of physical LEDs (identity mapping? wrong ledmap?)")
+        map_ok = b'"map":[' in readback(a.target, "/ledmap.json")
+        print("ledmap.json on target contains exact `\"map\":[`:", map_ok)
+        if not (count_ok and map_ok):
+            sys.exit(1)
+    finally:
+        try:
+            post(a.ref, "/json/state", {"on": True, "bri": 255, "ps": a.restore_preset})
+        finally:
+            post(a.target, "/json/state", {"on": True, "bri": 255, "ps": a.restore_preset})
 
 
 def cmd_verify(a):
