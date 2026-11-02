@@ -159,13 +159,13 @@ python3 wledlab.py install --host 10.27.4.221 --cfg curtain/h70b5-gledopto.json
 
 Each panel has its own data line from the controller, on the data conductor of the panel's
 original 3-wire cable. The pixels carry factory addresses 0–519 in every panel, so panels on
-a shared line repeat one picture. The cable's 36 V and GND conductors and the right and left
-panels' converter boards stay as built; GND is shared between the controller and the panels.
-The middle panel's converter board failed (see Power), so a 5 V 8 A supply takes its place:
-the panel's 5 V and GND leads move from the board's pads 1 and 2 to the supply, the
-controller GND link moves to the supply's −, and the board's 36 V lead leaves the Wagos. The
-epoxy blob at the end of the top string, a resistor on the data line, is cut off. The 36 V
-adapter never connects to the Gledopto (5–24 V input).
+a shared line repeat one picture. The cable's 36 V and GND conductors and the three panels'
+converter boards stay as built; GND is shared between the controller and the panels. The
+middle panel's converter board failed in the full-white test (see Power) and was replaced with
+a new board of the same kind, so the three panels are built identically (operator,
+2026-11-02); the 5 V 8 A supply once planned in its place was never wired. The epoxy blob at
+the end of the top string, a resistor on the data line, is cut off. The 36 V adapter never
+connects to the Gledopto (5–24 V input).
 
 ### Outputs and panel order
 
@@ -203,8 +203,8 @@ The controller runs on its own USB supply, so an adapter trip does not reset it.
 
 That test also killed the middle panel's Govee converter board (36 V to 5 V): the stock
 boards are built for Govee's own brightness ceiling, about 39 W per panel at the wall, so
-the per-output limits stay well under that for the two stock boards. The middle panel's
-replacement supply (5 V 8 A) has headroom, but the limits stay uniform across the outputs.
+the per-output limits stay well under that. The middle panel runs on a new board of the same
+kind, and the limits are uniform across the three outputs.
 
 The curtain boots off at brightness 16 and ignores incoming WLED sync. Realtime input (DDP
 from the lightshow) runs at full brightness (`if.live.maxbri`) through the ledmap
