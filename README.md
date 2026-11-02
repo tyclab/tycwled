@@ -275,3 +275,7 @@ Two measurement rules learned the hard way:
 
 CI (`.github/workflows/ci.yml`) runs `make lint`, `make test` and a gitleaks
 scan of the full git history on every pull request and push to main.
+
+`check-ledmap` exits nonzero when the measured LED count differs or the target
+does not contain the exact ledmap bytes. It attempts to restore both lamps to
+the requested preset even when a measurement or readback fails.
