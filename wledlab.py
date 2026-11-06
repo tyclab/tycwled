@@ -832,6 +832,8 @@ def cmd_verify(a):
     n = sum(1 for v in want.values() if v)
     if n == 0:
         sys.exit(f"REFUSED: {a.presets_file} has no testable preset -- a gate that checks nothing must not pass")
+    if a.samples <= 0 or a.interval <= 0:
+        sys.exit("REFUSED: --samples and --interval must be positive")
     window = a.samples * a.interval
     print(f"verify: presets.json sha256 {hashlib.sha256(raw).hexdigest()}")
     for tag, ip in (("ref", a.ref), ("target", a.target)):
