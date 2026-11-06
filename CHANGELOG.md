@@ -65,6 +65,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Fixed
 
+- `verify` refuses a non-positive `--samples` or `--interval` before it touches
+  either lamp, instead of switching both through every preset and failing each
+  on an empty sample window.
 - `install --cfg` replaces the README's bare `curl` of `cfg-overrides.json`.
   WLED 16 clears every paired ESP-NOW remote on a `/json/cfg` write without an
   `nw` block (`cfg.cpp`, since PR 4654); the new step carries the lamp's
