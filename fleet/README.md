@@ -12,16 +12,27 @@
 All envs are WLED v16.0.1 plus [`syslog_events`](../usermods/syslog_events/),
 sending to our collector at 10.27.2.41:1515.
 
-The curtain, the couch and the spare run build 2610050 with #5885; the overlays below rely on its
-partial-config fix, so apply them only to that build. Older lamps are not automatically
-updated by rebuilding here.
+The curtain, the couch and the spare run build 2610050 with #5885 and without the frozen-segment
+fix; the overlays below rely on its partial-config fix, so apply them only to that build. Older
+lamps are not automatically updated by rebuilding here.
 
-Rebuilding now also applies [`patches/5885-partial-config.patch`](patches/5885-partial-config.patch),
-the pending [WLED #5885](https://github.com/wled/WLED/pull/5885) fix at
+Rebuilding applies every `patches/*.patch` in name order to the pinned v16.0.1 source; a repeated
+build accepts a patch already applied, and a mismatch stops the build. Remove a patch only when
+the fleet's pinned release includes its fix.
+
+[`patches/5885-partial-config.patch`](patches/5885-partial-config.patch) is the pending
+[WLED #5885](https://github.com/wled/WLED/pull/5885) fix at
 `adffde4b8bf03f8a506ab0477a42b977215c3a34`. Partial configuration writes must preserve
-paired remotes, FPS, global auto-white mode and gamma. The patch applies to the pinned
-v16.0.1 source; a repeated build accepts it already applied, and a mismatch stops the build.
-Remove it only when the fleet's pinned release includes the fix.
+paired remotes, FPS, global auto-white mode and gamma.
+
+[`patches/frozen-segment-reset.patch`](patches/frozen-segment-reset.patch) is named after what it
+fixes: no upstream issue or PR covers it yet. Since WLED 16 (upstream `ee9ac947`,
+[WLED #4658](https://github.com/wled/WLED/pull/4658)) `Segment::resetIfRequired()` blanks the
+segment's pixels, and `WS2812FX::service()` runs it before the freeze check: a `/json/state` request
+that changes the effect and sets pixels with `i` leaves the segment frozen and black, and an effect
+change blanks a frozen segment; 0.15.3 kept the pixels. The patch defers the reset until the
+segment is unfrozen and clears the pixel buffer a resize allocates. On the spare Gledopto, stock
+build 2610050 lit 0 of 120 pixels after such a request, the patched build 2611092 all 120.
 
 - `fleet_esp32` is the stock `ESP32` release env (`esp32dev` with
   `audioreactive`) with the same release name. The Couch strip and the Moon

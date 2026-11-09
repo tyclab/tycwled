@@ -65,6 +65,10 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Fixed
 
+- `fleet/` builds apply `patches/frozen-segment-reset.patch`: on WLED 16 a `/json/state`
+  request that changes the effect and sets pixels with `i` left the segment frozen and black,
+  and an effect change blanked a frozen segment. The reset now waits until the segment is
+  unfrozen.
 - `verify` refuses a non-positive `--samples` or `--interval` before it touches
   either lamp, instead of switching both through every preset and failing each
   on an empty sample window.
