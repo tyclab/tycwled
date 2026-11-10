@@ -245,8 +245,10 @@ operator's values of 2026-11-10), on every lamp: a preset without them leaves bo
 same button stayed apart (the GLORBs at 6 and 255 after one of them rebooted). The files are
 [`overlays/glorb-presets.json`](overlays/glorb-presets.json),
 [`curtain/presets.json`](../curtain/presets.json),
-[`overlays/couch-presets.json`](overlays/couch-presets.json) and
-[`overlays/moon-presets.json`](overlays/moon-presets.json); `tests/test_presets.py` holds the
+[`overlays/couch-presets.json`](overlays/couch-presets.json),
+[`overlays/moon-presets.json`](overlays/moon-presets.json) and
+[`overlays/exoy-presets.json`](overlays/exoy-presets.json) (read from the Exoy controller on
+2026-11-11, whose looks stood at 128; it has no squid look, so its buttons 4 to 7 keep its own); `tests/test_presets.py` holds the
 value, and tycpve's `wled:install` puts them on the lamps.
 
 ## Curtain
