@@ -144,6 +144,15 @@ that lamp before continuing with the fleet. `secure` uses the security form,
 preserves the Arduino OTA and subnet settings, and never sends a partial
 `/json/cfg` update. No firmware flash is needed to enable this protection.
 
+`remotes --host <lamp> --mac <controller-mac> --credentials-file <private.json>`
+prints the paired ESP-NOW remotes and the last sender the lamp heard. WLED
+records every sender before it drops an unpaired one, but shows it only on the
+PIN-locked Wi-Fi settings page, so this is how to learn a remote's address:
+press one of its buttons, then run `remotes`. `--link <address>...` replaces the
+paired list with exactly those addresses through `/json/cfg` (with the lamp's
+`espnow` flag, which that write would otherwise drop) and fails unless the lamp
+reads back the new list with nothing else changed.
+
 ### Rolling back to factory firmware
 
 The images are in SNRGY's
