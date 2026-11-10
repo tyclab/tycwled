@@ -44,6 +44,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          fetch-tags: true
       - name: Check the tag and stamp the build with its date
         if: github.ref_type == 'tag'
         run: |
@@ -52,7 +53,15 @@ jobs:
           [[ $commit == "$short"* ]] || { echo "::error::$GITHUB_REF_NAME names $short but tags $commit"; exit 1; }
           git merge-base --is-ancestor "$commit" origin/main || { echo "::error::$commit is not on main"; exit 1; }
           [[ $(date -u -d "$day" +%Y%m%d) == "$day" ]] || { echo "::error::$day is not a date"; exit 1; }
-          echo "WLED_VID=$(date -u -d "$day" +%y%m%d)0" >> "$GITHUB_ENV"
+          # The stamp's last digit counts the day's earlier releases, so two releases never share a stamp:
+          # wled:flash proves the image by the stamp the lamp reports.
+          earlier=0
+          for other in $(git tag -l "fleet-$day-*"); do
+            at=$(git rev-parse "$other^{commit}")
+            if [[ $at != "$commit" ]] && git merge-base --is-ancestor "$at" "$commit"; then earlier=$((earlier + 1)); fi
+          done
+          ((earlier <= 9)) || { echo "::error::ten releases already carry $day"; exit 1; }
+          echo "WLED_VID=$(date -u -d "$day" +%y%m%d)$earlier" >> "$GITHUB_ENV"
       - name: Check out WLED
         id: wled
         run: |
