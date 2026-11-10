@@ -33,6 +33,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
+- Curtain: five squid loops as animated GIFs for the Image effect, drawn from the TycStation
+  mark by `curtain/squid/mkgifs.py` (presets 4 to 8: Squid Breathing, Squid Ink Burst,
+  Squid Deep Sea, Squid Eyes, Squid Chromatophores; no blur, brightness 160).
 - Curtain: the TycStation logo GIF and the controller's presets (preset 1 "TycStation",
   the Image effect on the segment named `tycstation.gif`).
 - Curtain: presets 2 and 3 "PS Fuzzy Noise", the operator's pick of 2026-10-07 (palette
