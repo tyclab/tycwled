@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Render the curtain's five squid loops in headless Chromium and write them as GIFs.
+"""Render the squid loops in headless Chromium and write them as GIFs.
 
-draw.js holds the drawing. Every frame is rendered at the ledmap's 68x42 cells, each loop is
-reduced to one 256-colour table and written as whole frames, the form WLED's Image effect
-plays from the controller's filesystem. Standard library only; Chromium does the drawing.
+draw.js holds the drawing: the curtain's five loops at the ledmap's 68x42 cells, and the arm
+waves for the other lamps at their own sizes (fleet/squid/). Each loop is reduced to one
+256-colour table and written as whole frames, the form WLED's Image effect plays from the
+controller's filesystem. Standard library only; Chromium does the drawing.
 """
 import argparse
 import base64
@@ -16,7 +17,7 @@ from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CURTAIN = os.path.dirname(HERE)
-W, H = 68, 42
+ROWS = os.path.join(os.path.dirname(CURTAIN), "fleet", "squid")
 NAMES = {"a": "squid-breathing", "b": "squid-ink", "c": "squid-deepsea", "e": "squid-eyes", "f": "squid-skin"}
 # A pixel whose channels all stay below this is stored as black: the controller's gamma leaves it dark anyway.
 BLACK_BELOW = 24
@@ -24,20 +25,21 @@ BLACK_BELOW = 24
 ON_LEVEL = 41
 
 RENDER = """
-const SS = 4, hi = document.createElement('canvas'); hi.width = W * SS; hi.height = H * SS;
-const g = hi.getContext('2d'), lo = document.createElement('canvas'); lo.width = W; lo.height = H;
-const l = lo.getContext('2d', { willReadFrequently: true }), res = {};
-for (const id of Object.keys(LOOPS)) {
-  const lp = LOOPS[id], n = Math.round(lp.L / lp.delay), buf = new Uint8Array(n * W * H * 3); let o = 0;
+const SS = 4, res = {};
+for (const [id, lp] of Object.entries({ ...LOOPS, ...ROWS })) {
+  const w = lp.w || W, h = lp.h || H, hi = document.createElement('canvas'), lo = document.createElement('canvas');
+  hi.width = w * SS; hi.height = h * SS; lo.width = w; lo.height = h;
+  const g = hi.getContext('2d'), l = lo.getContext('2d', { willReadFrequently: true });
+  const n = Math.round(lp.L / lp.delay), buf = new Uint8Array(n * w * h * 3); let o = 0;
   for (let f = 0; f < n; f++) {
     g.setTransform(SS, 0, 0, SS, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
-    g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.save(); lp.draw(g, f * lp.delay); g.restore();
-    l.imageSmoothingEnabled = true; l.imageSmoothingQuality = 'high'; l.drawImage(hi, 0, 0, W, H);
-    const d = l.getImageData(0, 0, W, H).data;
+    g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.save(); lp.draw(g, f * lp.delay); g.restore();
+    l.imageSmoothingEnabled = true; l.imageSmoothingQuality = 'high'; l.drawImage(hi, 0, 0, w, h);
+    const d = l.getImageData(0, 0, w, h).data;
     for (let i = 0; i < d.length; i += 4) { buf[o++] = d[i]; buf[o++] = d[i + 1]; buf[o++] = d[i + 2]; }
   }
   let s = ''; for (let i = 0; i < buf.length; i += 32768) s += String.fromCharCode.apply(null, buf.subarray(i, i + 32768));
-  res[id] = { n, delay: lp.delay, L: lp.L, rgb: btoa(s) };
+  res[id] = { n, delay: lp.delay, L: lp.L, w, h, rgb: btoa(s) };
 }
 document.getElementById('out').textContent = JSON.stringify(res);
 """
@@ -130,19 +132,19 @@ def lzw(indices, mcs):
     return bytes(out)
 
 
-def gif(pal, frames, delay_cs):
+def gif(pal, frames, delay_cs, w, h):
     bits = max(1, (len(pal) - 1).bit_length())
     table = b"".join(bytes(c) for c in pal) + bytes(3 * ((1 << bits) - len(pal)))
 
     def le(v):
         return v.to_bytes(2, "little")
 
-    out = bytearray(b"GIF89a" + le(W) + le(H) + bytes([0xF0 | (bits - 1), 0, 0]) + table)
+    out = bytearray(b"GIF89a" + le(w) + le(h) + bytes([0xF0 | (bits - 1), 0, 0]) + table)
     out += b"\x21\xFF\x0BNETSCAPE2.0\x03\x01\x00\x00\x00"
     mcs = max(2, bits)
     for f in frames:
         out += b"\x21\xF9\x04\x04" + le(delay_cs) + b"\x00\x00"
-        out += b"\x2C" + le(0) + le(0) + le(W) + le(H) + b"\x00" + bytes([mcs])
+        out += b"\x2C" + le(0) + le(0) + le(w) + le(h) + b"\x00" + bytes([mcs])
         data = lzw(f, mcs)
         for i in range(0, len(data), 255):
             out += bytes([len(data[i:i + 255])]) + data[i:i + 255]
@@ -154,15 +156,17 @@ def main():
     ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     ap.add_argument("--chrome", required=True, help="a Chromium binary; it renders the frames headless")
     ap.add_argument("--magick", help="an ImageMagick binary; decodes every written GIF and compares it frame by frame")
-    ap.add_argument("--out", default=CURTAIN, help="where the GIFs are written (default: curtain/)")
+    ap.add_argument("--out", default=CURTAIN, help="where the curtain's GIFs are written (default: curtain/)")
+    ap.add_argument("--rows-out", default=ROWS, help="where the other lamps' GIFs are written (default: fleet/squid/)")
     a = ap.parse_args()
 
     ledmap = json.load(open(os.path.join(CURTAIN, "ledmap.json")))["map"]
     leds = [i for i, v in enumerate(ledmap) if v >= 0]
-    rendered, px, bad = render(a.chrome, a.out), W * H, 0
-    for key, name in NAMES.items():
-        r = rendered[key]
-        raw, n = base64.b64decode(r["rgb"]), r["n"]
+    rendered, bad = render(a.chrome, a.out), 0
+    os.makedirs(a.rows_out, exist_ok=True)
+    for key, r in rendered.items():
+        name, out, cells = (NAMES[key], a.out, leds) if key in NAMES else (key, a.rows_out, range(r["w"] * r["h"]))
+        raw, n, px = base64.b64decode(r["rgb"]), r["n"], r["w"] * r["h"]
         pixels = [(raw[i], raw[i + 1], raw[i + 2]) for i in range(0, len(raw), 3)]
         pixels = [c if max(c) >= BLACK_BELOW else (0, 0, 0) for c in pixels]
         count = Counter(pixels)
@@ -172,11 +176,11 @@ def main():
         index = {c: i + 1 for c, i in index.items()}
         index[(0, 0, 0)] = 0
         frames = [bytes(index[c] for c in pixels[f * px:(f + 1) * px]) for f in range(n)]
-        path = os.path.join(a.out, name + ".gif")
+        path = os.path.join(out, name + ".gif")
         with open(path, "wb") as f:
-            f.write(gif(pal, frames, round(r["delay"] * 100)))
+            f.write(gif(pal, frames, round(r["delay"] * 100), r["w"], r["h"]))
         lit = [max(c) >= ON_LEVEL for c in pal]
-        on = [sum(lit[f[p]] for p in leds) / len(leds) for f in frames]
+        on = [sum(lit[f[p]] for p in cells) / len(cells) for f in frames]
         check = "not decoded"
         if a.magick:
             got = subprocess.run([a.magick, path, "-coalesce", "-depth", "8", "rgb:-"], capture_output=True, timeout=120).stdout
