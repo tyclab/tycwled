@@ -98,9 +98,9 @@ def post(ip, path, obj, timeout=8):
     return _retry(lambda: urllib.request.urlopen(req, timeout=timeout).read())
 
 
-def upload(ip, name, path):
+def upload(ip, name, path, timeout=30):
     r = subprocess.run(
-        ["curl", "-s", "-m", "30", "-F", f"data=@{path};filename={name}", f"http://{ip}/upload"],
+        ["curl", "-s", "-m", str(timeout), "-F", f"data=@{path};filename={name}", f"http://{ip}/upload"],
         capture_output=True, text=True,
     )
     if r.returncode != 0:
@@ -108,8 +108,8 @@ def upload(ip, name, path):
     return r.stdout.strip()
 
 
-def readback(ip, name):
-    return subprocess.run(["curl", "-s", "-m", "10", f"http://{ip}{name}"], capture_output=True).stdout
+def readback(ip, name, timeout=10):
+    return subprocess.run(["curl", "-s", "-m", str(timeout), f"http://{ip}{name}"], capture_output=True).stdout
 
 
 def settings_request(host, path, fields=None):
@@ -962,7 +962,51 @@ def cmd_install(a):
         _cmd_install(a)
 
 
+# Segment fields a recalled preset or a restored look must read back as written.
+SEGMENT_KEYS = ("fx", "sx", "ix", "pal", "c1", "c2", "c3", "o1", "o2", "o3", "m12", "tp", "rY", "rev", "mi", "mY",
+                "bm", "bri", "col", "start", "stop", "startY", "stopY")
+
+
+def gif_frames(raw):
+    """Number of images in a GIF, by walking its blocks."""
+    if raw[:3] != b"GIF":
+        return 0
+    pos = 13 + (3 * (2 << (raw[10] & 7)) if raw[10] & 0x80 else 0)
+    frames = 0
+
+    def skip_sub_blocks(at):
+        while raw[at]:
+            at += raw[at] + 1
+        return at + 1
+
+    while pos < len(raw) and raw[pos] != 0x3B:
+        if raw[pos] == 0x21:
+            pos = skip_sub_blocks(pos + 2)
+        elif raw[pos] == 0x2C:
+            flags = raw[pos + 9]
+            pos = skip_sub_blocks(pos + 11 + (3 * (2 << (flags & 7)) if flags & 0x80 else 0))
+            frames += 1
+        else:
+            break
+    return frames
+
+
+def restore_look(host, before):
+    """Put back power, brightness and segments as read before the presets were recalled; False when they do not read back."""
+    segs = [dict(seg, n=seg.get("n", "")) for seg in before.get("seg", [])]
+    post(host, "/json/state", {"on": before.get("on"), "bri": before.get("bri"), "transition": 0, "seg": segs})
+    time.sleep(1.5)
+    after = get(host, "/json/state")
+    now = {seg.get("id"): seg for seg in after.get("seg", [])}
+    same = after.get("on") == before.get("on") and after.get("bri") == before.get("bri") and all(
+        now.get(seg.get("id"), {}).get(key) == seg.get(key) for seg in segs for key in SEGMENT_KEYS if key in seg)
+    print("look restored:", "OK" if same else "MISMATCH")
+    return same
+
+
 def _cmd_install(a):
+    look = get(a.host, "/json/state") if a.presets and getattr(a, "restore", False) else None
+    animated = {}
     if a.ledmap:
         raw = open(a.ledmap, "rb").read()
         if b'"map":[' not in raw:
@@ -972,6 +1016,15 @@ def _cmd_install(a):
             post(a.host, "/json/state", {"ledmap": 0})
     for n, f in enumerate(a.palette or []):
         print(f"palette{n}:", upload(a.host, f"/palette{n}.json", f), "| readback ok:", readback(a.host, f"/palette{n}.json") == open(f, "rb").read())
+    for path in getattr(a, "file", None) or []:
+        name, raw = "/" + os.path.basename(path), open(path, "rb").read()
+        sent = upload(a.host, name, path, timeout=120)
+        same = readback(a.host, name, timeout=60) == raw
+        print(f"file {name}:", sent, "| readback ok:", same)
+        if not same:
+            sys.exit(f"{name}: the lamp does not read back the uploaded bytes")
+        if gif_frames(raw) > 1:
+            animated[name[1:]] = gif_frames(raw)
     if a.presets:
         print("presets:", upload(a.host, "/presets.json", a.presets), "| readback ok:",
               json.loads(readback(a.host, "/presets.json")) == json.load(open(a.presets)))
@@ -1023,14 +1076,19 @@ def _cmd_install(a):
         sys.exit(f"custom palettes: lamp reports {info.get('cpalcount')}, uploaded {len(a.palette)}")
     if a.presets:
         want = json.load(open(a.presets)); bad = []
-        keys = ("fx", "sx", "ix", "pal", "c1", "c2", "c3", "o1", "o2", "o3", "m12", "tp", "rY", "rev", "mi", "mY",
-                "bm", "bri", "col", "start", "stop", "startY", "stopY")
+        keys = SEGMENT_KEYS
         for k, v in want.items():
             if not v:
                 continue
             post(a.host, "/json/state", {"on": True, "ps": int(k)}); time.sleep(1.5)  # outlast the preset's own transition
-            segs = get(a.host, "/json/state")["seg"]
-            ok = True
+            state = get(a.host, "/json/state"); segs = state["seg"]
+            ok, note = not state.get("error"), f" error {state['error']}" if state.get("error") else ""
+            # An animated GIF that this run uploaded must move on the lamp: liveview shows what the Image effect draws.
+            moving = next((ws["n"] for ws in v["seg"] if ws.get("n") in animated), None)
+            if moving:
+                distinct = len({"".join(leds) for _, leds in live(a.host, 3)})
+                ok &= distinct >= 3
+                note += f" {distinct} different liveview frames in 3 s"
             for n, ws in enumerate(v["seg"]):
                 sid = ws.get("id", n)  # trailing {"stop":0} deletion stubs carry no id
                 s = next((x for x in segs if x.get("id") == sid), {})
@@ -1040,9 +1098,14 @@ def _cmd_install(a):
                     ok &= all(s.get(x) == ws.get(x) for x in keys if x in ws)
                     if 180 < ws.get("pal", 0) <= 200 and ws["pal"] < 201 - info.get("cpalcount", 0):
                         ok = False  # custom palette id with no uploaded file behind it
-            print(f"  preset {k:>2} {v.get('n', ''):<26} {'OK' if ok else 'MISMATCH'}")
+            print(f"  preset {k:>2} {v.get('n', ''):<26} {'OK' if ok else 'MISMATCH'}{note}")
             bad += [] if ok else [k]
         print("preset verification:", "all OK" if not bad else f"MISMATCH {bad}")
+        restored = restore_look(a.host, look) if look else True
+        if bad:
+            sys.exit(f"presets {bad} do not show on the lamp as written")
+        if not restored:
+            sys.exit("the look from before the install did not come back")
 
 
 def cfg_payload(overrides, current):
@@ -1267,6 +1330,8 @@ def main():
     s.add_argument("--remote", help="ESP-NOW remote button map, uploaded as /remote.json and read back")
     s.add_argument("--reboot", action="store_true", help="reboot after upload instead of live reload"); s.set_defaults(fn=cmd_install)
     s.add_argument("--credentials-file", help="private JSON containing pin and ota_password; settings relock after maintenance")
+    s.add_argument("--file", action="append", help="any other file for the lamp's filesystem (a GIF for the Image effect), stored under its own name and read back; repeatable")
+    s.add_argument("--restore", action="store_true", help="after the presets are verified, put back the power, brightness and segments the lamp had before")
     s = sub.add_parser("flash", help="OTA a firmware image, wait for the reboot, prove cfg and presets unchanged")
     s.add_argument("--host", required=True); s.add_argument("--firmware", required=True, help="firmware.bin")
     s.add_argument("--release", help="release name the lamp must report afterwards")
