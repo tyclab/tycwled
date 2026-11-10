@@ -23,12 +23,12 @@ PORT = json.load(open(os.path.join(HERE, "..", "glorb", "wled16-port", "presets.
 TRANSLATED = {"fx", "pal"}
 # The fleet adds power and brightness to every look. The factory presets carry neither, so a recall
 # left both as they were and two lamps on the same button stayed apart (the GLORBs at 6 and 255 on
-# 2026-11-10). The operator set 45 for every lamp that evening.
+# 2026-11-10). The operator set the values that evening: 45, and 200 for the Moon.
 POWER = {"on": True, "bri": 45}
-# Every preset file the fleet installs, with the presets that are not looks.
-FLEET = {"glorb/wled16-port/presets.json": (), "curtain/presets.json": (),
-         "fleet/overlays/moon-presets.json": (),
-         "fleet/overlays/couch-presets.json": ("250",)}  # the couch's boot layout, which starts off
+# Every preset file the fleet installs: its brightness and the presets that are not looks.
+FLEET = {"glorb/wled16-port/presets.json": (45, ()), "curtain/presets.json": (45, ()),
+         "fleet/overlays/moon-presets.json": (200, ()),
+         "fleet/overlays/couch-presets.json": (45, ("250",))}  # the couch's boot layout, which starts off
 
 
 def effect_segments(preset):
@@ -61,13 +61,13 @@ class Verbatim(unittest.TestCase):
 
 
 class Power(unittest.TestCase):
-    def test_every_look_of_every_lamp_sets_power_and_the_fleet_brightness(self):
-        for path, layouts in FLEET.items():
+    def test_every_look_of_every_lamp_sets_power_and_its_brightness(self):
+        for path, (brightness, layouts) in FLEET.items():
             presets = json.load(open(os.path.join(HERE, "..", path)))
             looks = {k: p for k, p in presets.items() if p and k not in layouts}
             self.assertTrue(looks, path)
             for k, p in looks.items():
-                self.assertEqual({x: p.get(x) for x in POWER}, POWER, f"{path} preset {k} ({p.get('n')})")
+                self.assertEqual((p.get("on"), p.get("bri")), (True, brightness), f"{path} preset {k} ({p.get('n')})")
 
     def test_no_look_changes_the_fade_time_of_a_glorb(self):
         self.assertEqual([k for k, p in PORT.items() if p and "transition" in p], [])
