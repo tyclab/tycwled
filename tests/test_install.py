@@ -83,7 +83,8 @@ class Install(unittest.TestCase):
         wledlab._cmd_install(self.args)
         self.assertEqual([c[1] for c in self.lamp.calls if c[0] == "upload"], ["/squid-eyes.gif", "/presets.json"])
         self.assertEqual(self.lamp.state, before)
-        self.assertEqual(self.lamp.calls[-1][1]["transition"], 0)
+        self.assertEqual(self.lamp.calls[-1][1]["tt"], 0)
+        self.assertNotIn("transition", self.lamp.calls[-1][1], "that key would stay as the lamp's fade time")
 
     def test_a_file_that_reads_back_differently_stops_before_the_presets(self):
         with patch.object(wledlab, "readback", lambda host, name, timeout=10: b"truncated"), self.assertRaises(SystemExit):
