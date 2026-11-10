@@ -22,6 +22,8 @@ Subcommands
   flash            OTA a firmware image, wait for the reboot, prove cfg and
                    presets came through unchanged
   secure           set and verify the WLED 16.0.1 settings PIN and OTA locks
+  remotes          report the paired ESP-NOW remotes and the last one heard;
+                   --link replaces the paired list
   verify           acceptance check: every preset on both lamps, current ratio
                    plus structural criteria from a same-window capture
   rescore          re-run the check's criteria offline over saved captures
@@ -62,6 +64,7 @@ import contextlib
 import json
 import math
 import os
+import re
 import socket
 import struct
 import subprocess
@@ -219,6 +222,43 @@ def cmd_secure(a):
         raise RuntimeError("unexpected configuration or preset change during security setup")
     get(a.host, "/json/state")
     print(f"{a.host}: settings PIN and OTA/Wi-Fi locks verified; config/presets preserved; state API available")
+
+
+def settings_text(host, path):
+    with urllib.request.urlopen(f"http://{host}{path}", timeout=8) as response:
+        return response.read().decode("utf-8", "replace")
+
+
+def last_heard_remote(script):
+    """The sender of the last ESP-NOW packet: WLED 16 records it before it drops an unlinked one."""
+    found = re.search(r'getElementsByClassName\("rlid"\)\[0\]\.innerHTML="([0-9a-f]{12})"', script)
+    return found.group(1) if found else None
+
+
+def cmd_remotes(a):
+    info, before = get(a.host, "/json/info"), get(a.host, "/json/cfg")
+    if info.get("ver") != "16.0.1" or info.get("mac", "").lower() != a.mac.replace(":", "").lower():
+        raise RuntimeError("REFUSED: remotes reviewed only for WLED 16.0.1 and the specified MAC")
+    linked = before.get("nw", {}).get("linked_remote")
+    linked = [linked] if isinstance(linked, str) else list(linked or [])
+    wanted = None if a.link is None else [mac.replace(":", "").lower() for mac in a.link]
+    if wanted is not None and any(not re.fullmatch(r"[0-9a-f]{12}", mac) for mac in wanted):
+        raise ValueError("--link takes 12-digit hexadecimal remote addresses")
+    with settings_access(a.host, a.credentials_file):
+        heard = last_heard_remote(settings_text(a.host, "/settings/s.js?p=1"))
+        if wanted is not None and wanted != linked:
+            post(a.host, "/json/cfg", {"nw": {"espnow": before["nw"].get("espnow", False), "linked_remote": wanted}})
+    after = get(a.host, "/json/cfg")
+    if wanted is not None:
+        expected = json.loads(json.dumps(before))
+        expected["nw"]["linked_remote"] = wanted
+        drift = cfg_drift(expected, after)
+        if drift:
+            raise RuntimeError("remote list did not apply, or something else changed: " + "; ".join(drift))
+    now = after.get("nw", {}).get("linked_remote")
+    print(json.dumps({"host": a.host, "espnow": after.get("nw", {}).get("espnow"), "linked": now,
+                      "last_heard": heard, "last_heard_linked": heard in (now or []),
+                      "changed": wanted is not None and wanted != linked}))
 
 
 # ----------------------------------------------------------------------------- liveview
@@ -1005,8 +1045,17 @@ def restore_look(host, before):
 
 
 def _cmd_install(a):
+    # Presets the lamp already holds, with no file a preset shows changed, are not recalled: a recall shows on the lamp
+    # (and on everything that follows it), so an install that only adds a file leaves the look alone.
+    held = None
+    if a.presets:
+        try:
+            held = json.loads(readback(a.host, "/presets.json"))
+        except ValueError:
+            held = None
+    recall = a.presets and held != json.load(open(a.presets))
     look = get(a.host, "/json/state") if a.presets and getattr(a, "restore", False) else None
-    animated = {}
+    animated, changed = {}, set()
     if a.ledmap:
         raw = open(a.ledmap, "rb").read()
         if b'"map":[' not in raw:
@@ -1018,6 +1067,10 @@ def _cmd_install(a):
         print(f"palette{n}:", upload(a.host, f"/palette{n}.json", f), "| readback ok:", readback(a.host, f"/palette{n}.json") == open(f, "rb").read())
     for path in getattr(a, "file", None) or []:
         name, raw = "/" + os.path.basename(path), open(path, "rb").read()
+        if readback(a.host, name, timeout=60) == raw:
+            print(f"file {name}: already on the lamp")
+            continue
+        changed.add(name[1:])
         sent = upload(a.host, name, path, timeout=120)
         same = readback(a.host, name, timeout=60) == raw
         print(f"file {name}:", sent, "| readback ok:", same)
@@ -1026,6 +1079,11 @@ def _cmd_install(a):
         if gif_frames(raw) > 1:
             animated[name[1:]] = gif_frames(raw)
     if a.presets:
+        names = {ws.get("n") for v in json.load(open(a.presets)).values() if v for ws in v.get("seg", [])}
+        recall = recall or bool(changed & names)
+    if a.presets and held == json.load(open(a.presets)):
+        print("presets: already on the lamp" + ("" if recall else "; no file they show changed, not recalled"))
+    elif a.presets:
         print("presets:", upload(a.host, "/presets.json", a.presets), "| readback ok:",
               json.loads(readback(a.host, "/presets.json")) == json.load(open(a.presets)))
     if a.cfg:
@@ -1069,7 +1127,13 @@ def _cmd_install(a):
                      "reread /json/eff and remap presets.json before installing")
     if a.palette and info.get("cpalcount", 0) < len(a.palette):
         sys.exit(f"custom palettes: lamp reports {info.get('cpalcount')}, uploaded {len(a.palette)}")
-    if a.presets:
+    # A palette file uploaded with --file: WLED reloads its custom palettes on the upload, so the slot must be counted.
+    slots = [int(m.group(1)) for m in (re.fullmatch(r"palette(\d+)\.json", os.path.basename(p)) for p in getattr(a, "file", None) or []) if m]
+    if slots and info.get("cpalcount", 0) <= max(slots):
+        sys.exit(f"custom palettes: lamp reports {info.get('cpalcount')}, uploaded slot {max(slots)}")
+    if slots:
+        print(f"custom palettes: {info.get('cpalcount')} counted, slot {max(slots)} is ID {200 - max(slots)}")
+    if recall:
         want = json.load(open(a.presets)); bad = []
         keys = SEGMENT_KEYS
         for k, v in want.items():
@@ -1339,6 +1403,11 @@ def main():
     s.add_argument("--host", required=True); s.add_argument("--mac", required=True)
     s.add_argument("--credentials-file", required=True, help="private JSON containing pin and ota_password")
     s.set_defaults(fn=cmd_secure)
+    s = sub.add_parser("remotes", help="report the paired ESP-NOW remotes and the last one heard; --link sets the list")
+    s.add_argument("--host", required=True); s.add_argument("--mac", required=True)
+    s.add_argument("--credentials-file", required=True, help="private JSON containing pin and ota_password")
+    s.add_argument("--link", nargs="*", help="the complete list of remote addresses to pair (replaces the lamp's list)")
+    s.set_defaults(fn=cmd_remotes)
     a = p.parse_args(); a.fn(a)
 
 

@@ -18,7 +18,7 @@ from collections import Counter
 HERE = os.path.dirname(os.path.abspath(__file__))
 CURTAIN = os.path.dirname(HERE)
 ROWS = os.path.join(os.path.dirname(CURTAIN), "fleet", "squid")
-NAMES = {"a": "squid-breathing", "b": "squid-ink", "c": "squid-deepsea", "e": "squid-eyes", "f": "squid-skin"}
+NAMES = {"a": "squid-breathing", "b": "squid-ink", "c": "squid-deepsea", "e": "squid-eyes", "f": "squid-skin", "w": "squid-skin-water"}
 # A pixel whose channels all stay below this is stored as black: the controller's gamma leaves it dark anyway.
 BLACK_BELOW = 24
 # Lowest level the controller still lights with gamma 2.8 at the presets' brightness 160; used for the printed share only.

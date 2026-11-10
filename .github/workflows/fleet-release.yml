@@ -1,0 +1,122 @@
+---
+name: Fleet release
+
+# A tag fleet-YYYYMMDD-<short sha> on a commit of main publishes that commit's fleet images as its release.
+# Pull requests and main pushes that change the build build it without publishing; main's runs fill the cache tags read.
+on:
+  push:
+    branches: [main]
+    tags: ["fleet-*"]
+    paths:
+      - .github/workflows/fleet-release.yml
+      - fleet/build.sh
+      - fleet/platformio_override.ini
+      - fleet/patches/**
+      - glorb/usermod/**
+      - usermods/**
+  pull_request:
+    paths:
+      - .github/workflows/fleet-release.yml
+      - fleet/build.sh
+      - fleet/platformio_override.ini
+      - fleet/patches/**
+      - glorb/usermod/**
+      - usermods/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        env: [fleet_esp32, fleet_gledopto, fleet_glorb]
+    outputs:
+      wled: ${{ steps.wled.outputs.tag }} (${{ steps.wled.outputs.commit }})
+      vid: ${{ steps.build.outputs.vid }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Check the tag and stamp the build with its date
+        if: github.ref_type == 'tag'
+        run: |
+          [[ $GITHUB_REF_NAME =~ ^fleet-([0-9]{8})-([0-9a-f]{7,40})$ ]] || { echo "::error::tag must be fleet-YYYYMMDD-<short sha>"; exit 1; }
+          day=${BASH_REMATCH[1]} short=${BASH_REMATCH[2]} commit=$(git rev-parse HEAD)
+          [[ $commit == "$short"* ]] || { echo "::error::$GITHUB_REF_NAME names $short but tags $commit"; exit 1; }
+          git merge-base --is-ancestor "$commit" origin/main || { echo "::error::$commit is not on main"; exit 1; }
+          [[ $(date -u -d "$day" +%Y%m%d) == "$day" ]] || { echo "::error::$day is not a date"; exit 1; }
+          echo "WLED_VID=$(date -u -d "$day" +%y%m%d)0" >> "$GITHUB_ENV"
+      - name: Check out WLED
+        id: wled
+        run: |
+          git clone --depth 1 --branch v16.0.1 https://github.com/wled/WLED.git ../WLED-v16.0.1
+          cd ../WLED-v16.0.1
+          { echo "commit=$(git rev-parse HEAD)"; echo "tag=$(git describe --tags --exact-match)"; echo "node=$(cat .nvmrc)"; } >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ steps.wled.outputs.node }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.platformio/.cache
+            ~/.buildcache
+          key: pio-${{ matrix.env }}-${{ steps.wled.outputs.commit }}-${{ hashFiles('fleet/platformio_override.ini', 'glorb/usermod/glorb_fx/platformio_override.ini') }}
+          restore-keys: pio-${{ matrix.env }}-${{ steps.wled.outputs.commit }}-
+      - name: Build
+        id: build
+        env:
+          FLEET_ENV: ${{ matrix.env }}
+        run: |
+          pip install -r ../WLED-v16.0.1/requirements.txt
+          fleet/build.sh ../WLED-v16.0.1 "$FLEET_ENV"
+          echo "vid=$(sed -n -E 's/^#define VERSION ([0-9]+)$/\1/p' ../WLED-v16.0.1/wled00/wled.h)" >> "$GITHUB_OUTPUT"
+          sha256sum fleet/out/*
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.env }}
+          path: fleet/out/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: out
+          merge-multiple: true
+      - name: Publish the images, their ELFs and SHA256SUMS as the tag's release
+        working-directory: out
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WLED: ${{ needs.build.outputs.wled }}
+          VID: ${{ needs.build.outputs.vid }}
+        run: |
+          files=(fleet_esp32.bin fleet_esp32.elf fleet_gledopto.bin fleet_gledopto.elf fleet_glorb.bin fleet_glorb.elf)
+          sha256sum "${files[@]}" > SHA256SUMS
+          cat SHA256SUMS
+          notes="fleet/build.sh at $GITHUB_SHA on WLED $WLED, build stamp (vid) $VID.
+
+          | Image | Release name | Lamps |
+          | --- | --- | --- |
+          | fleet_esp32.bin | ESP32 | couch, Moon |
+          | fleet_gledopto.bin | ESP32_Ethernet | curtain, Exoy |
+          | fleet_glorb.bin | ESP32-S3_8MB_qspi | both GLORBs |
+
+          Each .elf decodes its image's crash lines. tycpve's wled:flash flashes these images (fleet/README.md, Flash)."
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" \
+            --notes "$notes" "${files[@]}" SHA256SUMS

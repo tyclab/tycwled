@@ -105,6 +105,10 @@ different liveview frames in three seconds. `--restore` puts back the power,
 brightness and segments the lamp had before the presets were recalled. A preset that
 does not read back as written makes `install` exit non-zero.
 
+A file or `presets.json` the lamp already holds byte for byte is not sent again. Presets are
+recalled only when `presets.json` changed or a file a preset shows (a segment name) changed, so
+adding a palette or another file leaves the lamp's look alone.
+
 `install` reads every file back byte-for-byte, then recalls each preset and
 compares every segment field. `--effects` compares the lamp's `/json/eff`
 against `effects.json` only after the uploads and exits on a mismatch, so
@@ -139,6 +143,15 @@ If the lamp cannot be reached to restore its lock, the command fails: recover
 that lamp before continuing with the fleet. `secure` uses the security form,
 preserves the Arduino OTA and subnet settings, and never sends a partial
 `/json/cfg` update. No firmware flash is needed to enable this protection.
+
+`remotes --host <lamp> --mac <controller-mac> --credentials-file <private.json>`
+prints the paired ESP-NOW remotes and the last sender the lamp heard. WLED
+records every sender before it drops an unpaired one, but shows it only on the
+PIN-locked Wi-Fi settings page, so this is how to learn a remote's address:
+press one of its buttons, then run `remotes`. `--link <address>...` replaces the
+paired list with exactly those addresses through `/json/cfg` (with the lamp's
+`espnow` flag, which that write would otherwise drop) and fails unless the lamp
+reads back the new list with nothing else changed.
 
 ### Rolling back to factory firmware
 
@@ -197,8 +210,10 @@ Two measurement rules learned the hard way:
   `presets.json`, the six palettes `mkpalettes.py` emits, and `cfg-overrides.json`.
 - `usermods/syslog_events/` — WLED events (boot and crash reason, Wi-Fi, heap,
   OTA, errors, live override) as RFC3164 syslog, for any ESP32 WLED 16 build.
-- `fleet/` — the builds our fleet runs, and how they are flashed
-  (`wledlab.py flash`).
+- `usermods/tycstation_fx/` — the TycStation squid patterns as effects and the
+  TycStation palette as a usermod palette, in every fleet build.
+- `fleet/` — the builds our fleet runs, how they are released (a `fleet-*` tag)
+  and flashed (`wledlab.py flash`, from tycpve's `wled:flash` job).
 
 ## GLORB facts worth not rediscovering
 

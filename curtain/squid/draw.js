@@ -83,21 +83,36 @@ function squid(g, o) {
 // The five curtain loops, each a sequence of stages. Frame 0 follows the last frame: every keyframe track ends
 // where it starts and every cyclic motion runs a whole number of turns in L seconds.
 const LOOPS = {
-  // hover, gather, jet up, glide down, wave hello, hover
-  a: { L: 16, delay: .08, stages: ['hover', 'gather', 'jet up', 'glide down', 'wave hello'], draw(g, t) {
+  // A tour of the four corners: hover, jet to the top left, swim along the top, glide down the right, dart
+  // along the bottom, wave hello from the bottom left, jet home. In a corner the head or the arms reach the edges.
+  a: { L: 16, delay: .08, stages: ['hover', 'jet to the top left', 'look around', 'swim along the top', 'peek',
+    'glide down', 'dart along the bottom', 'wave hello', 'jet home'], draw(g, t) {
     const w = k => TAU * k * t / 16;
-    const bob = kf(t, [[0, 1], [4, 1], [4.6, 0], [8.5, 0], [9.2, 1], [16, 1]]);
-    const y = kf(t, [[0, 19], [4, 19], [5.2, 21], [5.9, 12.5], [6.4, 12], [9, 19], [16, 19]]) + Math.sin(w(4)) * .9 * bob;
-    const lift = kf(t, [[0, 0], [9, 0], [10, 1.25], [12.2, 1.25], [13, 0], [16, 0]]);
-    const hello = Math.sin(TAU * (t - 10) * 1.5) * .3 * clamp01((lift - .2) * 2);
-    const both = Math.max(pulse(t, 2, .25), pulse(t, 14.6, .25));
-    squid(g, { x: 34, y, s: .155, pa: w(6), pb: w(5),
-      sway: kf(t, [[0, 20], [4, 20], [5.2, 6], [6.4, 4], [7.2, 14], [9, 12], [13, 12], [14, 20], [16, 20]]),
-      spread: kf(t, [[0, 1], [4, 1], [5.2, .75], [5.7, .45], [6.4, .5], [7.2, 1.25], [9, 1], [16, 1]]),
-      stretch: kf(t, [[0, 1], [4, 1], [5.2, .55], [5.7, 1.3], [6.4, 1.25], [7.2, .8], [9, 1], [16, 1]]),
-      squash: kf(t, [[0, 1], [4, 1], [5.2, .86], [5.7, 1.1], [6.6, 1], [16, 1]]),
-      look: kf(t, [[0, [0, 0]], [4.6, [0, 0]], [5.4, [0, -5]], [6.4, [0, -5]], [7.4, [0, 4]], [9, [0, 0]], [9.8, [-6, -2]], [12.2, [-6, -2]], [13, [0, 0]], [16, [0, 0]]]),
-      lift: [lift + hello, 0], blink: [both, Math.max(both, pulse(t, 11, .5))], alpha: .8 + .2 * Math.sin(w(2)) });
+    const bob = kf(t, [[0, 1], [2, 1], [2.4, 0], [3.6, 0], [4, 1], [4.9, 1], [5.1, 0], [6.4, 0], [6.7, 1], [7.5, 1],
+      [7.8, 0], [9.5, 0], [9.8, 1], [10.6, 1], [11.6, 0], [11.9, 1], [13.4, 1], [13.6, 0], [14.6, 0], [14.9, 1], [16, 1]]);
+    const x = kf(t, [[0, 34], [2.6, 34], [3.5, 16], [5, 16], [6.4, 52], [10.2, 52], [11.2, 16], [13.8, 16], [14.6, 34], [16, 34]]);
+    const y = kf(t, [[0, 18], [2, 18], [2.6, 19.5], [3.5, 10], [7.6, 10], [9.6, 24], [13.8, 24], [14.6, 18], [16, 18]])
+      + Math.sin(w(4)) * .9 * bob;
+    const lift = kf(t, [[0, 0], [11.4, 0], [12, 1.25], [13, 1.25], [13.5, 0], [16, 0]]);
+    const hello = Math.sin(TAU * (t - 11.4) * 1.5) * .3 * clamp01((lift - .2) * 2);
+    const both = Math.max(pulse(t, 1, .25), pulse(t, 4.6, .25), pulse(t, 7.1, .25), pulse(t, 15.3, .25));
+    squid(g, { x, y, s: .155, pa: w(6), pb: w(5),
+      rot: kf(t, [[0, 0], [2.6, 0], [2.9, -.55], [3.4, -.55], [3.8, 0], [5, 0], [5.3, .55], [6.1, .55], [6.5, 0],
+        [10.2, 0], [10.4, -.9], [10.9, -.9], [11.3, 0], [13.8, 0], [14, .5], [14.4, .5], [14.7, 0], [16, 0]]),
+      sway: kf(t, [[0, 20], [2, 20], [2.6, 6], [3.5, 4], [4, 14], [5, 14], [5.4, 8], [6.2, 8], [6.8, 16], [7.6, 16],
+        [8.2, 14], [9.6, 12], [10.2, 6], [11, 4], [11.6, 12], [13.4, 12], [13.8, 6], [14.6, 4], [15.2, 20], [16, 20]]),
+      spread: kf(t, [[0, 1], [2, 1], [2.6, .75], [2.9, .45], [3.5, .5], [3.9, 1.25], [4.6, 1], [5, 1], [5.2, .7], [5.7, 1.1],
+        [6.1, .7], [6.5, 1], [7.6, 1], [8.2, 1.25], [9.6, 1.25], [10, .75], [10.3, .45], [11, .5], [11.4, 1.1], [13.4, 1],
+        [13.8, .75], [14.1, .45], [14.6, .5], [15, 1.25], [15.6, 1], [16, 1]]),
+      stretch: kf(t, [[0, 1], [2, 1], [2.6, .55], [2.9, 1.3], [3.5, 1.25], [3.9, .8], [4.6, 1], [7.6, 1], [8.2, .8], [9.6, .8],
+        [10, .55], [10.3, 1.3], [11, 1.25], [11.4, .8], [12, 1], [13.4, 1], [13.8, .55], [14.1, 1.3], [14.6, 1.25], [15, .8],
+        [15.6, 1], [16, 1]]),
+      squash: kf(t, [[0, 1], [2, 1], [2.6, .86], [2.9, 1.1], [3.7, 1], [9.6, 1], [10, .86], [10.3, 1.1], [11.2, 1], [13.4, 1],
+        [13.8, .86], [14.1, 1.1], [14.8, 1], [16, 1]]),
+      look: kf(t, [[0, [0, 0]], [2.4, [0, 0]], [2.8, [-5, -4]], [3.5, [-5, -4]], [4, [8, 3]], [4.4, [8, 3]], [4.8, [0, 0]],
+        [5.2, [6, 0]], [6.4, [6, 0]], [6.8, [9, -2]], [7.4, [9, -2]], [7.8, [0, 4]], [9.6, [0, 4]], [10, [-6, 0]], [11.2, [-6, 0]],
+        [11.6, [6, -2]], [13.2, [6, -2]], [13.8, [4, -4]], [14.6, [0, 0]], [16, [0, 0]]]),
+      lift: [lift + hello, 0], blink: [both, Math.max(both, pulse(t, 12.4, .5))], alpha: .8 + .2 * Math.sin(w(2)) });
   } },
 
   // swim in, startle, ink burst, dart right, peek, dash left, second burst, shoot out of the top
@@ -196,6 +211,26 @@ const LOOPS = {
     squid(g, { ...pose, eyes: false, armAlpha: (ai, side) => clamp01((t - 4.4 - (side > 0 ? ai : 7 - ai) * .22) / .3),
       headAlpha: clamp01((t - 6.2) / .4),
       alpha: kf(t, [[0, 0], [4.3, 0], [4.4, 1], [9.2, 1], [10.2, 0], [12, 0]]) * (t > 6.8 && t < 8.8 ? .55 + .45 * Math.cos(TAU * (t - 6.8)) : 1) });
+  } },
+
+  // the skin cells as slow water: swells roll through the cells and the cells sway with them; the squid drifts
+  // through as a dark shape and fades again
+  w: { L: 16, delay: .125, stages: ['swell', 'dark shape drifts in', 'drift', 'fade'], draw(g, t) {
+    const L = 16, w = k => TAU * k * t / L;
+    g.globalCompositeOperation = 'lighter';
+    for (let cy = 0; cy < 11; cy++) for (let cx = 0; cx < 17; cx++) {
+      const h = hash(cx + 7, cy);
+      const x = 2 + cx * 4 + (hash(cx, cy) - .5) * 1.6 + (cy % 2) * 2 - 1 + Math.sin(w(1) + cy * .55) * 1.1;
+      const y = 2 + cy * 3.9 + (hash(cy, cx + 40) - .5) * 1.6 + Math.cos(w(1) + cx * .4) * .7;
+      const v = .55 * Math.sin(x * .16 + y * .06 - w(2)) + .35 * Math.sin(x * .05 - y * .19 - w(1) + 1.3)
+        + .25 * Math.sin(Math.hypot(x - 20, y - 30) * .3 - w(3)) + .12 * Math.sin(w(2) + h * TAU);
+      const s = ease(clamp01(v * .55 + .5));
+      dot(g, x, y, .9 + 2.2 * s, grad(.5 + .45 * Math.sin(x * .05 - y * .04 - w(1))), .2 + .7 * s);
+    }
+    g.globalCompositeOperation = 'source-over';
+    squid(g, { x: kf(t, [[0, 20], [3, 20], [13.5, 46], [16, 46]]), y: 17 + Math.sin(w(2)) * 1.2, s: .16, pa: w(4), pb: w(3),
+      sway: 10, rot: .12 * Math.sin(w(1)), stroke: '#000', lw: 1.7, eyeK: 1.2, blink: pulse(t, 8.5, .3),
+      alpha: kf(t, [[0, 0], [3, 0], [5, 1], [11.5, 1], [13.5, 0], [16, 0]]) });
   } },
 };
 

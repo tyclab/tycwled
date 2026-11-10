@@ -1,20 +1,21 @@
 # fleet — the firmware our own lamps run
 
-| Lamp            | IP          | Syslog host (Loki `host`)         | Hardware                                                                                  | Env              |
-| --------------- | ----------- | --------------------------------- | ----------------------------------------------------------------------------------------- | ---------------- |
-| Led Strip Couch | 10.27.4.58  | `wled-couch` (also its mDNS name) | DOMRAEM DOM-WLE-ADM `04:b2:47:85:c8:14`, 300 LEDs on GPIO 16 (output 1)                   | `fleet_esp32`    |
-| Moon            | 10.27.4.59  | `wled-moon`                       | ESP32, 8 MB flash in the 4 MB layout, 8×8 on GPIO 18                                      | `fleet_esp32`    |
-| GLORB           | 10.27.4.60  | `wled-glorb-links`                | ESP32-S3, 8 MB                                                                            | `fleet_glorb`    |
-| GLORB           | 10.27.4.61  | `wled-glorb-rechts`               | ESP32-S3, 8 MB                                                                            | `fleet_glorb`    |
-| Curtain Bench   | 10.27.4.221 | `tyccurtain`                      | Gledopto GL-C-618WL (white) `70:4b:ca:5b:bd:d0`, three 520-pixel outputs on GPIOs 16/12/4 | `fleet_gledopto` |
-| WLED Spare      | 10.27.4.222 | `tycledspare`                     | Gledopto GL-C-618WL (black) `70:4b:ca:48:91:c8`, four 30-pixel outputs on GPIOs 16/12/4/2 | `fleet_gledopto` |
+| Lamp                | IP          | Syslog host (Loki `host`)          | Hardware                                                                                                                                        | Env              |
+| ------------------- | ----------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| Led Strip Couch     | 10.27.4.58  | `wled-couch` (also its mDNS name)  | DOMRAEM DOM-WLE-ADM `04:b2:47:85:c8:14`, 300 LEDs on GPIO 16 (output 1)                                                                         | `fleet_esp32`    |
+| Moon                | 10.27.4.59  | `wled-moon`                        | ESP32, 8 MB flash in the 4 MB layout, 8×8 on GPIO 18                                                                                            | `fleet_esp32`    |
+| GLORB               | 10.27.4.60  | `wled-glorb-links`                 | ESP32-S3, 8 MB                                                                                                                                  | `fleet_glorb`    |
+| GLORB               | 10.27.4.61  | `wled-glorb-rechts`                | ESP32-S3, 8 MB                                                                                                                                  | `fleet_glorb`    |
+| Curtain Bench       | 10.27.4.221 | `tyccurtain`                       | Gledopto GL-C-618WL (white) `70:4b:ca:5b:bd:d0`, three 520-pixel outputs on GPIOs 16/12/4                                                       | `fleet_gledopto` |
+| Exoy (former spare) | 10.27.4.222 | `tycledspare` (also its mDNS name) | Gledopto GL-C-618WL (black) `70:4b:ca:48:91:c8`, both Exoy ONE lamps: 480 LEDs on GPIO 16 (window) and 480 on GPIO 12 (kitchen), a 60×16 matrix | `fleet_gledopto` |
 
 All envs are WLED v16.0.1 plus [`syslog_events`](../usermods/syslog_events/),
-sending to our collector at 10.27.2.41:1515.
+sending to our collector at 10.27.2.41:1515, and [`tycstation_fx`](../usermods/tycstation_fx/),
+the squid patterns as effects.
 
-The curtain, the couch and the spare run build 2610050 with #5885 and without the frozen-segment
-fix; the overlays below rely on its partial-config fix, so apply them only to that build. Older
-lamps are not automatically updated by rebuilding here.
+The overlays below rely on #5885's partial-config fix (`patches/5885-partial-config.patch`, in every
+fleet build since 2610050), so apply them only to such a build. Lamps are not updated by rebuilding
+here: a release and a flash are (see Release and Flash).
 
 Rebuilding applies every `patches/*.patch` in name order to the pinned v16.0.1 source; a repeated
 build accepts a patch already applied, and a mismatch stops the build. Remove a patch only when
@@ -70,6 +71,29 @@ couch and the Moon do. The GLORBs run gamma 1.0 (`glorb/wled16-port/cfg-override
 `squid-arms-20x6.gif` holds the values that table gives the other lamps: every lamp then puts
 the same values on the wire. A lamp whose gamma setting changes needs its file regenerated.
 
+## TycStation palette
+
+`tycstation/` holds the mark's gradient as a WLED custom palette, blue to violet to red and
+back to blue, so any stock effect can run in the brand colours: `palette0.json` (ID 200, "Custom
+0" in Home Assistant) for the curtain, the couch and the Moon, `glorb/palette6.json` (ID 194,
+"Custom 6") for the GLORBs, after the port's six palettes and encoded for their output gamma of
+1.0. `tycstation/mkpalette.py` writes both; `make check-palettes` checks them.
+
+## TycStation effects
+
+[`tycstation_fx`](../usermods/tycstation_fx/) runs the squid's patterns as code: Squid Arms
+(the arm waves above), Squid Skin (the curtain's chromatophore cells) and Squid Plankton (the
+deep-sea loop's water), on any segment, with Speed, a Sound slider for AudioReactive's volume
+and one size slider each. It also registers the TycStation palette as usermod palette 255,
+encoded for each lamp's gamma setting at runtime. WLED assigns the effect IDs at boot (142,
+169 and 170 on `fleet_esp32` and `fleet_gledopto` and 222 to 224 on `fleet_glorb`, by the
+v16.0.1 effect table), so presets name them. The squid figure stays a GIF.
+
+No lamp runs a build with it yet. Once the lamps run it, the file palettes in `tycstation/`
+(`palette0.json`, `glorb/palette6.json`, the files `mkpalette.py` writes and their
+`check-palettes` step) are redundant and must be removed in that change; the usermod's tests
+compare its stops with them and move with them.
+
 ## Build
 
 ```sh
@@ -83,9 +107,28 @@ anything but the exact tag.
 This produces `fleet/out/{fleet_esp32,fleet_glorb}.{bin,elf}`. It is untracked. Keep the ELF of whatever is on the
 lamps: it decodes their crash lines. `WLED_VID=<vid>` rebuilds a given stamp.
 
+## Release
+
+The lamps run released builds. A tag `fleet-YYYYMMDD-<short sha>` on a commit of main makes
+[`fleet-release.yml`](../.github/workflows/fleet-release.yml) build all three envs with `build.sh`
+and publish `fleet_esp32`, `fleet_gledopto` and `fleet_glorb` as `.bin` and `.elf` with a
+`SHA256SUMS` as that tag's release. The build stamp (`vid`) is the tag's date, `YYMMDD0`.
+The workflow refuses a tag whose short sha is not the tagged commit or whose commit is not on main.
+Pull requests and main pushes that change the build only build it. A build takes about 2.5 minutes
+from a cold cache and about 1 minute warm. Two builds of the same source are not byte-identical, so
+the release's `SHA256SUMS` name the bytes that are flashed.
+
+```sh
+tag=fleet-$(date +%Y%m%d)-$(git rev-parse --short=7 origin/main)
+git tag "$tag" origin/main && git push origin "$tag"
+```
+
 ## Flash
 
-One lamp at a time, and stop if one does not come back:
+tycpve's on-demand `wled:flash` job flashes a release: it pins the release's images by sha256,
+reads only the selected lamp's PIN and OTA password from OpenBao inside CI, and runs the
+`flash` below (and on a GLORB the effect-ID check). No credential is needed on a PC. Done by hand,
+one lamp at a time, and stop if one does not come back:
 
 ```sh
 python3 wledlab.py flash --host 10.27.4.58 --firmware fleet/out/fleet_esp32.bin --release ESP32 --credentials-file /path/to/private-couch.json
@@ -167,7 +210,9 @@ longer shows the yellow-green cast it had at full white under the WS2815 model (
 
 ## Remote
 
-Both ESP-NOW remotes are paired with every lamp. No lamp carries a `remote.json`, so WLED
+Every lamp pairs the ESP-NOW remotes tycpve's `wled:remotes` declares; a lamp ignores any other
+sender (until 2026-11-10 the second remote was unpaired and moved no lamp; `wledlab.py remotes`
+shows the last sender a lamp heard). No lamp carries a `remote.json`, so WLED
 16.0.1's own handler runs (`remote.cpp`): number button N calls preset N, and on, off, night and
 the brightness buttons act on the whole lamp. A lamp with no preset in that slot stays as it is
 and logs `error: code=12 (preset does not exist)`. The fallback effects named in `remote.cpp`

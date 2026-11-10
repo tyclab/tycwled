@@ -25,6 +25,7 @@ done
 
 ln -sfn "$repo/glorb/usermod/glorb_fx" "$wled/usermods/glorb_fx"
 ln -sfn "$repo/usermods/syslog_events" "$wled/usermods/syslog_events"
+ln -sfn "$repo/usermods/tycstation_fx" "$wled/usermods/tycstation_fx"
 cat "$repo/glorb/usermod/glorb_fx/platformio_override.ini" "$repo/fleet/platformio_override.ini" \
   > "$wled/platformio_override.ini"
 # Upstream CI stamps the build day the same way, so /json/info "vid" tells builds apart.
