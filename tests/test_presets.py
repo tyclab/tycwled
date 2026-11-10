@@ -21,6 +21,14 @@ PORT = json.load(open(os.path.join(HERE, "..", "glorb", "wled16-port", "presets.
 
 # the only two fields a segment may differ in, and why
 TRANSLATED = {"fx", "pal"}
+# The fleet adds power and brightness to every look. The factory presets carry neither, so a recall
+# left both as they were and two lamps on the same button stayed apart (the GLORBs at 6 and 255 on
+# 2026-11-10). The operator set the values that evening: 45, and 200 for the Moon.
+POWER = {"on": True, "bri": 45}
+# Every preset file the fleet installs: its brightness and the presets that are not looks.
+FLEET = {"glorb/wled16-port/presets.json": (45, ()), "curtain/presets.json": (45, ()),
+         "fleet/overlays/moon-presets.json": (200, ()),
+         "fleet/overlays/couch-presets.json": (45, ("250",))}  # the couch's boot layout, which starts off
 
 
 def effect_segments(preset):
@@ -37,7 +45,7 @@ class Verbatim(unittest.TestCase):
                 continue
             p = PORT[k]
             self.assertEqual({x: v for x, v in f.items() if x != "seg"},
-                             {x: v for x, v in p.items() if x != "seg"},
+                             {x: v for x, v in p.items() if x not in ("seg", *POWER)},
                              f"preset {k}: top-level fields differ from factory")
 
     def test_segments_are_factory_verbatim_except_fx_and_pal(self):
@@ -50,6 +58,19 @@ class Verbatim(unittest.TestCase):
                 self.assertEqual({x: v for x, v in fs.items() if x not in TRANSLATED},
                                  {x: v for x, v in ps.items() if x not in TRANSLATED},
                                  f"preset {k} seg {n}: fields beyond fx/pal differ from factory")
+
+
+class Power(unittest.TestCase):
+    def test_every_look_of_every_lamp_sets_power_and_its_brightness(self):
+        for path, (brightness, layouts) in FLEET.items():
+            presets = json.load(open(os.path.join(HERE, "..", path)))
+            looks = {k: p for k, p in presets.items() if p and k not in layouts}
+            self.assertTrue(looks, path)
+            for k, p in looks.items():
+                self.assertEqual((p.get("on"), p.get("bri")), (True, brightness), f"{path} preset {k} ({p.get('n')})")
+
+    def test_no_look_changes_the_fade_time_of_a_glorb(self):
+        self.assertEqual([k for k, p in PORT.items() if p and "transition" in p], [])
 
 
 class Effects(unittest.TestCase):
