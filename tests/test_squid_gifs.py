@@ -26,6 +26,19 @@ class SquidGifs(unittest.TestCase):
                 self.assertEqual(wledlab.gif_frames(raw), frames)
                 self.assertIn(b"NETSCAPE2.0\x03\x01\x00\x00\x00", raw, "loops forever")
 
+    def test_the_glorb_file_holds_wire_values_and_the_others_hold_drawn_values(self):
+        # The GLORBs run output gamma 1.0, the other lamps 2.8. The row's blue end is the mark's (90, 162, 255) at some
+        # level: drawn, its red is about a third of its blue; after WLED's 2.8 table it is about a twentieth.
+        for path, low in (("fleet/squid/squid-arms-20x6.gif", True), ("fleet/squid/squid-arms-8x8.gif", False),
+                          ("fleet/squid/squid-arms-300x1.gif", False)):
+            with self.subTest(path=path), open(os.path.join(ROOT, path), "rb") as f:
+                raw = f.read()
+                table = raw[13:13 + 3 * (2 << (raw[10] & 7))]
+                blues = [table[i:i + 3] for i in range(0, len(table), 3) if table[i + 2] > 240 and table[i] < table[i + 1] < table[i + 2]]
+                self.assertTrue(blues, "the blue end is in the colour table")
+                ratio = min(c[0] / c[2] for c in blues)
+                self.assertTrue(ratio < 0.12 if low else ratio > 0.25, ratio)
+
     def test_no_other_squid_gif_is_committed_unlisted(self):
         found = {os.path.relpath(os.path.join(folder, name), ROOT)
                  for folder in (os.path.join(ROOT, "curtain"), os.path.join(ROOT, "fleet", "squid"))
