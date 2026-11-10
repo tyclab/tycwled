@@ -39,7 +39,8 @@ The format is based on [Keep a Changelog], and this project adheres to
   slider and keep moving in silence. The usermod registers the TycStation palette as usermod
   palette 255, and on a lamp with colour gamma off (the GLORBs) encodes its pixels and the palette
   with WLED's 2.8 table, so every lamp puts the same values on the wire. Tests render the
-  patterns on the host against the committed squid GIFs. Not flashed to any lamp yet.
+  patterns on the host against the committed squid GIFs. On the Moon, the couch, the curtain and
+  both GLORBs since release fleet-20261110-90019c5.
 - Curtain: six squid loops as animated GIFs for the Image effect, drawn from the TycStation
   mark by `curtain/squid/mkgifs.py` (presets 4 to 9: Squid Breathing, Squid Ink Burst,
   Squid Deep Sea, Squid Eyes, Squid Chromatophores, Squid Water; no blur, brightness 160).
@@ -92,6 +93,10 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Fixed
 
+- `fleet/` builds apply `patches/frozen-segment-reset.patch`: on WLED 16 a `/json/state`
+  request that changes the effect and sets pixels with `i` left the segment frozen and black,
+  and an effect change blanked a frozen segment. The reset now waits until the segment is
+  unfrozen.
 - `wledlab.py install --restore` and `flash` put the look back with the preset it was: the
   request names the preset (`pd`) and uses the one-shot transition (`tt`). Before, the lamp
   reported no preset afterwards, so Home Assistant lost the curtain's look and ended the squid

@@ -12,7 +12,7 @@ envs=("$@")
 tag=$(git -C "$wled" describe --tags --exact-match 2>/dev/null || true)
 [ "$tag" = v16.0.1 ] || { echo "WLED checkout is at '${tag:-untagged}', expected v16.0.1" >&2; exit 1; }
 
-# Pending upstream fixes go into every fleet build; an already-applied patch passes, drifted source fails.
+# Fixes the pinned release lacks go into every fleet build; an already-applied patch passes, drifted source fails.
 for patch in "$repo"/fleet/patches/*.patch; do
   if git -C "$wled" apply --reverse --check "$patch" 2>/dev/null; then
     echo "already applied: $(basename "$patch")"
