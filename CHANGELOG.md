@@ -33,6 +33,13 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
+- `usermods/tycstation_fx/`: the squid patterns as WLED 16 effects for every fleet build. Squid
+  Arms (the arm waves), Squid Skin (the chromatophore cells) and Squid Plankton (the deep-sea
+  water) run on 1D and 2D segments of any size, follow AudioReactive's volume through a Sound
+  slider and keep moving in silence. The usermod registers the TycStation palette as usermod
+  palette 255, and on a lamp with colour gamma off (the GLORBs) encodes its pixels and the palette
+  with WLED's 2.8 table, so every lamp puts the same values on the wire. Tests render the
+  patterns on the host against the committed squid GIFs. Not flashed to any lamp yet.
 - Curtain: five squid loops as animated GIFs for the Image effect, drawn from the TycStation
   mark by `curtain/squid/mkgifs.py` (presets 4 to 8: Squid Breathing, Squid Ink Burst,
   Squid Deep Sea, Squid Eyes, Squid Chromatophores; no blur, brightness 160). Each loop is a
