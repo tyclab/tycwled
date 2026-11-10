@@ -5,7 +5,7 @@
     "inv": "Light"
   },
   "def": {
-    "ps": 2,
+    "ps": 250,
     "on": false,
     "bri": 30
   },
