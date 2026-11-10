@@ -19,11 +19,13 @@ def segment(fx, name=""):
 
 
 class Lamp:
-    """A controller that stores uploads, recalls presets and plays a GIF only when it holds the file."""
+    """A controller that stores uploads, recalls presets and plays a GIF only when it holds the file. As WLED 16.0.1
+    does (json.cpp, led.cpp): "ps" names the preset shown unchanged, a segment write clears it unless "pd" names it,
+    and "transition" stays as the lamp's setting while "tt" applies once."""
 
     def __init__(self):
         self.files, self.calls, self.frozen, self.deaf = {}, [], False, False
-        self.state = {"on": True, "bri": 100, "seg": [segment(191)]}
+        self.state = {"on": True, "bri": 100, "ps": -1, "transition": 7, "seg": [segment(191)]}
 
     def upload(self, host, name, path, timeout=30):
         self.calls.append(("upload", name))
@@ -43,9 +45,10 @@ class Lamp:
     def post(self, host, path, body):
         self.calls.append(("post", copy.deepcopy(body)))
         if "ps" in body:
-            self.state.update(on=True, seg=copy.deepcopy(json.loads(self.files["/presets.json"])[str(body["ps"])]["seg"]))
+            self.state.update(on=True, ps=body["ps"], seg=copy.deepcopy(json.loads(self.files["/presets.json"])[str(body["ps"])]["seg"]))
         elif "seg" in body and not self.deaf:
-            self.state.update(on=body["on"], bri=body["bri"], seg=copy.deepcopy(body["seg"]))
+            self.state.update(on=body["on"], bri=body["bri"], ps=body.get("pd", -1), seg=copy.deepcopy(body["seg"]),
+                              transition=body.get("transition", self.state["transition"]))
 
     def live(self, host, seconds):
         name = "/" + self.state["seg"][0].get("n", "")
@@ -82,8 +85,19 @@ class Install(unittest.TestCase):
         before = copy.deepcopy(self.lamp.state)
         wledlab._cmd_install(self.args)
         self.assertEqual([c[1] for c in self.lamp.calls if c[0] == "upload"], ["/squid-eyes.gif", "/presets.json"])
+        # The whole state, so also the lamp's own transition time: the look goes back with the one-shot "tt".
         self.assertEqual(self.lamp.state, before)
-        self.assertEqual(self.lamp.calls[-1][1]["transition"], 0)
+        self.assertEqual(self.lamp.calls[-1][1]["tt"], 0)
+
+    def test_a_look_that_was_a_preset_comes_back_as_that_preset(self):
+        # Home Assistant reads the look from the preset the lamp reports; a bare segment write would report none.
+        presets = json.load(open(self.presets))
+        self.lamp.files["/presets.json"] = json.dumps(presets | {"4": {"n": "Older", "seg": [segment(1)]}}).encode()
+        self.lamp.state.update(ps=1, seg=copy.deepcopy(presets["1"]["seg"]))
+        before = copy.deepcopy(self.lamp.state)
+        wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.state, before)
+        self.assertEqual(self.lamp.calls[-1][1]["pd"], 1)
 
     def test_a_file_that_reads_back_differently_stops_before_the_presets(self):
         with patch.object(wledlab, "readback", lambda host, name, timeout=10: b"truncated"), self.assertRaises(SystemExit):
