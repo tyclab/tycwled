@@ -92,6 +92,12 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Fixed
 
+- `wledlab.py install --restore` and `flash` put the look back with the preset it was: the
+  request names the preset (`pd`) and uses the one-shot transition (`tt`). Before, the lamp
+  reported no preset afterwards, so Home Assistant lost the curtain's look and ended the squid
+  scene while the squid still played, and `transition: 0` stayed as the lamp's setting.
+- Fleet releases cut on one day get different build stamps (`YYMMDDn`). Both would have been
+  `YYMMDD0`, and `wled:flash` proves the flashed image by that stamp.
 - Remote button 2 no longer switches the couch strip off: the couch's boot
   layout moved from preset 2 to 250, out of the slots the remote's number
   buttons call. The `fleet/remote.json` map and `install --remote` added with
