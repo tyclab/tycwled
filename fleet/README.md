@@ -199,7 +199,9 @@ longer shows the yellow-green cast it had at full white under the WS2815 model (
 
 ## Remote
 
-Both ESP-NOW remotes are paired with every lamp. No lamp carries a `remote.json`, so WLED
+Every lamp pairs the ESP-NOW remotes tycpve's `wled:remotes` declares; a lamp ignores any other
+sender (until 2026-11-10 the second remote was unpaired and moved no lamp; `wledlab.py remotes`
+shows the last sender a lamp heard). No lamp carries a `remote.json`, so WLED
 16.0.1's own handler runs (`remote.cpp`): number button N calls preset N, and on, off, night and
 the brightness buttons act on the whole lamp. A lamp with no preset in that slot stays as it is
 and logs `error: code=12 (preset does not exist)`. The fallback effects named in `remote.cpp`

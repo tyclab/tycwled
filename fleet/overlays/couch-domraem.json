@@ -71,7 +71,7 @@
   },
   "nw": {
     "espnow": true,
-    "linked_remote": ["704bcac8d198", "704bcaca4b78"]
+    "linked_remote": ["704bcac8d198", "704bcaca4b78", "704bcac9aa6c"]
   },
   "ota": {
     "same-subnet": false
