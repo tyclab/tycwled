@@ -68,6 +68,11 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Fixed
 
+- The fleet's remote number buttons no longer show a stock effect on a lamp
+  that has no preset in that slot, and button 2 no longer switches the couch
+  strip off. `fleet/remote.json` maps buttons 1 to 7 to presets 1 to 7 as
+  JSON commands, `install --remote` uploads it and reads it back, and the
+  couch's boot layout moved from preset 2 to 250.
 - `verify` refuses a non-positive `--samples` or `--interval` before it touches
   either lamp, instead of switching both through every preset and failing each
   on an empty sample window.

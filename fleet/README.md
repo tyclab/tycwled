@@ -141,6 +141,24 @@ at 16.8 A and scales it to about 120/255. Operator, 2026-10-07: at this setting 
 longer shows the yellow-green cast it had at full white under the WS2815 model (`ledma` 255,
 12 mA per LED, where the cap never engaged), and raising the limit brings the cast back.
 
+## Remote
+
+Both ESP-NOW remotes are paired with every lamp, and every lamp carries the same
+[`remote.json`](remote.json): number button N calls preset N. Without the file WLED 16.0.1 runs
+`presetWithFallback()` for those buttons, so a lamp with no preset in that slot shows a stock
+effect instead (Static, Breath, Fire Flicker, Rainbow, Candle, Random Colors, Fade). With it a
+lamp without that preset stays as it is and logs `error: code=12 (preset does not exist)`.
+On, off, night and the brightness buttons keep WLED's own handling.
+
+Presets 1 to 7 are therefore the remote's looks on every lamp: a look saved into one of those
+slots is on its button at once, and anything that is not a look (a boot layout, a test pattern)
+belongs above 7. The couch's boot layout is preset 250 for that reason; in slot 2 it switched
+the strip off from the remote (2026-11-10).
+
+```sh
+python3 wledlab.py install --host <lamp> --remote fleet/remote.json --credentials-file /path/to/private-lamp.json
+```
+
 ## Curtain
 
 The Govee H70B5 curtain hangs as three panels of 20 vertical strings × 26 LEDs on the
