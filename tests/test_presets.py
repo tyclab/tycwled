@@ -26,7 +26,7 @@ TRANSLATED = {"fx", "pal"}
 # 2026-11-10). The operator set the values that evening: 45, and 200 for the Moon.
 POWER = {"on": True, "bri": 45}
 # Every preset file the fleet installs: its brightness and the presets that are not looks.
-FLEET = {"glorb/wled16-port/presets.json": (45, ()), "curtain/presets.json": (45, ()),
+FLEET = {"fleet/overlays/glorb-presets.json": (45, ()), "curtain/presets.json": (45, ()),
          "fleet/overlays/moon-presets.json": (200, ()),
          "fleet/overlays/couch-presets.json": (45, ("250",))}  # the couch's boot layout, which starts off
 
@@ -71,6 +71,57 @@ class Power(unittest.TestCase):
 
     def test_no_look_changes_the_fade_time_of_a_glorb(self):
         self.assertEqual([k for k, p in PORT.items() if p and "transition" in p], [])
+
+
+class Buttons(unittest.TestCase):
+    """The remote's number buttons 1 to 7 recall presets 1 to 7 on every lamp at once (fleet/README.md, Remote).
+
+    A lamp without a preset in a slot stays as it was, so the same button gave different results depending
+    on what was pressed before (2026-11-10). Every lamp therefore has a look on every button, and buttons
+    4 to 7, the curtain's squid looks, play the squid's arm waves on the other lamps."""
+
+    FOLLOWERS = {"fleet/overlays/couch-presets.json": ("squid-arms-300x1.gif", 300, None),
+                 "fleet/overlays/moon-presets.json": ("squid-arms-8x8.gif", 8, 8),
+                 "fleet/overlays/glorb-presets.json": ("squid-arms-20x6.gif", 20, 6)}
+
+    @staticmethod
+    def load(path):
+        return json.load(open(os.path.join(HERE, "..", path)))
+
+    def test_every_lamp_has_a_look_on_every_button(self):
+        for path in FLEET:
+            presets = self.load(path)
+            self.assertEqual([k for k in "1234567" if not presets.get(k)], [], path)
+
+    def test_buttons_4_to_7_are_the_squid_on_every_lamp(self):
+        curtain = self.load("curtain/presets.json")
+        names = {k: curtain[k]["n"] for k in "4567"}
+        self.assertTrue(all(name.startswith("Squid ") for name in names.values()), names)
+        # The segment hatyc packages/squid.yaml sends: every field WLED reports for a segment.
+        image = {"grp": 1, "spc": 0, "of": 0, "on": True, "frz": False, "bri": 255, "cct": 127, "set": 0,
+                 "col": [[0, 0, 0], [0, 0, 0], [0, 0, 0]], "fx": 53, "sx": 128, "ix": 0, "pal": 0, "c1": 128, "c2": 128,
+                 "c3": 16, "sel": True, "rev": False, "mi": False, "o1": False, "o2": False, "o3": False, "si": 0,
+                 "m12": 0, "bm": 0}
+        for path, (gif, stop, stop_y) in self.FOLLOWERS.items():
+            presets = self.load(path)
+            waves = {"id": 0, "start": 0, "stop": stop, "n": gif, **image}
+            if stop_y:
+                waves |= {"startY": 0, "stopY": stop_y, "rY": False, "mY": False, "tp": False}
+            for k, name in names.items():
+                self.assertEqual(presets[k]["n"], name, f"{path} preset {k}")
+                self.assertEqual([s for s in presets[k]["seg"] if s.get("stop") != 0], [waves], f"{path} preset {k}")
+
+    def test_the_couch_and_the_moon_show_their_own_look_on_buttons_1_to_3(self):
+        for path in ("fleet/overlays/couch-presets.json", "fleet/overlays/moon-presets.json"):
+            presets = self.load(path)
+            self.assertEqual((presets["2"], presets["3"]), (presets["1"], presets["1"]), path)
+
+    def test_the_glorbs_keep_every_port_look_with_three_moved_off_the_squid_buttons(self):
+        fleet = self.load("fleet/overlays/glorb-presets.json")
+        moved = {"4": "15", "5": "16", "7": "17"}
+        for k, look in PORT.items():
+            self.assertEqual(fleet[moved.get(k, k)], look, f"port preset {k}")
+        self.assertEqual(sorted(fleet, key=int), sorted(set(PORT) - set(moved) | set(moved.values()) | set("4567"), key=int))
 
 
 class Effects(unittest.TestCase):
