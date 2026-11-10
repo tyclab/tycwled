@@ -1034,7 +1034,8 @@ def gif_frames(raw):
 def restore_look(host, before):
     """Put back power, brightness and segments as read before the presets were recalled; False when they do not read back."""
     segs = [dict(seg, n=seg.get("n", "")) for seg in before.get("seg", [])]
-    post(host, "/json/state", {"on": before.get("on"), "bri": before.get("bri"), "transition": 0, "seg": segs})
+    # `tt` fades this one call; `transition` would stay as the lamp's fade time (json.cpp).
+    post(host, "/json/state", {"on": before.get("on"), "bri": before.get("bri"), "tt": 0, "seg": segs})
     time.sleep(1.5)
     after = get(host, "/json/state")
     now = {seg.get("id"): seg for seg in after.get("seg", [])}
