@@ -1,0 +1,34 @@
+diff --git a/wled00/FX_fcn.cpp b/wled00/FX_fcn.cpp
+index 31c23f84..282005c4 100644
+--- a/wled00/FX_fcn.cpp
++++ b/wled00/FX_fcn.cpp
+@@ -520,8 +520,9 @@ void Segment::setGeometry(uint16_t i1, uint16_t i2, uint8_t grp, uint8_t spc, ui
+   // allocate FX render buffer
+   if (length() != oldLength) {
+     // allocate render buffer (always entire segment), prefer IRAM/PSRAM. Note: impact on FPS with PSRAM buffer is low (<2% with QSPI PSRAM) on S2/S3
++    // cleared here: resetIfRequired() is deferred while the segment is frozen
+     p_free(pixels);
+-    pixels = static_cast<uint32_t*>(allocate_buffer(length() * sizeof(uint32_t), BFRALLOC_PREFER_PSRAM | BFRALLOC_NOBYTEACCESS));
++    pixels = static_cast<uint32_t*>(allocate_buffer(length() * sizeof(uint32_t), BFRALLOC_PREFER_PSRAM | BFRALLOC_NOBYTEACCESS | BFRALLOC_CLEAR));
+     if (!pixels) {
+       DEBUGFX_PRINTLN(F("!!! Not enough RAM for pixel buffer !!!"));
+       #ifdef WLED_ENABLE_GIF
+@@ -1334,14 +1335,15 @@ void WS2812FX::service() {
+ 
+     // process transition (also pre-calculates progress value)
+     seg.handleTransition();
+-    // reset the segment runtime data if needed
+-    seg.resetIfRequired();
++    // reset the segment runtime data if needed; a frozen segment keeps its pixels until unfrozen
++    const bool frozen = seg.freeze; // read once: freeze can change outside suspend()
++    if (!frozen) seg.resetIfRequired();
+ 
+     if (seg.isActive()) {
+       // current segment is active -> re-run effect, and remember that show() call is necessary
+       // if we arrive here, its always showtime (timeToShow == true)
+       doShow = true;
+-      if (!seg.freeze) { //only run effect function if not frozen
++      if (!frozen) { //only run effect function if not frozen
+         // Effect blending
+         uint16_t prog = seg.progress();
+         seg.beginDraw(prog);                // set up parameters for get/setPixelColor() (will also blend colors and palette if blend style is FADE)
