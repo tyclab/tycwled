@@ -44,7 +44,8 @@ The format is based on [Keep a Changelog], and this project adheres to
   mark by `curtain/squid/mkgifs.py` (presets 4 to 8: Squid Breathing, Squid Ink Burst,
   Squid Deep Sea, Squid Eyes, Squid Chromatophores; no blur, brightness 160). Each loop is a
   sequence of stages (hover, jet, glide, wave; swim in, burst, dart, burst again; and so on)
-  with motion several LEDs wide.
+  with motion several LEDs wide. Squid Breathing tours the four corners, reaching every edge of
+  the curtain.
 - The squid's arm waves for the other lamps, as GIFs for the Image effect at each lamp's own size
   (`fleet/squid/`: 300x1 for the couch strip, 20x6 for a GLORB, 8x8 for the Moon): the mark's
   gradient along the row, blue end to red end, with waves running outward from the middle.
