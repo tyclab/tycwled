@@ -57,6 +57,19 @@ output, limits, remotes and central OTA access are in
 Pin, LED and mic settings live in each lamp's cfg.json, not in the build. OTA retains
 the filesystem, but a new WLED version can migrate its configuration schema on boot.
 
+## Squid arm waves
+
+`squid/` holds the TycStation squid's arm waves as animated GIFs for the Image effect, one
+per lamp shape: `squid-arms-300x1.gif` (the couch strip as one 300-LED segment),
+`squid-arms-20x6.gif` (a GLORB's raster) and `squid-arms-8x8.gif` (the Moon). Each matches
+its segment's size, so WLED plays it unscaled. `curtain/squid/mkgifs.py` draws them together
+with the curtain's loops. The Image effect plays on one segment per controller.
+
+The files are drawn for a lamp that applies WLED's output gamma of 2.8, as the curtain, the
+couch and the Moon do. The GLORBs run gamma 1.0 (`glorb/wled16-port/cfg-overrides.json`), so
+`squid-arms-20x6.gif` holds the values that table gives the other lamps: every lamp then puts
+the same values on the wire. A lamp whose gamma setting changes needs its file regenerated.
+
 ## Build
 
 ```sh
@@ -151,6 +164,25 @@ the 5 V model (`ledma` 55) with an 8 A global limit, the supply's rating: WLED e
 at 16.8 A and scales it to about 120/255. Operator, 2026-10-07: at this setting the far third no
 longer shows the yellow-green cast it had at full white under the WS2815 model (`ledma` 255,
 12 mA per LED, where the cap never engaged), and raising the limit brings the cast back.
+
+## Remote
+
+Both ESP-NOW remotes are paired with every lamp. No lamp carries a `remote.json`, so WLED
+16.0.1's own handler runs (`remote.cpp`): number button N calls preset N, and on, off, night and
+the brightness buttons act on the whole lamp. A lamp with no preset in that slot stays as it is
+and logs `error: code=12 (preset does not exist)`. The fallback effects named in `remote.cpp`
+are never shown: `handlePresets()` ends in `stateUpdated()`, which reads the effect back from
+the segment before anything applies it (`presets.cpp`, `led.cpp`; on 2026-11-10 the couch's
+segment did not change on the buttons it has no preset for).
+
+A `remote.json` that sends `{"ps": N}` for those buttons gains nothing and loses two things the
+stock handler does: the JSON path skips a preset that is already current (`json.cpp`), and it
+does not end the remote's night mode, which then blocks the brightness buttons (`remote.cpp`).
+
+Presets 1 to 7 are therefore the remote's looks on every lamp: a look saved into one of those
+slots is on its button at once, and anything that is not a look (a boot layout, a test pattern)
+belongs above 7. The couch's boot layout is preset 250 for that reason; in slot 2 it switched
+the strip off from the remote (2026-11-10).
 
 ## Curtain
 

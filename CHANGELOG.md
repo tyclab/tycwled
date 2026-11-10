@@ -33,6 +33,19 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
+- Curtain: five squid loops as animated GIFs for the Image effect, drawn from the TycStation
+  mark by `curtain/squid/mkgifs.py` (presets 4 to 8: Squid Breathing, Squid Ink Burst,
+  Squid Deep Sea, Squid Eyes, Squid Chromatophores; no blur, brightness 160). Each loop is a
+  sequence of stages (hover, jet, glide, wave; swim in, burst, dart, burst again; and so on)
+  with motion several LEDs wide.
+- The squid's arm waves for the other lamps, as GIFs for the Image effect at each lamp's own size
+  (`fleet/squid/`: 300x1 for the couch strip, 20x6 for a GLORB, 8x8 for the Moon): the mark's
+  gradient along the row, blue end to red end, with waves running outward from the middle.
+  Drawn by the same `curtain/squid/mkgifs.py`. The GLORB file is encoded for their output gamma
+  of 1.0, so all lamps put the same values on the wire.
+- `wledlab.py install --file` uploads other files (GIFs) and reads them back, checks that an
+  uploaded animated GIF moves in liveview, and `--restore` puts the lamp's look back afterwards.
+  A preset mismatch now makes `install` exit non-zero.
 - Curtain: the TycStation logo GIF and the controller's presets (preset 1 "TycStation",
   the Image effect on the segment named `tycstation.gif`).
 - Curtain: presets 2 and 3 "PS Fuzzy Noise", the operator's pick of 2026-10-07 (palette
@@ -69,6 +82,11 @@ The format is based on [Keep a Changelog], and this project adheres to
   request that changes the effect and sets pixels with `i` left the segment frozen and black,
   and an effect change blanked a frozen segment. The reset now waits until the segment is
   unfrozen.
+- Remote button 2 no longer switches the couch strip off: the couch's boot
+  layout moved from preset 2 to 250, out of the slots the remote's number
+  buttons call. The `fleet/remote.json` map and `install --remote` added with
+  it are gone again: they rested on a fallback effect WLED 16.0.1 never shows,
+  and the map cost the re-press of a current preset and the end of night mode.
 - `verify` refuses a non-positive `--samples` or `--interval` before it touches
   either lamp, instead of switching both through every preset and failing each
   on an empty sample window.
