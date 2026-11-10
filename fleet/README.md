@@ -216,7 +216,8 @@ longer shows the yellow-green cast it had at full white under the WS2815 model (
 ## Remote
 
 Every lamp pairs the ESP-NOW remotes tycpve's `wled:remotes` declares; a lamp ignores any other
-sender (until 2026-11-10 the second remote was unpaired and moved no lamp; `wledlab.py remotes`
+sender (until 2026-11-10 the second remote was unpaired and moved no lamp, and a third address
+that belongs to neither remote was paired; `wledlab.py remotes`
 shows the last sender a lamp heard). No lamp carries a `remote.json`, so WLED
 16.0.1's own handler runs (`remote.cpp`): number button N calls preset N, and on, off, night and
 the brightness buttons act on the whole lamp. A lamp with no preset in that slot stays as it is
@@ -229,15 +230,20 @@ A `remote.json` that sends `{"ps": N}` for those buttons gains nothing and loses
 stock handler does: the JSON path skips a preset that is already current (`json.cpp`), and it
 does not end the remote's night mode, which then blocks the brightness buttons (`remote.cpp`).
 
-Presets 1 to 7 are therefore the remote's looks on every lamp: a look saved into one of those
-slots is on its button at once, and anything that is not a look (a boot layout, a test pattern)
-belongs above 7. The couch's boot layout is preset 250 for that reason; in slot 2 it switched
+Presets 1 to 7 are therefore the remote's looks on every lamp, and every lamp has one in every
+slot: a lamp without one stayed as it was, so the same button gave different results depending on
+what was pressed before (2026-11-10). Buttons 4 to 7 are the curtain's squid looks, and on the
+couch, the Moon and the GLORBs they play the squid's arm waves; the couch and the Moon show their
+own look on 1 to 3. The GLORBs' installed presets are
+[`overlays/glorb-presets.json`](overlays/glorb-presets.json): the port's looks
+(`glorb/wled16-port/presets.json`, the factory's field for field) with the three from slots 4, 5
+and 7 in 15, 16 and 17. Anything that is not a look (a boot layout, a test pattern) belongs above 7. The couch's boot layout is preset 250 for that reason; in slot 2 it switched
 the strip off from the remote (2026-11-10).
 
 Every look carries power and brightness (`"on": true` and `"bri"`: 45, and 200 on the Moon, the
 operator's values of 2026-11-10), on every lamp: a preset without them leaves both as they were, so two lamps on the
 same button stayed apart (the GLORBs at 6 and 255 after one of them rebooted). The files are
-[`glorb/wled16-port/presets.json`](../glorb/wled16-port/presets.json),
+[`overlays/glorb-presets.json`](overlays/glorb-presets.json),
 [`curtain/presets.json`](../curtain/presets.json),
 [`overlays/couch-presets.json`](overlays/couch-presets.json) and
 [`overlays/moon-presets.json`](overlays/moon-presets.json); `tests/test_presets.py` holds the

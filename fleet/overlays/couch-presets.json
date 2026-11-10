@@ -115,37 +115,1057 @@
         "m12": 0,
         "bm": 0
       },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 }
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
     ],
     "n": "DJ Light"
+  },
+  "2": {
+    "on": true,
+    "bri": 45,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 98,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Links",
+        "col": [
+          [8, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 159,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 2,
+        "bm": 0
+      },
+      {
+        "id": 1,
+        "start": 98,
+        "stop": 218,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Oben",
+        "col": [
+          [8, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 159,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0
+      },
+      {
+        "id": 2,
+        "start": 218,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Rechts",
+        "col": [
+          [8, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 159,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "DJ Light"
+  },
+  "3": {
+    "on": true,
+    "bri": 45,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 98,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Links",
+        "col": [
+          [8, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 159,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 2,
+        "bm": 0
+      },
+      {
+        "id": 1,
+        "start": 98,
+        "stop": 218,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Oben",
+        "col": [
+          [8, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 159,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0
+      },
+      {
+        "id": 2,
+        "start": 218,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Rechts",
+        "col": [
+          [8, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 159,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "DJ Light"
+  },
+  "4": {
+    "on": true,
+    "bri": 45,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "n": "Squid Breathing",
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "col": [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0,
+        "n": "squid-arms-300x1.gif"
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ]
+  },
+  "5": {
+    "on": true,
+    "bri": 45,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "n": "Squid Ink Burst",
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "col": [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0,
+        "n": "squid-arms-300x1.gif"
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ]
+  },
+  "6": {
+    "on": true,
+    "bri": 45,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "n": "Squid Deep Sea",
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "col": [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0,
+        "n": "squid-arms-300x1.gif"
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ]
+  },
+  "7": {
+    "on": true,
+    "bri": 45,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "n": "Squid Eyes",
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "col": [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0,
+        "n": "squid-arms-300x1.gif"
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ]
   },
   "250": {
     "on": false,
@@ -262,35 +1282,93 @@
         "m12": 0,
         "bm": 0
       },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 },
-      { "stop": 0 }
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
     ],
     "n": "Boot layout (off)"
   }
