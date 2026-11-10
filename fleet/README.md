@@ -96,9 +96,26 @@ anything but the exact tag.
 This produces `fleet/out/{fleet_esp32,fleet_glorb}.{bin,elf}`. It is untracked. Keep the ELF of whatever is on the
 lamps: it decodes their crash lines. `WLED_VID=<vid>` rebuilds a given stamp.
 
+## Release
+
+The lamps run released builds. A tag `fleet-YYYYMMDD-<short sha>` on a commit of main makes
+[`fleet-release.yml`](../.github/workflows/fleet-release.yml) build all three envs with `build.sh`
+and publish `fleet_esp32`, `fleet_gledopto` and `fleet_glorb` as `.bin` and `.elf` with a
+`SHA256SUMS` as that tag's release. The build stamp (`vid`) is the tag's date, `YYMMDD0`.
+The workflow refuses a tag whose short sha is not the tagged commit or whose commit is not on main.
+Pull requests and main pushes that change the build only build it.
+
+```sh
+tag=fleet-$(date +%Y%m%d)-$(git rev-parse --short=7 origin/main)
+git tag "$tag" origin/main && git push origin "$tag"
+```
+
 ## Flash
 
-One lamp at a time, and stop if one does not come back:
+tycpve's on-demand `wled:flash` job flashes a release: it pins the release's images by sha256,
+reads only the selected lamp's PIN and OTA password from OpenBao inside CI, and runs the
+`flash` below (and on a GLORB the effect-ID check). No credential is needed on a PC. Done by hand,
+one lamp at a time, and stop if one does not come back:
 
 ```sh
 python3 wledlab.py flash --host 10.27.4.58 --firmware fleet/out/fleet_esp32.bin --release ESP32 --credentials-file /path/to/private-couch.json
