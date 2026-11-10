@@ -1,0 +1,849 @@
+{
+  "0": {},
+  "1": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "",
+        "col": [
+          [0, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 142,
+        "sx": 60,
+        "ix": 60,
+        "pal": 199,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      }
+    ],
+    "n": "Colorwaves - Analogous"
+  },
+  "2": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "",
+        "col": [
+          [0, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 220,
+        "sx": 72,
+        "ix": 14,
+        "pal": 198,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      }
+    ],
+    "n": "Hiphotic - Tertiary"
+  },
+  "3": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "",
+        "col": [
+          [0, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 142,
+        "sx": 75,
+        "ix": 90,
+        "pal": 200,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Colorwaves - Sunset"
+  },
+  "4": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "col": [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0,
+        "n": "squid-arms-20x6.gif",
+        "rY": false,
+        "mY": false,
+        "tp": false
+      }
+    ],
+    "n": "Squid Breathing"
+  },
+  "5": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "col": [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0,
+        "n": "squid-arms-20x6.gif",
+        "rY": false,
+        "mY": false,
+        "tp": false
+      }
+    ],
+    "n": "Squid Ink Burst"
+  },
+  "6": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "col": [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0,
+        "n": "squid-arms-20x6.gif",
+        "rY": false,
+        "mY": false,
+        "tp": false
+      }
+    ],
+    "n": "Squid Deep Sea"
+  },
+  "7": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "col": [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0,
+        "n": "squid-arms-20x6.gif",
+        "rY": false,
+        "mY": false,
+        "tp": false
+      }
+    ],
+    "n": "Squid Eyes"
+  },
+  "9": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "",
+        "col": [
+          [0, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 170,
+        "sx": 188,
+        "ix": 162,
+        "pal": 197,
+        "c1": 188,
+        "c2": 138,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      }
+    ],
+    "n": "Frizzles - Fire"
+  },
+  "10": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "col": [
+          [0, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 171,
+        "sx": 136,
+        "ix": 168,
+        "pal": 198,
+        "c1": 220,
+        "c2": 92,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      }
+    ],
+    "n": "Black Hole - Tertiary"
+  },
+  "11": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "",
+        "col": [
+          [0, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 171,
+        "sx": 210,
+        "ix": 50,
+        "pal": 200,
+        "c1": 40,
+        "c2": 20,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      }
+    ],
+    "n": "Black Hole - Sunset"
+  },
+  "12": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "",
+        "col": [
+          [0, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 221,
+        "sx": 128,
+        "ix": 128,
+        "pal": 195,
+        "c1": 255,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      }
+    ],
+    "n": "Tartan - Fairy Reaf"
+  },
+  "13": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "col": [
+          [0, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 221,
+        "sx": 255,
+        "ix": 172,
+        "pal": 199,
+        "c1": 0,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      }
+    ],
+    "n": "Tartan - Analogous"
+  },
+  "14": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "",
+        "col": [
+          [0, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 220,
+        "sx": 52,
+        "ix": 128,
+        "pal": 197,
+        "c1": 64,
+        "c2": 190,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      }
+    ],
+    "n": "Hiphotic - Fire"
+  },
+  "15": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "col": [
+          [0, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 169,
+        "sx": 68,
+        "ix": 80,
+        "pal": 196,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      }
+    ],
+    "n": "Running - Atlantica"
+  },
+  "16": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "",
+        "col": [
+          [0, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 169,
+        "sx": 155,
+        "ix": 98,
+        "pal": 199,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      }
+    ],
+    "n": "Running - Analogous"
+  },
+  "17": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "",
+        "col": [
+          [0, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 170,
+        "sx": 162,
+        "ix": 150,
+        "pal": 199,
+        "c1": 186,
+        "c2": 84,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      }
+    ],
+    "n": "Frizzles - Analogous"
+  }
+}
