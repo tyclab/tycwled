@@ -40,12 +40,13 @@ The format is based on [Keep a Changelog], and this project adheres to
   palette 255, and on a lamp with colour gamma off (the GLORBs) encodes its pixels and the palette
   with WLED's 2.8 table, so every lamp puts the same values on the wire. Tests render the
   patterns on the host against the committed squid GIFs. Not flashed to any lamp yet.
-- Curtain: five squid loops as animated GIFs for the Image effect, drawn from the TycStation
-  mark by `curtain/squid/mkgifs.py` (presets 4 to 8: Squid Breathing, Squid Ink Burst,
-  Squid Deep Sea, Squid Eyes, Squid Chromatophores; no blur, brightness 160). Each loop is a
-  sequence of stages (hover, jet, glide, wave; swim in, burst, dart, burst again; and so on)
-  with motion several LEDs wide. Squid Breathing tours the four corners, reaching every edge of
-  the curtain.
+- Curtain: six squid loops as animated GIFs for the Image effect, drawn from the TycStation
+  mark by `curtain/squid/mkgifs.py` (presets 4 to 9: Squid Breathing, Squid Ink Burst,
+  Squid Deep Sea, Squid Eyes, Squid Chromatophores, Squid Water; no blur, brightness 160).
+  Each loop is a sequence of stages (hover, jet, glide, wave; swim in, burst, dart, burst
+  again; and so on) with motion several LEDs wide. Squid Breathing tours the four corners,
+  reaching every edge of the curtain. Squid Water is the skin cells as slow water, swells
+  rolling through them, with the squid drifting through as a dark shape.
 - The squid's arm waves for the other lamps, as GIFs for the Image effect at each lamp's own size
   (`fleet/squid/`: 300x1 for the couch strip, 20x6 for a GLORB, 8x8 for the Moon): the mark's
   gradient along the row, blue end to red end, with waves running outward from the middle.
