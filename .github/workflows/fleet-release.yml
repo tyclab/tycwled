@@ -114,7 +114,7 @@ jobs:
           | Image | Release name | Lamps |
           | --- | --- | --- |
           | fleet_esp32.bin | ESP32 | couch, Moon |
-          | fleet_gledopto.bin | ESP32_Ethernet | curtain, spare |
+          | fleet_gledopto.bin | ESP32_Ethernet | curtain, Exoy |
           | fleet_glorb.bin | ESP32-S3_8MB_qspi | both GLORBs |
 
           Each .elf decodes its image's crash lines. tycpve's wled:flash flashes these images (fleet/README.md, Flash)."
