@@ -101,6 +101,18 @@ class Install(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "did not come back"):
             wledlab._cmd_install(self.args)
 
+    def test_a_palette_file_must_be_counted_by_the_lamp(self):
+        palette = os.path.join(ROOT, "fleet", "tycstation", "palette0.json")
+        self.args.presets, self.args.restore, self.args.file = None, False, [palette]
+        info = {"ver": "16.0.1", "leds": {}, "cpalcount": 0}
+        with patch.object(wledlab, "get", lambda host, path: info if path == "/json/info" else {"seg": []}), \
+                self.assertRaisesRegex(SystemExit, "uploaded slot 0"):
+            wledlab._cmd_install(self.args)
+        info["cpalcount"] = 1
+        with patch.object(wledlab, "get", lambda host, path: info if path == "/json/info" else {"seg": []}):
+            wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.files["/palette0.json"], open(palette, "rb").read())
+
     def test_without_restore_the_last_preset_stays(self):
         self.args.restore = False
         wledlab._cmd_install(self.args)

@@ -62,6 +62,7 @@ import contextlib
 import json
 import math
 import os
+import re
 import socket
 import struct
 import subprocess
@@ -1069,6 +1070,12 @@ def _cmd_install(a):
                      "reread /json/eff and remap presets.json before installing")
     if a.palette and info.get("cpalcount", 0) < len(a.palette):
         sys.exit(f"custom palettes: lamp reports {info.get('cpalcount')}, uploaded {len(a.palette)}")
+    # A palette file uploaded with --file: WLED reloads its custom palettes on the upload, so the slot must be counted.
+    slots = [int(m.group(1)) for m in (re.fullmatch(r"palette(\d+)\.json", os.path.basename(p)) for p in getattr(a, "file", None) or []) if m]
+    if slots and info.get("cpalcount", 0) <= max(slots):
+        sys.exit(f"custom palettes: lamp reports {info.get('cpalcount')}, uploaded slot {max(slots)}")
+    if slots:
+        print(f"custom palettes: {info.get('cpalcount')} counted, slot {max(slots)} is ID {200 - max(slots)}")
     if a.presets:
         want = json.load(open(a.presets)); bad = []
         keys = SEGMENT_KEYS
