@@ -212,6 +212,26 @@ const LOOPS = {
       headAlpha: clamp01((t - 6.2) / .4),
       alpha: kf(t, [[0, 0], [4.3, 0], [4.4, 1], [9.2, 1], [10.2, 0], [12, 0]]) * (t > 6.8 && t < 8.8 ? .55 + .45 * Math.cos(TAU * (t - 6.8)) : 1) });
   } },
+
+  // the skin cells as slow water: swells roll through the cells and the cells sway with them; the squid drifts
+  // through as a dark shape and fades again
+  w: { L: 16, delay: .125, stages: ['swell', 'dark shape drifts in', 'drift', 'fade'], draw(g, t) {
+    const L = 16, w = k => TAU * k * t / L;
+    g.globalCompositeOperation = 'lighter';
+    for (let cy = 0; cy < 11; cy++) for (let cx = 0; cx < 17; cx++) {
+      const h = hash(cx + 7, cy);
+      const x = 2 + cx * 4 + (hash(cx, cy) - .5) * 1.6 + (cy % 2) * 2 - 1 + Math.sin(w(1) + cy * .55) * 1.1;
+      const y = 2 + cy * 3.9 + (hash(cy, cx + 40) - .5) * 1.6 + Math.cos(w(1) + cx * .4) * .7;
+      const v = .55 * Math.sin(x * .16 + y * .06 - w(2)) + .35 * Math.sin(x * .05 - y * .19 - w(1) + 1.3)
+        + .25 * Math.sin(Math.hypot(x - 20, y - 30) * .3 - w(3)) + .12 * Math.sin(w(2) + h * TAU);
+      const s = ease(clamp01(v * .55 + .5));
+      dot(g, x, y, .9 + 2.2 * s, grad(.5 + .45 * Math.sin(x * .05 - y * .04 - w(1))), .2 + .7 * s);
+    }
+    g.globalCompositeOperation = 'source-over';
+    squid(g, { x: kf(t, [[0, 20], [3, 20], [13.5, 46], [16, 46]]), y: 17 + Math.sin(w(2)) * 1.2, s: .16, pa: w(4), pb: w(3),
+      sway: 10, rot: .12 * Math.sin(w(1)), stroke: '#000', lw: 1.7, eyeK: 1.2, blink: pulse(t, 8.5, .3),
+      alpha: kf(t, [[0, 0], [3, 0], [5, 1], [11.5, 1], [13.5, 0], [16, 0]]) });
+  } },
 };
 
 // The other lamps (a strip, a small matrix): the mark's gradient along the row, blue end to red end, with arm waves
