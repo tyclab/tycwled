@@ -59,6 +59,14 @@ couch and the Moon do. The GLORBs run gamma 1.0 (`glorb/wled16-port/cfg-override
 `squid-arms-20x6.gif` holds the values that table gives the other lamps: every lamp then puts
 the same values on the wire. A lamp whose gamma setting changes needs its file regenerated.
 
+## TycStation palette
+
+`tycstation/` holds the mark's gradient as a WLED custom palette, blue to violet to red and
+back to blue, so any stock effect can run in the brand colours: `palette0.json` (ID 200, "Custom
+0" in Home Assistant) for the curtain, the couch and the Moon, `glorb/palette6.json` (ID 194,
+"Custom 6") for the GLORBs, after the port's six palettes and encoded for their output gamma of
+1.0. `tycstation/mkpalette.py` writes both; `make check-palettes` checks them.
+
 ## Build
 
 ```sh

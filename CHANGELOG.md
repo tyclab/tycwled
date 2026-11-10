@@ -43,6 +43,9 @@ The format is based on [Keep a Changelog], and this project adheres to
   gradient along the row, blue end to red end, with waves running outward from the middle.
   Drawn by the same `curtain/squid/mkgifs.py`. The GLORB file is encoded for their output gamma
   of 1.0, so all lamps put the same values on the wire.
+- The TycStation palette for the fleet: the mark's gradient, mirrored back to blue, as a WLED
+  custom palette (`fleet/tycstation/`, slot 0 on the curtain, the couch and the Moon, slot 6 on
+  the GLORBs, encoded for their gamma). `install --file` of a palette checks the lamp counts it.
 - `wledlab.py install --file` uploads other files (GIFs) and reads them back, checks that an
   uploaded animated GIF moves in liveview, and `--restore` puts the lamp's look back afterwards.
   A preset mismatch now makes `install` exit non-zero.
