@@ -22,6 +22,8 @@ Subcommands
   flash            OTA a firmware image, wait for the reboot, prove cfg and
                    presets came through unchanged
   secure           set and verify the WLED 16.0.1 settings PIN and OTA locks
+  remotes          report the paired ESP-NOW remotes and the last one heard;
+                   --link replaces the paired list
   verify           acceptance check: every preset on both lamps, current ratio
                    plus structural criteria from a same-window capture
   rescore          re-run the check's criteria offline over saved captures
@@ -220,6 +222,43 @@ def cmd_secure(a):
         raise RuntimeError("unexpected configuration or preset change during security setup")
     get(a.host, "/json/state")
     print(f"{a.host}: settings PIN and OTA/Wi-Fi locks verified; config/presets preserved; state API available")
+
+
+def settings_text(host, path):
+    with urllib.request.urlopen(f"http://{host}{path}", timeout=8) as response:
+        return response.read().decode("utf-8", "replace")
+
+
+def last_heard_remote(script):
+    """The sender of the last ESP-NOW packet: WLED 16 records it before it drops an unlinked one."""
+    found = re.search(r'getElementsByClassName\("rlid"\)\[0\]\.innerHTML="([0-9a-f]{12})"', script)
+    return found.group(1) if found else None
+
+
+def cmd_remotes(a):
+    info, before = get(a.host, "/json/info"), get(a.host, "/json/cfg")
+    if info.get("ver") != "16.0.1" or info.get("mac", "").lower() != a.mac.replace(":", "").lower():
+        raise RuntimeError("REFUSED: remotes reviewed only for WLED 16.0.1 and the specified MAC")
+    linked = before.get("nw", {}).get("linked_remote")
+    linked = [linked] if isinstance(linked, str) else list(linked or [])
+    wanted = None if a.link is None else [mac.replace(":", "").lower() for mac in a.link]
+    if wanted is not None and any(not re.fullmatch(r"[0-9a-f]{12}", mac) for mac in wanted):
+        raise ValueError("--link takes 12-digit hexadecimal remote addresses")
+    with settings_access(a.host, a.credentials_file):
+        heard = last_heard_remote(settings_text(a.host, "/settings/s.js?p=1"))
+        if wanted is not None and wanted != linked:
+            post(a.host, "/json/cfg", {"nw": {"espnow": before["nw"].get("espnow", False), "linked_remote": wanted}})
+    after = get(a.host, "/json/cfg")
+    if wanted is not None:
+        expected = json.loads(json.dumps(before))
+        expected["nw"]["linked_remote"] = wanted
+        drift = cfg_drift(expected, after)
+        if drift:
+            raise RuntimeError("remote list did not apply, or something else changed: " + "; ".join(drift))
+    now = after.get("nw", {}).get("linked_remote")
+    print(json.dumps({"host": a.host, "espnow": after.get("nw", {}).get("espnow"), "linked": now,
+                      "last_heard": heard, "last_heard_linked": heard in (now or []),
+                      "changed": wanted is not None and wanted != linked}))
 
 
 # ----------------------------------------------------------------------------- liveview
@@ -1364,6 +1403,11 @@ def main():
     s.add_argument("--host", required=True); s.add_argument("--mac", required=True)
     s.add_argument("--credentials-file", required=True, help="private JSON containing pin and ota_password")
     s.set_defaults(fn=cmd_secure)
+    s = sub.add_parser("remotes", help="report the paired ESP-NOW remotes and the last one heard; --link sets the list")
+    s.add_argument("--host", required=True); s.add_argument("--mac", required=True)
+    s.add_argument("--credentials-file", required=True, help="private JSON containing pin and ota_password")
+    s.add_argument("--link", nargs="*", help="the complete list of remote addresses to pair (replaces the lamp's list)")
+    s.set_defaults(fn=cmd_remotes)
     a = p.parse_args(); a.fn(a)
 
 
