@@ -198,3 +198,16 @@ const LOOPS = {
       alpha: kf(t, [[0, 0], [4.3, 0], [4.4, 1], [9.2, 1], [10.2, 0], [12, 0]]) * (t > 6.8 && t < 8.8 ? .55 + .45 * Math.cos(TAU * (t - 6.8)) : 1) });
   } },
 };
+
+// The other lamps (a strip, a small matrix): the mark's gradient along the row, blue end to red end, with arm waves
+// running outward from the middle. One wave period per loop; two waves per half, one on rows under 16 wide.
+function armWaves(w, h) {
+  const k = TAU * (w >= 16 ? 2 : 1) / (w / 2);
+  return { w, h, L: 2, delay: .05, draw(g, t) {
+    for (let x = 0; x < w; x++) {
+      const v = .08 + .92 * Math.pow(.5 + .5 * Math.sin(Math.abs(x - (w - 1) / 2) * k - Math.PI * t), 3);
+      g.fillStyle = css(grad(x / (w - 1)), v); g.fillRect(x, 0, 1, h);
+    }
+  } };
+}
+const ROWS = { 'squid-arms-300x1': armWaves(300, 1), 'squid-arms-20x6': armWaves(20, 6), 'squid-arms-8x8': armWaves(8, 8) };
