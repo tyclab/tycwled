@@ -11,7 +11,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GIFS = {
     "curtain/squid-breathing.gif": (68, 42, 200), "curtain/squid-ink.gif": (68, 42, 120),
     "curtain/squid-deepsea.gif": (68, 42, 200), "curtain/squid-eyes.gif": (68, 42, 200),
-    "curtain/squid-skin.gif": (68, 42, 120), "fleet/squid/squid-arms-300x1.gif": (300, 1, 40),
+    "curtain/squid-skin.gif": (68, 42, 120), "curtain/squid-skin-water.gif": (68, 42, 128),
+    "fleet/squid/squid-arms-300x1.gif": (300, 1, 40),
     "fleet/squid/squid-arms-20x6.gif": (20, 6, 40), "fleet/squid/squid-arms-8x8.gif": (8, 8, 40),
 }
 

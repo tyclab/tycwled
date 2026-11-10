@@ -33,16 +33,31 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
-- Curtain: five squid loops as animated GIFs for the Image effect, drawn from the TycStation
-  mark by `curtain/squid/mkgifs.py` (presets 4 to 8: Squid Breathing, Squid Ink Burst,
-  Squid Deep Sea, Squid Eyes, Squid Chromatophores; no blur, brightness 160). Each loop is a
-  sequence of stages (hover, jet, glide, wave; swim in, burst, dart, burst again; and so on)
-  with motion several LEDs wide.
+- `usermods/tycstation_fx/`: the squid patterns as WLED 16 effects for every fleet build. Squid
+  Arms (the arm waves), Squid Skin (the chromatophore cells) and Squid Plankton (the deep-sea
+  water) run on 1D and 2D segments of any size, follow AudioReactive's volume through a Sound
+  slider and keep moving in silence. The usermod registers the TycStation palette as usermod
+  palette 255, and on a lamp with colour gamma off (the GLORBs) encodes its pixels and the palette
+  with WLED's 2.8 table, so every lamp puts the same values on the wire. Tests render the
+  patterns on the host against the committed squid GIFs. On the Moon, the couch, the curtain and
+  both GLORBs since release fleet-20261110-90019c5.
+- Curtain: six squid loops as animated GIFs for the Image effect, drawn from the TycStation
+  mark by `curtain/squid/mkgifs.py` (presets 4 to 9: Squid Breathing, Squid Ink Burst,
+  Squid Deep Sea, Squid Eyes, Squid Chromatophores, Squid Water; no blur, brightness 160).
+  Each loop is a sequence of stages (hover, jet, glide, wave; swim in, burst, dart, burst
+  again; and so on) with motion several LEDs wide. Squid Breathing tours the four corners,
+  reaching every edge of the curtain. Squid Water is the skin cells as slow water, swells
+  rolling through them, with the squid drifting through as a dark shape.
 - The squid's arm waves for the other lamps, as GIFs for the Image effect at each lamp's own size
   (`fleet/squid/`: 300x1 for the couch strip, 20x6 for a GLORB, 8x8 for the Moon): the mark's
   gradient along the row, blue end to red end, with waves running outward from the middle.
   Drawn by the same `curtain/squid/mkgifs.py`. The GLORB file is encoded for their output gamma
   of 1.0, so all lamps put the same values on the wire.
+- The TycStation palette for the fleet: the mark's gradient, mirrored back to blue, as a WLED
+  custom palette (`fleet/tycstation/`, slot 0 on the curtain, the couch and the Moon, slot 6 on
+  the GLORBs, encoded for their gamma). `install --file` of a palette checks the lamp counts it.
+- `install` skips files and presets the lamp already holds and recalls presets only when they or a
+  file they show changed, so adding a palette leaves the look alone.
 - `wledlab.py install --file` uploads other files (GIFs) and reads them back, checks that an
   uploaded animated GIF moves in liveview, and `--restore` puts the lamp's look back afterwards.
   A preset mismatch now makes `install` exit non-zero.
