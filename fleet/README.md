@@ -103,7 +103,9 @@ The lamps run released builds. A tag `fleet-YYYYMMDD-<short sha>` on a commit of
 and publish `fleet_esp32`, `fleet_gledopto` and `fleet_glorb` as `.bin` and `.elf` with a
 `SHA256SUMS` as that tag's release. The build stamp (`vid`) is the tag's date, `YYMMDD0`.
 The workflow refuses a tag whose short sha is not the tagged commit or whose commit is not on main.
-Pull requests and main pushes that change the build only build it.
+Pull requests and main pushes that change the build only build it. A build takes about 2.5 minutes
+from a cold cache and about 1 minute warm. Two builds of the same source are not byte-identical, so
+the release's `SHA256SUMS` name the bytes that are flashed.
 
 ```sh
 tag=fleet-$(date +%Y%m%d)-$(git rev-parse --short=7 origin/main)
