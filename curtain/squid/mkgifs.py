@@ -23,6 +23,8 @@ NAMES = {"a": "squid-breathing", "b": "squid-ink", "c": "squid-deepsea", "e": "s
 BLACK_BELOW = 24
 # Lowest level the controller still lights with gamma 2.8 at the presets' brightness 160; used for the printed share only.
 ON_LEVEL = 41
+# WLED's own table for an output gamma of 2.8 (colour gamma on, as the curtain, the couch and the Moon run).
+GAMMA_28 = [int((i / 255) ** 2.8 * 255 + 0.5) for i in range(256)]
 
 RENDER = """
 const SS = 4, res = {};
@@ -39,7 +41,7 @@ for (const [id, lp] of Object.entries({ ...LOOPS, ...ROWS })) {
     for (let i = 0; i < d.length; i += 4) { buf[o++] = d[i]; buf[o++] = d[i + 1]; buf[o++] = d[i + 2]; }
   }
   let s = ''; for (let i = 0; i < buf.length; i += 32768) s += String.fromCharCode.apply(null, buf.subarray(i, i + 32768));
-  res[id] = { n, delay: lp.delay, L: lp.L, w, h, rgb: btoa(s) };
+  res[id] = { n, delay: lp.delay, L: lp.L, w, h, lampGamma: lp.lampGamma || 2.8, rgb: btoa(s) };
 }
 document.getElementById('out').textContent = JSON.stringify(res);
 """
@@ -169,6 +171,11 @@ def main():
         raw, n, px = base64.b64decode(r["rgb"]), r["n"], r["w"] * r["h"]
         pixels = [(raw[i], raw[i + 1], raw[i + 2]) for i in range(0, len(raw), 3)]
         pixels = [c if max(c) >= BLACK_BELOW else (0, 0, 0) for c in pixels]
+        if r["lampGamma"] == 1:
+            # This lamp sends the file's values to the LEDs as they are: store what 2.8 gives the other lamps.
+            pixels = [tuple(GAMMA_28[v] for v in c) for c in pixels]
+        elif r["lampGamma"] != 2.8:
+            sys.exit(f"{name}: no encoding for a lamp gamma of {r['lampGamma']}")
         count = Counter(pixels)
         count.pop((0, 0, 0), None)
         pal, index = median_cut([c + (k,) for c, k in count.items()], 255)
@@ -179,7 +186,7 @@ def main():
         path = os.path.join(out, name + ".gif")
         with open(path, "wb") as f:
             f.write(gif(pal, frames, round(r["delay"] * 100), r["w"], r["h"]))
-        lit = [max(c) >= ON_LEVEL for c in pal]
+        lit = [max(c) >= (GAMMA_28[ON_LEVEL] if r["lampGamma"] == 1 else ON_LEVEL) for c in pal]
         on = [sum(lit[f[p]] for p in cells) / len(cells) for f in frames]
         check = "not decoded"
         if a.magick:

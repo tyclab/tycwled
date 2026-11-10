@@ -54,6 +54,11 @@ per lamp shape: `squid-arms-300x1.gif` (the couch strip as one 300-LED segment),
 its segment's size, so WLED plays it unscaled. `curtain/squid/mkgifs.py` draws them together
 with the curtain's loops. The Image effect plays on one segment per controller.
 
+The files are drawn for a lamp that applies WLED's output gamma of 2.8, as the curtain, the
+couch and the Moon do. The GLORBs run gamma 1.0 (`glorb/wled16-port/cfg-overrides.json`), so
+`squid-arms-20x6.gif` holds the values that table gives the other lamps: every lamp then puts
+the same values on the wire. A lamp whose gamma setting changes needs its file regenerated.
+
 ## Build
 
 ```sh
