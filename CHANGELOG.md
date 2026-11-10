@@ -38,6 +38,10 @@ The format is based on [Keep a Changelog], and this project adheres to
   Squid Deep Sea, Squid Eyes, Squid Chromatophores; no blur, brightness 160). Each loop is a
   sequence of stages (hover, jet, glide, wave; swim in, burst, dart, burst again; and so on)
   with motion several LEDs wide.
+- The squid's arm waves for the other lamps, as GIFs for the Image effect at each lamp's own size
+  (`fleet/squid/`: 300x1 for the couch strip, 20x6 for a GLORB, 8x8 for the Moon): the mark's
+  gradient along the row, blue end to red end, with waves running outward from the middle.
+  Drawn by the same `curtain/squid/mkgifs.py`.
 - `wledlab.py install --file` uploads other files (GIFs) and reads them back, checks that an
   uploaded animated GIF moves in liveview, and `--restore` puts the lamp's look back afterwards.
   A preset mismatch now makes `install` exit non-zero.

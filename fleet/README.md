@@ -46,6 +46,14 @@ output, limits, remotes and central OTA access are in
 Pin, LED and mic settings live in each lamp's cfg.json, not in the build. OTA retains
 the filesystem, but a new WLED version can migrate its configuration schema on boot.
 
+## Squid arm waves
+
+`squid/` holds the TycStation squid's arm waves as animated GIFs for the Image effect, one
+per lamp shape: `squid-arms-300x1.gif` (the couch strip as one 300-LED segment),
+`squid-arms-20x6.gif` (a GLORB's raster) and `squid-arms-8x8.gif` (the Moon). Each matches
+its segment's size, so WLED plays it unscaled. `curtain/squid/mkgifs.py` draws them together
+with the curtain's loops. The Image effect plays on one segment per controller.
+
 ## Build
 
 ```sh
