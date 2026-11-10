@@ -35,7 +35,12 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 - Curtain: five squid loops as animated GIFs for the Image effect, drawn from the TycStation
   mark by `curtain/squid/mkgifs.py` (presets 4 to 8: Squid Breathing, Squid Ink Burst,
-  Squid Deep Sea, Squid Eyes, Squid Chromatophores; no blur, brightness 160).
+  Squid Deep Sea, Squid Eyes, Squid Chromatophores; no blur, brightness 160). Each loop is a
+  sequence of stages (hover, jet, glide, wave; swim in, burst, dart, burst again; and so on)
+  with motion several LEDs wide.
+- `wledlab.py install --file` uploads other files (GIFs) and reads them back, checks that an
+  uploaded animated GIF moves in liveview, and `--restore` puts the lamp's look back afterwards.
+  A preset mismatch now makes `install` exit non-zero.
 - Curtain: the TycStation logo GIF and the controller's presets (preset 1 "TycStation",
   the Image effect on the segment named `tycstation.gif`).
 - Curtain: presets 2 and 3 "PS Fuzzy Noise", the operator's pick of 2026-10-07 (palette

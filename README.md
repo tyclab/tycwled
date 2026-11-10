@@ -99,6 +99,12 @@ python3 wledlab.py install --host <lamp> \
   --cfg glorb/wled16-port/cfg-overrides.json
 ```
 
+`--file <path>` (repeatable) stores any other file under its own name, such as a GIF
+for the Image effect; an animated GIF a preset names must then show at least three
+different liveview frames in three seconds. `--restore` puts back the power,
+brightness and segments the lamp had before the presets were recalled. A preset that
+does not read back as written makes `install` exit non-zero.
+
 `install` reads every file back byte-for-byte, then recalls each preset and
 compares every segment field. `--effects` compares the lamp's `/json/eff`
 against `effects.json` only after the uploads and exits on a mismatch, so
