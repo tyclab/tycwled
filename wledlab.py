@@ -1031,15 +1031,27 @@ def gif_frames(raw):
     return frames
 
 
+def look_request(before):
+    """The state request that puts a lamp back as `before` read it. "tt" is the one-shot transition ("transition" would
+    stay as the lamp's setting). A lamp that showed an unchanged preset reports its id as "ps"; a segment write clears
+    that, so "pd" names the preset the segments are, and what reads the preset (Home Assistant's select) still sees it."""
+    request = {k: before[k] for k in ("on", "bri", "mainseg") if k in before}
+    request |= {"tt": 0, "seg": [dict(seg, n=seg.get("n", "")) for seg in before.get("seg", [])]}
+    if before.get("ps", -1) > 0:
+        request["pd"] = before["ps"]
+    return request
+
+
 def restore_look(host, before):
-    """Put back power, brightness and segments as read before the presets were recalled; False when they do not read back."""
-    segs = [dict(seg, n=seg.get("n", "")) for seg in before.get("seg", [])]
-    post(host, "/json/state", {"on": before.get("on"), "bri": before.get("bri"), "transition": 0, "seg": segs})
+    """Put back power, brightness, segments and the preset marker as read before the presets were recalled; False when they do not read back."""
+    request = look_request(before)
+    post(host, "/json/state", request)
     time.sleep(1.5)
     after = get(host, "/json/state")
     now = {seg.get("id"): seg for seg in after.get("seg", [])}
     same = after.get("on") == before.get("on") and after.get("bri") == before.get("bri") and all(
-        now.get(seg.get("id"), {}).get(key) == seg.get(key) for seg in segs for key in SEGMENT_KEYS if key in seg)
+        now.get(seg.get("id"), {}).get(key) == seg.get(key) for seg in request["seg"] for key in SEGMENT_KEYS if key in seg)
+    same = same and (before.get("ps", -1) <= 0 or after.get("ps") == before["ps"])
     print("look restored:", "OK" if same else "MISMATCH")
     return same
 
@@ -1328,7 +1340,7 @@ def _cmd_flash(a, access):
         access.restore_ota()
     cfg1, pre1 = get(a.host, "/json/cfg"), readback(a.host, "/presets.json")
     # A reboot lands on the boot preset; put back what the lamp was showing.
-    post(a.host, "/json/state", {k: state0[k] for k in ("on", "bri", "mainseg", "seg") if k in state0} | {"tt": 0})
+    post(a.host, "/json/state", look_request(state0))
     time.sleep(1.5)
     state1, keys = get(a.host, "/json/state"), ("id", "start", "stop", "on", "bri", "fx", "sx", "ix", "pal", "col")
     same = state1.get("on") == state0.get("on") and state1.get("bri") == state0.get("bri") and \
