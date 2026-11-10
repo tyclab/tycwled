@@ -116,8 +116,6 @@ drops every paired ESP-NOW remote on a `/json/cfg` write that carries no
 `nw` block (`cfg.cpp` clears the list before it looks for one, since
 PR 4654), so `--cfg` sends the lamp's own `espnow` flag and remote list
 along with the overrides.
-`--remote` uploads a button map as `/remote.json` and reads it back; the
-fleet's is [`fleet/remote.json`](fleet/remote.json).
 
 ### Protected fleet maintenance
 
