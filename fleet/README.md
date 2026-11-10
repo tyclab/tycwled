@@ -105,7 +105,8 @@ lamps: it decodes their crash lines. `WLED_VID=<vid>` rebuilds a given stamp.
 The lamps run released builds. A tag `fleet-YYYYMMDD-<short sha>` on a commit of main makes
 [`fleet-release.yml`](../.github/workflows/fleet-release.yml) build all three envs with `build.sh`
 and publish `fleet_esp32`, `fleet_gledopto` and `fleet_glorb` as `.bin` and `.elf` with a
-`SHA256SUMS` as that tag's release. The build stamp (`vid`) is the tag's date, `YYMMDD0`.
+`SHA256SUMS` as that tag's release. The build stamp (`vid`) is the tag's date and the count of that day's earlier releases, `YYMMDDn`,
+so every release has its own stamp.
 The workflow refuses a tag whose short sha is not the tagged commit or whose commit is not on main.
 Pull requests and main pushes that change the build only build it. A build takes about 2.5 minutes
 from a cold cache and about 1 minute warm. Two builds of the same source are not byte-identical, so
