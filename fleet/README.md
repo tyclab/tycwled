@@ -10,7 +10,8 @@
 | WLED Spare      | 10.27.4.222 | `tycledspare`                     | Gledopto GL-C-618WL (black) `70:4b:ca:48:91:c8`, four 30-pixel outputs on GPIOs 16/12/4/2 | `fleet_gledopto` |
 
 All envs are WLED v16.0.1 plus [`syslog_events`](../usermods/syslog_events/),
-sending to our collector at 10.27.2.41:1515.
+sending to our collector at 10.27.2.41:1515, and [`tycstation_fx`](../usermods/tycstation_fx/),
+the squid patterns as effects.
 
 The curtain, the couch and the spare run build 2610050 with #5885; the overlays below rely on its
 partial-config fix, so apply them only to that build. Older lamps are not automatically
@@ -66,6 +67,21 @@ back to blue, so any stock effect can run in the brand colours: `palette0.json` 
 0" in Home Assistant) for the curtain, the couch and the Moon, `glorb/palette6.json` (ID 194,
 "Custom 6") for the GLORBs, after the port's six palettes and encoded for their output gamma of
 1.0. `tycstation/mkpalette.py` writes both; `make check-palettes` checks them.
+
+## TycStation effects
+
+[`tycstation_fx`](../usermods/tycstation_fx/) runs the squid's patterns as code: Squid Arms
+(the arm waves above), Squid Skin (the curtain's chromatophore cells) and Squid Plankton (the
+deep-sea loop's water), on any segment, with Speed, a Sound slider for AudioReactive's volume
+and one size slider each. It also registers the TycStation palette as usermod palette 255,
+encoded for each lamp's gamma setting at runtime. WLED assigns the effect IDs at boot (142,
+169 and 170 on `fleet_esp32` and `fleet_gledopto` and 222 to 224 on `fleet_glorb`, by the
+v16.0.1 effect table), so presets name them. The squid figure stays a GIF.
+
+No lamp runs a build with it yet. Once the lamps run it, the file palettes in `tycstation/`
+(`palette0.json`, `glorb/palette6.json`, the files `mkpalette.py` writes and their
+`check-palettes` step) are redundant and must be removed in that change; the usermod's tests
+compare its stops with them and move with them.
 
 ## Build
 
