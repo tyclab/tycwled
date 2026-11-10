@@ -151,21 +151,22 @@ longer shows the yellow-green cast it had at full white under the WS2815 model (
 
 ## Remote
 
-Both ESP-NOW remotes are paired with every lamp, and every lamp carries the same
-[`remote.json`](remote.json): number button N calls preset N. Without the file WLED 16.0.1 runs
-`presetWithFallback()` for those buttons, so a lamp with no preset in that slot shows a stock
-effect instead (Static, Breath, Fire Flicker, Rainbow, Candle, Random Colors, Fade). With it a
-lamp without that preset stays as it is and logs `error: code=12 (preset does not exist)`.
-On, off, night and the brightness buttons keep WLED's own handling.
+Both ESP-NOW remotes are paired with every lamp. No lamp carries a `remote.json`, so WLED
+16.0.1's own handler runs (`remote.cpp`): number button N calls preset N, and on, off, night and
+the brightness buttons act on the whole lamp. A lamp with no preset in that slot stays as it is
+and logs `error: code=12 (preset does not exist)`. The fallback effects named in `remote.cpp`
+are never shown: `handlePresets()` ends in `stateUpdated()`, which reads the effect back from
+the segment before anything applies it (`presets.cpp`, `led.cpp`; on 2026-11-10 the couch's
+segment did not change on the buttons it has no preset for).
+
+A `remote.json` that sends `{"ps": N}` for those buttons gains nothing and loses two things the
+stock handler does: the JSON path skips a preset that is already current (`json.cpp`), and it
+does not end the remote's night mode, which then blocks the brightness buttons (`remote.cpp`).
 
 Presets 1 to 7 are therefore the remote's looks on every lamp: a look saved into one of those
 slots is on its button at once, and anything that is not a look (a boot layout, a test pattern)
 belongs above 7. The couch's boot layout is preset 250 for that reason; in slot 2 it switched
 the strip off from the remote (2026-11-10).
-
-```sh
-python3 wledlab.py install --host <lamp> --remote fleet/remote.json --credentials-file /path/to/private-lamp.json
-```
 
 ## Curtain
 

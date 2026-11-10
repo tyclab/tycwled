@@ -1028,11 +1028,6 @@ def _cmd_install(a):
     if a.presets:
         print("presets:", upload(a.host, "/presets.json", a.presets), "| readback ok:",
               json.loads(readback(a.host, "/presets.json")) == json.load(open(a.presets)))
-    if a.remote:
-        raw = open(a.remote, "rb").read()
-        print("remote:", upload(a.host, "/remote.json", a.remote), "| readback ok:", (landed := readback(a.host, "/remote.json") == raw))
-        if not landed:
-            sys.exit("remote.json did not land as written")
     if a.cfg:
         overrides = json.load(open(a.cfg)); before = get(a.host, "/json/cfg")
         post(a.host, "/json/cfg", cfg_payload(overrides, before)); time.sleep(1)
@@ -1327,7 +1322,6 @@ def main():
     s.add_argument("--host", required=True); s.add_argument("--ledmap"); s.add_argument("--presets"); s.add_argument("--palette", action="append", help="palette file; paletteN.json in order, repeatable")
     s.add_argument("--effects", help="JSON map of fx ID -> effect name to assert against /json/eff (the usermod's IDs are assigned at boot)")
     s.add_argument("--cfg", help="cfg overrides JSON to POST to /json/cfg, carrying the lamp's ESP-NOW remotes along (WLED 16 drops them otherwise); each key is read back")
-    s.add_argument("--remote", help="ESP-NOW remote button map, uploaded as /remote.json and read back")
     s.add_argument("--reboot", action="store_true", help="reboot after upload instead of live reload"); s.set_defaults(fn=cmd_install)
     s.add_argument("--credentials-file", help="private JSON containing pin and ota_password; settings relock after maintenance")
     s.add_argument("--file", action="append", help="any other file for the lamp's filesystem (a GIF for the Image effect), stored under its own name and read back; repeatable")
