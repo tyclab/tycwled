@@ -1006,8 +1006,17 @@ def restore_look(host, before):
 
 
 def _cmd_install(a):
+    # Presets the lamp already holds, with no file a preset shows changed, are not recalled: a recall shows on the lamp
+    # (and on everything that follows it), so an install that only adds a file leaves the look alone.
+    held = None
+    if a.presets:
+        try:
+            held = json.loads(readback(a.host, "/presets.json"))
+        except ValueError:
+            held = None
+    recall = a.presets and held != json.load(open(a.presets))
     look = get(a.host, "/json/state") if a.presets and getattr(a, "restore", False) else None
-    animated = {}
+    animated, changed = {}, set()
     if a.ledmap:
         raw = open(a.ledmap, "rb").read()
         if b'"map":[' not in raw:
@@ -1019,6 +1028,10 @@ def _cmd_install(a):
         print(f"palette{n}:", upload(a.host, f"/palette{n}.json", f), "| readback ok:", readback(a.host, f"/palette{n}.json") == open(f, "rb").read())
     for path in getattr(a, "file", None) or []:
         name, raw = "/" + os.path.basename(path), open(path, "rb").read()
+        if readback(a.host, name, timeout=60) == raw:
+            print(f"file {name}: already on the lamp")
+            continue
+        changed.add(name[1:])
         sent = upload(a.host, name, path, timeout=120)
         same = readback(a.host, name, timeout=60) == raw
         print(f"file {name}:", sent, "| readback ok:", same)
@@ -1027,6 +1040,11 @@ def _cmd_install(a):
         if gif_frames(raw) > 1:
             animated[name[1:]] = gif_frames(raw)
     if a.presets:
+        names = {ws.get("n") for v in json.load(open(a.presets)).values() if v for ws in v.get("seg", [])}
+        recall = recall or bool(changed & names)
+    if a.presets and held == json.load(open(a.presets)):
+        print("presets: already on the lamp" + ("" if recall else "; no file they show changed, not recalled"))
+    elif a.presets:
         print("presets:", upload(a.host, "/presets.json", a.presets), "| readback ok:",
               json.loads(readback(a.host, "/presets.json")) == json.load(open(a.presets)))
     if a.cfg:
@@ -1076,7 +1094,7 @@ def _cmd_install(a):
         sys.exit(f"custom palettes: lamp reports {info.get('cpalcount')}, uploaded slot {max(slots)}")
     if slots:
         print(f"custom palettes: {info.get('cpalcount')} counted, slot {max(slots)} is ID {200 - max(slots)}")
-    if a.presets:
+    if recall:
         want = json.load(open(a.presets)); bad = []
         keys = SEGMENT_KEYS
         for k, v in want.items():
