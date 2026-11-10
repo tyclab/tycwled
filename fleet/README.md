@@ -234,6 +234,15 @@ slots is on its button at once, and anything that is not a look (a boot layout, 
 belongs above 7. The couch's boot layout is preset 250 for that reason; in slot 2 it switched
 the strip off from the remote (2026-11-10).
 
+Every look carries power and brightness (`"on": true` and `"bri"`: 45, and 200 on the Moon, the
+operator's values of 2026-11-10), on every lamp: a preset without them leaves both as they were, so two lamps on the
+same button stayed apart (the GLORBs at 6 and 255 after one of them rebooted). The files are
+[`glorb/wled16-port/presets.json`](../glorb/wled16-port/presets.json),
+[`curtain/presets.json`](../curtain/presets.json),
+[`overlays/couch-presets.json`](overlays/couch-presets.json) and
+[`overlays/moon-presets.json`](overlays/moon-presets.json); `tests/test_presets.py` holds the
+value, and tycpve's `wled:install` puts them on the lamps.
+
 ## Curtain
 
 The Govee H70B5 curtain hangs as three panels of 20 vertical strings × 26 LEDs on the
