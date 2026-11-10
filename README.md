@@ -201,6 +201,8 @@ Two measurement rules learned the hard way:
   `presets.json`, the six palettes `mkpalettes.py` emits, and `cfg-overrides.json`.
 - `usermods/syslog_events/` — WLED events (boot and crash reason, Wi-Fi, heap,
   OTA, errors, live override) as RFC3164 syslog, for any ESP32 WLED 16 build.
+- `usermods/tycstation_fx/` — the TycStation squid patterns as effects and the
+  TycStation palette as a usermod palette, in every fleet build.
 - `fleet/` — the builds our fleet runs, and how they are flashed
   (`wledlab.py flash`).
 
