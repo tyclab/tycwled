@@ -113,6 +113,27 @@ class Install(unittest.TestCase):
             wledlab._cmd_install(self.args)
         self.assertEqual(self.lamp.files["/palette0.json"], open(palette, "rb").read())
 
+    def test_files_and_presets_already_on_the_lamp_are_not_sent_or_recalled(self):
+        wledlab._cmd_install(self.args)
+        before, self.lamp.calls = copy.deepcopy(self.lamp.state), []
+        palette = os.path.join(ROOT, "fleet", "tycstation", "palette0.json")
+        self.args.file = self.args.file + [palette]
+        info = {"ver": "16.0.1", "leds": {}, "cpalcount": 1}
+        with patch.object(wledlab, "get", lambda host, path: info if path == "/json/info" else self.lamp.get(host, path)):
+            wledlab._cmd_install(self.args)
+        # Only the new palette goes up; no preset is recalled, so the look is not touched.
+        self.assertEqual([c[1] for c in self.lamp.calls if c[0] == "upload"], ["/palette0.json"])
+        self.assertEqual([c for c in self.lamp.calls if c[0] == "post"], [])
+        self.assertEqual(self.lamp.state, before)
+
+    def test_a_changed_file_a_preset_shows_is_recalled_again(self):
+        wledlab._cmd_install(self.args)
+        self.lamp.files["/squid-eyes.gif"] = b"an older loop"
+        self.lamp.calls = []
+        wledlab._cmd_install(self.args)
+        self.assertEqual([c[1] for c in self.lamp.calls if c[0] == "upload"], ["/squid-eyes.gif"])
+        self.assertIn(("post", {"on": True, "ps": 4}), self.lamp.calls)
+
     def test_without_restore_the_last_preset_stays(self):
         self.args.restore = False
         wledlab._cmd_install(self.args)

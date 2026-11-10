@@ -105,6 +105,10 @@ different liveview frames in three seconds. `--restore` puts back the power,
 brightness and segments the lamp had before the presets were recalled. A preset that
 does not read back as written makes `install` exit non-zero.
 
+A file or `presets.json` the lamp already holds byte for byte is not sent again. Presets are
+recalled only when `presets.json` changed or a file a preset shows (a segment name) changed, so
+adding a palette or another file leaves the lamp's look alone.
+
 `install` reads every file back byte-for-byte, then recalls each preset and
 compares every segment field. `--effects` compares the lamp's `/json/eff`
 against `effects.json` only after the uploads and exits on a mismatch, so

@@ -46,6 +46,8 @@ The format is based on [Keep a Changelog], and this project adheres to
 - The TycStation palette for the fleet: the mark's gradient, mirrored back to blue, as a WLED
   custom palette (`fleet/tycstation/`, slot 0 on the curtain, the couch and the Moon, slot 6 on
   the GLORBs, encoded for their gamma). `install --file` of a palette checks the lamp counts it.
+- `install` skips files and presets the lamp already holds and recalls presets only when they or a
+  file they show changed, so adding a palette leaves the look alone.
 - `wledlab.py install --file` uploads other files (GIFs) and reads them back, checks that an
   uploaded animated GIF moves in liveview, and `--restore` puts the lamp's look back afterwards.
   A preset mismatch now makes `install` exit non-zero.
