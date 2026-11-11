@@ -1193,17 +1193,22 @@ def _cmd_install(a):
             sys.exit("presets.json did not arrive on the lamp as written")
     if a.cfg:
         overrides = json.load(open(a.cfg)); before = get(a.host, "/json/cfg")
-        post(a.host, "/json/cfg", cfg_payload(overrides, before)); time.sleep(1)
-        after = get(a.host, "/json/cfg")
-        bad = cfg_unapplied(overrides, after)
-        remotes0, remotes1 = (c.get("nw", {}).get("linked_remote") for c in (before, after))
-        if remotes0 != remotes1:
-            bad.append(f"nw.linked_remote: {json.dumps(remotes0)} -> {json.dumps(remotes1)}")
-        print("cfg:", "applied" if not bad else "MISMATCH")
-        for b in bad:
-            print("  ", b)
-        if bad:
-            sys.exit("cfg overrides did not land as written")
+        if not cfg_unapplied(overrides, before):
+            # A body that names the outputs makes the lamp build them again (cfg.cpp sets doInitBusses, wled.cpp
+            # runs finalizeInit), and every effect starts over: what the lamp already reads back is not written.
+            print("cfg: already as written")
+        else:
+            post(a.host, "/json/cfg", cfg_payload(overrides, before)); time.sleep(1)
+            after = get(a.host, "/json/cfg")
+            bad = cfg_unapplied(overrides, after)
+            remotes0, remotes1 = (c.get("nw", {}).get("linked_remote") for c in (before, after))
+            if remotes0 != remotes1:
+                bad.append(f"nw.linked_remote: {json.dumps(remotes0)} -> {json.dumps(remotes1)}")
+            print("cfg:", "applied" if not bad else "MISMATCH")
+            for b in bad:
+                print("  ", b)
+            if bad:
+                sys.exit("cfg overrides did not land as written")
     if a.reboot:
         post(a.host, "/json/state", {"rb": True})
         for _ in range(30):

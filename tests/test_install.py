@@ -30,6 +30,10 @@ class Lamp:
         # Custom palettes as loadCustomPalettes (colors.cpp) left them, and how many deletes the filesystem loses.
         self.palettes, self.lost, self.keeps_list = 0, 0, False
         self.state = {"on": True, "bri": 100, "ps": -1, "pl": -1, "transition": 7, "seg": [segment(191)]}
+        # /json/cfg as the Exoy controller serves it, cut to what the tests read (cfg.cpp serializeConfig).
+        self.cfg = {"nw": {"espnow": True, "linked_remote": ["704bcac8d198"]},
+                    "hw": {"led": {"total": 960, "maxpwr": 0, "ins": [{"start": 0, "len": 480, "pin": [16], "maxpwr": 5000, "ledma": 55},
+                                                                    {"start": 480, "len": 480, "pin": [12], "maxpwr": 5500, "ledma": 55}]}}}
 
     def upload(self, host, name, path, timeout=30):
         self.calls.append(("upload", name))
@@ -60,13 +64,21 @@ class Lamp:
     def get(self, host, path):
         if path == "/json/info":
             return {"ver": "16.0.1", "leds": {}, "cpalcount": self.palettes}
+        if path == "/json/cfg":
+            return copy.deepcopy(self.cfg)
         state = copy.deepcopy(self.state)
         state["seg"] = [{k: v for k, v in seg.items() if k != "n" or v} for seg in state["seg"]]
         return state
 
     def post(self, host, path, body):
         self.calls.append(("post", copy.deepcopy(body)))
-        if "rmcpal" in body:
+        if path == "/json/cfg":
+            # cfg.cpp deserializeConfig: the paired remotes are cleared before the body is looked at, and a body
+            # that names the outputs replaces them all.
+            self.cfg["nw"]["linked_remote"] = body.get("nw", {}).get("linked_remote", [])
+            led = body.get("hw", {}).get("led", {})
+            self.cfg["hw"]["led"].update(copy.deepcopy(led))
+        elif "rmcpal" in body:
             # json.cpp deserializeState: the file is removed if it is there, the result is not looked at, and the
             # custom palettes are loaded again. Nothing else of the state changes.
             if self.lost:
@@ -115,6 +127,27 @@ class Install(unittest.TestCase):
         patcher = patch.object(wledlab.time, "sleep")
         patcher.start()
         self.addCleanup(patcher.stop)
+
+    def cfg_file(self, overrides):
+        path = os.path.join(os.path.dirname(self.presets), "cfg.json")
+        with open(path, "w") as f:
+            json.dump(overrides, f)
+        self.args.presets, self.args.file, self.args.cfg = None, [], path
+
+    def test_cfg_the_lamp_does_not_hold_is_written_with_its_remotes_and_read_back(self):
+        outputs = [dict(o, maxpwr=6000) for o in self.lamp.cfg["hw"]["led"]["ins"]]
+        self.cfg_file({"hw": {"led": {"maxpwr": 0, "ins": outputs}}})
+        wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.calls, [("post", {"hw": {"led": {"maxpwr": 0, "ins": outputs}},
+                                                     "nw": {"espnow": True, "linked_remote": ["704bcac8d198"]}})])
+        self.assertEqual(([o["maxpwr"] for o in self.lamp.cfg["hw"]["led"]["ins"]], self.lamp.cfg["nw"]["linked_remote"]),
+                         ([6000, 6000], ["704bcac8d198"]))
+
+    def test_cfg_the_lamp_already_reads_back_is_not_written(self):
+        # A write that names the outputs rebuilds them on the lamp and restarts every effect.
+        self.cfg_file({"hw": {"led": {"maxpwr": 0, "ins": copy.deepcopy(self.lamp.cfg["hw"]["led"]["ins"])}}})
+        wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.calls, [])
 
     def test_counts_the_images_of_a_gif(self):
         for name, frames in (("tycstation.gif", 1), ("squid-eyes.gif", 200), ("squid-ink.gif", 120)):
