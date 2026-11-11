@@ -48,6 +48,8 @@ Recorded knowledge (GLORB, WLED 16.0.1):
   * uploads take effect without reboot: /palette*.json reload on upload,
     presets are read from the file on every apply, {"ledmap":0} reloads the map.
     Custom palette IDs count down from 200 (palette0 = 200).
+  * {"rmcpal":N} deletes /paletteN.json and reloads the custom palettes; a
+    delete through /edit leaves the palette list as it was until a reboot.
   * 16's built-in palettes are re-encoded for its per-pixel gamma; with
     light.gc off, use custom palettes with the 0.14 stop values instead.
   * Stock Colorwaves' hue triangle sweeps palette index 0-127 only. The GLORB
@@ -145,6 +147,44 @@ def upload_presets(host, presets, attempts=3):
 
 def readback(ip, name, timeout=10):
     return subprocess.run(["curl", "-s", "-m", str(timeout), f"http://{ip}{name}"], capture_output=True).stdout
+
+
+def on_lamp(host, name):
+    """Whether the lamp holds the file `name`: WLED serves a file of its filesystem with 200 and answers 404 for one
+    it does not hold (wled_server.cpp onNotFound, handleStaticContent). Any other answer decides nothing."""
+    status = _retry(lambda: settings_request(host, name))
+    if status not in (200, 404):
+        raise RuntimeError(f"{host}{name}: HTTP {status}, neither there nor gone")
+    return status == 200
+
+
+def remove_palette(host, slot, attempts=3):
+    """Take custom palette `slot` off the lamp; None when it is gone and the lamp's palette list followed, else why not.
+
+    {"rmcpal": slot} is WLED's own removal, the request its palette editor sends (json.cpp deserializeState): it
+    deletes /palette<slot>.json and loads the custom palettes again, so the list follows without a reboot, and it
+    touches neither power, brightness nor the preset the lamp shows. /edit?func=delete removes the file only and the
+    list would stay as it was until the next reboot. WLED does not look at whether the delete took, so the file is
+    asked for again and the removal repeated."""
+    name = f"/palette{slot}.json"
+    if not on_lamp(host, name):
+        print(f"palette{slot}: not on the lamp")
+        return None
+    before = get(host, "/json/info").get("cpalcount", 0)
+    for _ in range(attempts):
+        post(host, "/json/state", {"rmcpal": slot})
+        time.sleep(1)
+        if not on_lamp(host, name):
+            break
+    else:
+        return f"{name}: still on the lamp after {attempts} removals"
+    count = get(host, "/json/info").get("cpalcount", 0)
+    print(f"palette{slot}: removed | custom palettes {before} -> {count}")
+    # WLED counts up to its highest slot that holds a file (colors.cpp loadCustomPalettes), so the count drops when
+    # that slot goes; a slot below it stays counted as a grey placeholder.
+    if slot == before - 1 and count >= before:
+        return f"custom palettes: the lamp still counts {count} after its highest slot {slot} went"
+    return None
 
 
 def settings_request(host, path, fields=None):
@@ -1131,6 +1171,10 @@ def _cmd_install(a):
             sys.exit(f"{name}: the lamp does not read back the uploaded bytes")
         if gif_frames(raw) > 1:
             animated[name[1:]] = gif_frames(raw)
+    for slot in getattr(a, "remove_palette", None) or []:
+        failed = remove_palette(a.host, slot)
+        if failed:
+            sys.exit(failed)
     if a.presets:
         names = {ws.get("n") for v in json.load(open(a.presets)).values() if v for ws in v.get("seg", [])}
         recall = recall or bool(changed & names)
@@ -1188,12 +1232,6 @@ def _cmd_install(a):
                      "reread /json/eff and remap presets.json before installing")
     if a.palette and info.get("cpalcount", 0) < len(a.palette):
         sys.exit(f"custom palettes: lamp reports {info.get('cpalcount')}, uploaded {len(a.palette)}")
-    # A palette file uploaded with --file: WLED reloads its custom palettes on the upload, so the slot must be counted.
-    slots = [int(m.group(1)) for m in (re.fullmatch(r"palette(\d+)\.json", os.path.basename(p)) for p in getattr(a, "file", None) or []) if m]
-    if slots and info.get("cpalcount", 0) <= max(slots):
-        sys.exit(f"custom palettes: lamp reports {info.get('cpalcount')}, uploaded slot {max(slots)}")
-    if slots:
-        print(f"custom palettes: {info.get('cpalcount')} counted, slot {max(slots)} is ID {200 - max(slots)}")
     if recall:
         want = json.load(open(a.presets)); bad = []
         keys = SEGMENT_KEYS
@@ -1458,6 +1496,7 @@ def main():
     s.add_argument("--credentials-file", help="private JSON containing pin and ota_password; settings relock after maintenance")
     s.add_argument("--file", action="append", help="any other file for the lamp's filesystem (a GIF for the Image effect), stored under its own name and read back; repeatable")
     s.add_argument("--restore", action="store_true", help="after the presets are verified, put back the power, brightness and segments the lamp had before")
+    s.add_argument("--remove-palette", action="append", type=int, metavar="SLOT", help="take custom palette SLOT (/paletteSLOT.json, ID 200 - SLOT) off the lamp and check that its palette list follows; repeatable")
     s = sub.add_parser("flash", help="OTA a firmware image, wait for the reboot, prove cfg and presets unchanged")
     s.add_argument("--host", required=True); s.add_argument("--firmware", required=True, help="firmware.bin")
     s.add_argument("--release", help="release name the lamp must report afterwards")

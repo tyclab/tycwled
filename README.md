@@ -105,6 +105,13 @@ different liveview frames in three seconds. `--restore` puts back the power,
 brightness and segments the lamp had before the presets were recalled. A preset that
 does not read back as written makes `install` exit non-zero.
 
+`--remove-palette <slot>` (repeatable) takes a custom palette off the lamp with WLED's own
+request (`{"rmcpal": <slot>}`, which deletes `/palette<slot>.json` and reloads the palette
+list; a delete through `/edit` would leave the list as it was until a reboot). WLED does not
+report whether the delete took, so the file is asked for again and the request repeated up to
+three times; `install` exits non-zero when the file is still there, or when the lamp's custom
+palette count did not drop after its highest slot went. A slot that holds no file sends nothing.
+
 A file the lamp already holds byte for byte is not sent again. `presets.json` goes up compact, as
 WLED writes it itself; what the lamp reads back decides whether it arrived, not the upload's
 answer, and the upload is repeated until it has. If it never does, the earlier presets go back and
