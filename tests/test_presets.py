@@ -29,7 +29,7 @@ POWER = {"on": True, "bri": 45}
 FLEET = {"fleet/overlays/glorb-presets.json": (45, ()), "curtain/presets.json": (45, ()),
          "fleet/overlays/moon-presets.json": (200, ()),
          "fleet/overlays/couch-presets.json": (45, ("250",)),  # the couch's boot layout, which starts off
-         # The Exoy controller's playlists carry no brightness of their own (their looks do); 30 and 31 are test patterns.
+         # tycdodeca's playlists carry no brightness of their own (their looks do); 30 and 31 are test patterns.
          "fleet/overlays/exoy-presets.json": (45, ("20", "21", "22", "30", "31"))}
 
 
