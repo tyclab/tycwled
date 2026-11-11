@@ -75,14 +75,6 @@ couch and the Moon do. The GLORBs run gamma 1.0 (`glorb/wled16-port/cfg-override
 `squid-arms-20x6.gif` holds the values that table gives the other lamps: every lamp then puts
 the same values on the wire. A lamp whose gamma setting changes needs its file regenerated.
 
-## TycStation palette
-
-`tycstation/` holds the mark's gradient as a WLED custom palette, blue to violet to red and
-back to blue, so any stock effect can run in the brand colours: `palette0.json` (ID 200, "Custom
-0" in Home Assistant) for the curtain, the couch and the Moon, `glorb/palette6.json` (ID 194,
-"Custom 6") for the GLORBs, after the port's six palettes and encoded for their output gamma of
-1.0. `tycstation/mkpalette.py` writes both; `make check-palettes` checks them.
-
 ## TycStation effects
 
 [`tycstation_fx`](../usermods/tycstation_fx/) runs the squid's patterns as code: Squid Arms
@@ -93,10 +85,8 @@ encoded for each lamp's gamma setting at runtime. WLED assigns the effect IDs at
 169 and 170 on `fleet_esp32` and `fleet_gledopto` and 222 to 224 on `fleet_glorb`, by the
 v16.0.1 effect table), so presets name them. The squid figure stays a GIF.
 
-No lamp runs a build with it yet. Once the lamps run it, the file palettes in `tycstation/`
-(`palette0.json`, `glorb/palette6.json`, the files `mkpalette.py` writes and their
-`check-palettes` step) are redundant and must be removed in that change; the usermod's tests
-compare its stops with them and move with them.
+Every lamp runs a build with it. The palette is "TycStation 0" in a lamp's palette list, so
+any stock effect can run in the brand colours.
 
 ## Build
 

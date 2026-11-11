@@ -8,7 +8,8 @@
 namespace tycfx {
 
 constexpr float kPi = 3.14159265f, kTau = 6.28318531f;
-// fleet/tycstation/mkpalette.py STOPS: position, R, G, B (blue, violet, red, violet, blue).
+// The TycStation palette: position, R, G, B. draw.js's gradient (B, V at 48 %, R) over the first half, mirrored back to
+// blue over the second, so an effect that runs round the palette meets no seam.
 constexpr uint8_t kStops[20] = {0, 90, 162, 255, 61, 139, 108, 240, 128, 255, 74, 61,
                                 195, 139, 108, 240, 255, 90, 162, 255};
 // WLED 16's output table for colour gamma 2.8 (colors.cpp calcGammaTable).
@@ -49,7 +50,7 @@ inline float hash(double a, double b) {
 }
 
 // A lamp with colour gamma on applies its own table in show(); with it off this applies 2.8, so every lamp puts a
-// 2.8 lamp's values on the wire. The palette stops get the same encoding (fleet/tycstation/glorb/palette6.json).
+// 2.8 lamp's values on the wire. The palette stops get the same encoding.
 // A canvas radial gradient's cone of radius r averaged over the LED's square (side k) on an n x n grid, as the GIFs'
 // supersampling averages it; n 1 along a strip's missing axis.
 inline float cover(float dx, float dy, float r, float k, int nx, int ny) {

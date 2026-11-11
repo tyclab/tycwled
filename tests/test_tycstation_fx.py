@@ -9,18 +9,23 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UM = os.path.join(ROOT, "usermods", "tycstation_fx")
-sys.path.insert(0, os.path.join(ROOT, "fleet", "tycstation"))
-import mkpalette  # noqa: E402
 
 CPP = open(os.path.join(UM, "tycstation_fx.cpp")).read()
 CORE = open(os.path.join(UM, "tycstation_core.h")).read()
-T28 = mkpalette.GAMMA_28
+DRAW = open(os.path.join(ROOT, "curtain", "squid", "draw.js")).read()
+# The mark's colours and where its violet sits, as the drawings hold them.
+BLUE, VIOLET, RED = (tuple(json.loads(c)) for c in re.search(r"const B = (\[.*?\]), V = (\[.*?\]), R = (\[.*?\])", DRAW).groups())
+KNEE = float(re.search(r"u < (\.\d+) \? mix\(B, V,", DRAW).group(1))
+# The palette: the gradient out to red over its first half, mirrored back to blue over the second, so an effect that
+# runs round the palette meets no seam.
+STOPS = [(0, BLUE), (round(KNEE * 128), VIOLET), (128, RED), (256 - round(KNEE * 128), VIOLET), (255, BLUE)]
+# WLED 16's output table for gamma 2.8 (colors.cpp calcGammaTable).
+T28 = [int((i / 255) ** 2.8 * 255 + 0.5) for i in range(256)]
 
 
 def c_array(name):
@@ -94,8 +99,8 @@ class Metadata(unittest.TestCase):
 
 
 class Palette(unittest.TestCase):
-    def test_stops_are_mkpalettes(self):
-        self.assertEqual(c_array("kStops"), [v for at, colour in mkpalette.STOPS for v in (at, *colour)])
+    def test_stops_are_the_drawings_gradient_out_and_back(self):
+        self.assertEqual(c_array("kStops"), [v for at, colour in STOPS for v in (at, *colour)])
 
     def test_gamma_table_is_wleds_28(self):
         self.assertEqual(c_array("kGamma28"), T28)
@@ -131,12 +136,13 @@ class Host(unittest.TestCase):
         self.assertEqual(len(out), n * frames)
         return [out[i * n:(i + 1) * n] for i in range(frames)]
 
-    def test_palette_bytes_are_the_committed_palette_files(self):
-        for gamma, path in ((1, "palette0.json"), (0, "glorb/palette6.json")):
-            with self.subTest(path=path):
+    def test_palette_bytes_follow_the_lamps_colour_gamma(self):
+        # A lamp with colour gamma on gets the stops as drawn and applies its table itself; with it off (the GLORBs)
+        # the colours go through the 2.8 table here, the positions stay.
+        for gamma, encode in ((1, lambda v: v), (0, lambda v: T28[v])):
+            with self.subTest(gamma=gamma):
                 got = list(subprocess.run([self.exe, "palette", str(gamma)], capture_output=True, check=True).stdout)
-                with open(os.path.join(ROOT, "fleet", "tycstation", path)) as f:
-                    self.assertEqual(got, json.load(f)["palette"])
+                self.assertEqual(got, [v for at, colour in STOPS for v in (at, *map(encode, colour))])
 
     def test_gamma_off_puts_a_28_lamps_values_on_the_wire(self):
         for fx, w, h in (("arms", 20, 6), ("skin", 68, 42), ("plankton", 20, 6), ("plankton", 300, 1)):
@@ -160,7 +166,7 @@ class Host(unittest.TestCase):
             return .08 + .92 * (.5 + .5 * math.sin(abs(x - (w - 1) / 2) * k - math.pi * t)) ** 3
 
         def gradient(u):
-            stops = mkpalette.STOPS[:3]
+            stops = STOPS[:3]
             p = u * 128
             (a, ca), (b, cb) = (stops[0], stops[1]) if p < 61 else (stops[1], stops[2])
             return [ca[c] + (cb[c] - ca[c]) * (p - a) / (b - a) for c in range(3)]

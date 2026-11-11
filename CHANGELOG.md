@@ -31,6 +31,13 @@ The format is based on [Keep a Changelog], and this project adheres to
   that spacing, all panels level. 68 × 42 cells, 1560 mapped; `mkledmap.py`
   carries the measured positions.
 
+### Removed
+
+- The TycStation palette as custom palette files (`fleet/tycstation/`: slot 0 for the curtain,
+  the couch and the Moon, slot 6 for the GLORBs) with their generator, their `check-palettes`
+  step and `install`'s slot check for a palette sent with `--file`. Every lamp runs a build whose
+  usermod registers the same stops as palette 255 ("TycStation 0"), and no preset used the files.
+
 ### Added
 
 - `usermods/tycstation_fx/`: the squid patterns as WLED 16 effects for every fleet build. Squid
@@ -53,11 +60,11 @@ The format is based on [Keep a Changelog], and this project adheres to
   gradient along the row, blue end to red end, with waves running outward from the middle.
   Drawn by the same `curtain/squid/mkgifs.py`. The GLORB file is encoded for their output gamma
   of 1.0, so all lamps put the same values on the wire.
-- The TycStation palette for the fleet: the mark's gradient, mirrored back to blue, as a WLED
-  custom palette (`fleet/tycstation/`, slot 0 on the curtain, the couch and the Moon, slot 6 on
-  the GLORBs, encoded for their gamma). `install --file` of a palette checks the lamp counts it.
 - `install` skips files and presets the lamp already holds and recalls presets only when they or a
-  file they show changed, so adding a palette leaves the look alone.
+  file they show changed, so adding a file leaves the look alone.
+- `wledlab.py install --remove-palette <slot>` takes a custom palette off a lamp with WLED's
+  `rmcpal` request, repeats it until the file is gone and checks that the lamp's palette list
+  followed.
 - `wledlab.py install --file` uploads other files (GIFs) and reads them back, checks that an
   uploaded animated GIF moves in liveview, and `--restore` puts the lamp's look back afterwards.
   A preset mismatch now makes `install` exit non-zero.
