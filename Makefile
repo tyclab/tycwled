@@ -16,7 +16,6 @@ check-ledmaps:
 # committed palettes must equal the generator output and respect WLED's 18-stop / 0..255 rules
 check-palettes:
 	@python3 glorb/mkpalettes.py --check
-	@python3 fleet/tycstation/mkpalette.py --check
 
 test:
 	python3 -m unittest discover -s tests -v

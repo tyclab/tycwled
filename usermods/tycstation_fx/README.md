@@ -32,10 +32,11 @@ TycStation stops (positions 0, 61, 128: blue, violet, red); so does the TycStati
 palette itself. Any other palette runs end to end. Plankton's specks take the drawn blue,
 violet and eye colours; with another palette they take its colours at 0, 1/3 and 2/3.
 
-The usermod registers the stops of [`fleet/tycstation/mkpalette.py`](../../fleet/tycstation/mkpalette.py)
-as a usermod palette named `TycStation`, which WLED 16.0.1 lists as "TycStation 0" (it
-always appends an index or a sub-name to usermod palettes). It goes first in the
-usermod palette list, so its ID is 255 on every lamp; AudioReactive's palettes, where
+The usermod registers the mark's gradient ([`draw.js`](../../curtain/squid/draw.js): blue,
+violet at 48 %, red), mirrored back to blue so that an effect which runs round the palette
+meets no seam, as a usermod palette named `TycStation`, which WLED 16.0.1 lists as
+"TycStation 0" (it always appends an index or a sub-name to usermod palettes). It goes first
+in the usermod palette list, so its ID is 255 on every lamp; AudioReactive's palettes, where
 enabled, follow it at 254 and below. Stock effects can use it like any palette.
 
 ## Gamma
@@ -44,9 +45,9 @@ WLED 16 gamma-corrects every pixel in `show()` when colour gamma is on. The draw
 meant for the 2.8 table the curtain, the couch and the Moon run. On a lamp with colour
 gamma off (the GLORBs, `glorb/wled16-port/cfg-overrides.json`) the effects apply WLED's
 2.8 table to every pixel they write, and the registered palette holds the 2.8-encoded
-stops (as `fleet/tycstation/glorb/palette6.json` does), so both kinds of lamp put the
-same values on the wire. The usermod follows a change of the setting at runtime. A lamp
-with colour gamma on applies its own table, whatever its value.
+stops, so both kinds of lamp put the same values on the wire. The usermod follows a change
+of the setting at runtime. A lamp with colour gamma on applies its own table, whatever its
+value.
 
 ## Effect IDs
 
@@ -57,6 +58,7 @@ registers first and they follow at 222 to 224.
 
 ## Tests
 
-`tests/test_tycstation_fx.py` checks the metadata strings, the stops and the 2.8 table
-against `mkpalette.py`, and compiles `tests/tycstation_fx_host.cpp`, which renders
-[`tycstation_core.h`](tycstation_core.h) on the host, against the committed squid GIFs.
+`tests/test_tycstation_fx.py` checks the metadata strings, the stops against the colours
+in `draw.js` and the 2.8 table against WLED's formula, and compiles
+`tests/tycstation_fx_host.cpp`, which renders [`tycstation_core.h`](tycstation_core.h) on
+the host, against the committed squid GIFs.
