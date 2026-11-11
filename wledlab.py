@@ -124,7 +124,7 @@ def compact_presets(presets):
 def upload_presets(host, presets, attempts=3):
     """Put `presets` on the lamp as its presets.json; True once the lamp reads back exactly the compact file.
 
-    What the lamp reads back decides, not the upload's answer: on 2026-11-11 the Exoy controller dropped one 69 KB
+    What the lamp reads back decides, not the upload's answer: on 2026-11-11 tycdodeca dropped one 69 KB
     upload after 21 KB and kept the cut-off file, and wrote the next one completely without answering (curl exit 52
     both times). So the upload is repeated until the file is there."""
     folder = tempfile.mkdtemp(prefix="wledlab-presets-")

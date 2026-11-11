@@ -30,7 +30,7 @@ class Lamp:
         # Custom palettes as loadCustomPalettes (colors.cpp) left them, and how many deletes the filesystem loses.
         self.palettes, self.lost, self.keeps_list = 0, 0, False
         self.state = {"on": True, "bri": 100, "ps": -1, "pl": -1, "transition": 7, "seg": [segment(191)]}
-        # /json/cfg as the Exoy controller serves it, cut to what the tests read (cfg.cpp serializeConfig).
+        # /json/cfg as tycdodeca serves it, cut to what the tests read (cfg.cpp serializeConfig).
         self.cfg = {"nw": {"espnow": True, "linked_remote": ["704bcac8d198"]},
                     "hw": {"led": {"total": 960, "maxpwr": 0, "ins": [{"start": 0, "len": 480, "pin": [16], "maxpwr": 5000, "ledma": 55},
                                                                     {"start": 480, "len": 480, "pin": [12], "maxpwr": 5500, "ledma": 55}]}}}
@@ -223,7 +223,7 @@ class Install(unittest.TestCase):
         return presets
 
     def test_a_playlist_is_checked_by_the_lamp_playing_it_and_does_not_outlive_the_install(self):
-        # A playlist holds no segments (the Exoy controller's presets 20 to 22); left running it would switch a lamp
+        # A playlist holds no segments (tycdodeca's presets 20 to 22); left running it would switch a lamp
         # that was off back on with its next entry.
         self.with_playlist()
         self.lamp.state["on"] = False
