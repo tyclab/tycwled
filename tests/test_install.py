@@ -20,12 +20,14 @@ def segment(fx, name=""):
 
 class Lamp:
     """A controller that stores uploads, recalls presets and plays a GIF only when it holds the file. As WLED 16.0.1
-    does (json.cpp, led.cpp): "ps" names the preset shown unchanged, a segment write clears it unless "pd" names it,
-    and "transition" stays as the lamp's setting while "tt" applies once."""
+    does (json.cpp, led.cpp, presets.cpp, playlist.cpp): "ps" names the preset shown unchanged, a segment write clears
+    it unless "pd" names it, and "transition" stays as the lamp's setting while "tt" applies once. A preset that holds
+    a playlist starts it: the lamp reports its id as "pl" and shows the playlist's first entry. Recalling a preset or
+    writing a segment with an effect ends a running playlist."""
 
     def __init__(self):
-        self.files, self.calls, self.frozen, self.deaf = {}, [], False, False
-        self.state = {"on": True, "bri": 100, "ps": -1, "transition": 7, "seg": [segment(191)]}
+        self.files, self.calls, self.frozen, self.deaf, self.stuck = {}, [], False, False, False
+        self.state = {"on": True, "bri": 100, "ps": -1, "pl": -1, "transition": 7, "seg": [segment(191)]}
 
     def upload(self, host, name, path, timeout=30):
         self.calls.append(("upload", name))
@@ -45,8 +47,18 @@ class Lamp:
     def post(self, host, path, body):
         self.calls.append(("post", copy.deepcopy(body)))
         if "ps" in body:
-            self.state.update(on=True, ps=body["ps"], seg=copy.deepcopy(json.loads(self.files["/presets.json"])[str(body["ps"])]["seg"]))
+            presets = json.loads(self.files["/presets.json"])
+            preset, playlist = presets[str(body["ps"])], -1
+            self.state.update(on=body.get("on", self.state["on"]), bri=body.get("bri", self.state["bri"]))
+            if "playlist" in preset and not self.stuck:
+                playlist, preset = body["ps"], presets[str(preset["playlist"]["ps"][0])]
+            if "seg" in preset:
+                self.state.update(on=True, ps=body["ps"] if playlist < 0 else presets[str(playlist)]["playlist"]["ps"][0],
+                                  seg=copy.deepcopy(preset["seg"]))
+            self.state["pl"] = playlist
         elif "seg" in body and not self.deaf:
+            if any("fx" in seg for seg in body["seg"]):
+                self.state["pl"] = -1
             self.state.update(on=body["on"], bri=body["bri"], ps=body.get("pd", -1), seg=copy.deepcopy(body["seg"]),
                               transition=body.get("transition", self.state["transition"]))
 
@@ -98,6 +110,37 @@ class Install(unittest.TestCase):
         wledlab._cmd_install(self.args)
         self.assertEqual(self.lamp.state, before)
         self.assertEqual(self.lamp.calls[-1][1]["pd"], 1)
+
+    def with_playlist(self):
+        presets = json.load(open(self.presets)) | {"20": {"n": "Cycle", "on": True, "playlist": {"ps": [4, 1], "dur": [300, 300], "r": 0, "end": 0}}}
+        with open(self.presets, "w") as f:
+            json.dump(presets, f)
+        return presets
+
+    def test_a_playlist_is_checked_by_the_lamp_playing_it_and_does_not_outlive_the_install(self):
+        # A playlist holds no segments (the Exoy controller's presets 20 to 22); left running it would switch a lamp
+        # that was off back on with its next entry.
+        self.with_playlist()
+        self.lamp.state["on"] = False
+        before = copy.deepcopy(self.lamp.state)
+        wledlab._cmd_install(self.args)
+        self.assertIn(("post", {"on": True, "ps": 20}), self.lamp.calls)
+        self.assertEqual(self.lamp.state, before)
+
+    def test_a_playlist_the_lamp_does_not_start_fails_and_the_look_still_comes_back(self):
+        self.with_playlist()
+        before, self.lamp.stuck = copy.deepcopy(self.lamp.state), True
+        with self.assertRaisesRegex(SystemExit, r"presets \['20'\]"):
+            wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.state, before)
+
+    def test_a_lamp_that_played_a_playlist_plays_it_again(self):
+        presets = self.with_playlist()
+        self.lamp.files["/presets.json"] = json.dumps(presets | {"9": {"n": "Older", "seg": [segment(1)]}}).encode()
+        self.lamp.state.update(pl=20, ps=4, seg=copy.deepcopy(presets["4"]["seg"]))
+        wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.calls[-1][1], {"on": True, "bri": 100, "tt": 0, "ps": 20})
+        self.assertEqual((self.lamp.state["pl"], self.lamp.state["on"], self.lamp.state["bri"]), (20, True, 100))
 
     def test_a_file_that_reads_back_differently_stops_before_the_presets(self):
         with patch.object(wledlab, "readback", lambda host, name, timeout=10: b"truncated"), self.assertRaises(SystemExit):
