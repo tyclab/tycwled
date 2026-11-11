@@ -27,6 +27,8 @@ class Lamp:
 
     def __init__(self):
         self.files, self.calls, self.frozen, self.deaf, self.stuck, self.drops, self.mute = {}, [], False, False, False, 0, 0
+        # Custom palettes as loadCustomPalettes (colors.cpp) left them, and how many deletes the filesystem loses.
+        self.palettes, self.lost, self.keeps_list = 0, 0, False
         self.state = {"on": True, "bri": 100, "ps": -1, "pl": -1, "transition": 7, "seg": [segment(191)]}
 
     def upload(self, host, name, path, timeout=30):
@@ -47,16 +49,33 @@ class Lamp:
     def readback(self, host, name, timeout=10):
         return self.files.get(name, b"")
 
+    def load_palettes(self):
+        """colors.cpp loadCustomPalettes: one entry per slot up to the highest that holds a file."""
+        slots = [int(name[len("/palette"):-len(".json")]) for name in self.files if name.startswith("/palette")]
+        self.palettes = max(slots) + 1 if slots else 0
+
+    def settings_request(self, host, path, fields=None):
+        return 200 if path in self.files else 404
+
     def get(self, host, path):
         if path == "/json/info":
-            return {"ver": "16.0.1", "leds": {}}
+            return {"ver": "16.0.1", "leds": {}, "cpalcount": self.palettes}
         state = copy.deepcopy(self.state)
         state["seg"] = [{k: v for k, v in seg.items() if k != "n" or v} for seg in state["seg"]]
         return state
 
     def post(self, host, path, body):
         self.calls.append(("post", copy.deepcopy(body)))
-        if "ps" in body:
+        if "rmcpal" in body:
+            # json.cpp deserializeState: the file is removed if it is there, the result is not looked at, and the
+            # custom palettes are loaded again. Nothing else of the state changes.
+            if self.lost:
+                self.lost -= 1
+            else:
+                self.files.pop(f"/palette{body['rmcpal']}.json", None)
+            if not self.keeps_list:
+                self.load_palettes()
+        elif "ps" in body:
             presets = json.loads(self.files["/presets.json"])
             preset, playlist = presets[str(body["ps"])], -1
             self.state.update(on=body.get("on", self.state["on"]), bri=body.get("bri", self.state["bri"]))
@@ -89,7 +108,7 @@ class Install(unittest.TestCase):
                        "4": {"n": "Loop", "seg": [segment(53, "squid-eyes.gif")]}}, f)
         self.args = SimpleNamespace(host="lamp", ledmap=None, palette=None, cfg=None, reboot=False, effects=None, remote=None, presets=self.presets,
                                     file=[os.path.join(ROOT, "curtain", "squid-eyes.gif")], restore=True)
-        for name in ("upload", "readback", "get", "post", "live"):
+        for name in ("upload", "readback", "get", "post", "live", "settings_request"):
             patcher = patch.object(wledlab, name, getattr(self.lamp, name))
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -211,30 +230,70 @@ class Install(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "did not come back"):
             wledlab._cmd_install(self.args)
 
-    def test_a_palette_file_must_be_counted_by_the_lamp(self):
-        palette = os.path.join(ROOT, "fleet", "tycstation", "palette0.json")
-        self.args.presets, self.args.restore, self.args.file = None, False, [palette]
-        info = {"ver": "16.0.1", "leds": {}, "cpalcount": 0}
-        with patch.object(wledlab, "get", lambda host, path: info if path == "/json/info" else {"seg": []}), \
-                self.assertRaisesRegex(SystemExit, "uploaded slot 0"):
-            wledlab._cmd_install(self.args)
-        info["cpalcount"] = 1
-        with patch.object(wledlab, "get", lambda host, path: info if path == "/json/info" else {"seg": []}):
-            wledlab._cmd_install(self.args)
-        self.assertEqual(self.lamp.files["/palette0.json"], open(palette, "rb").read())
-
     def test_files_and_presets_already_on_the_lamp_are_not_sent_or_recalled(self):
         wledlab._cmd_install(self.args)
         before, self.lamp.calls = copy.deepcopy(self.lamp.state), []
-        palette = os.path.join(ROOT, "fleet", "tycstation", "palette0.json")
-        self.args.file = self.args.file + [palette]
-        info = {"ver": "16.0.1", "leds": {}, "cpalcount": 1}
-        with patch.object(wledlab, "get", lambda host, path: info if path == "/json/info" else self.lamp.get(host, path)):
-            wledlab._cmd_install(self.args)
-        # Only the new palette goes up; no preset is recalled, so the look is not touched.
-        self.assertEqual([c[1] for c in self.lamp.calls if c[0] == "upload"], ["/palette0.json"])
+        self.args.file = self.args.file + [os.path.join(ROOT, "curtain", "squid-ink.gif")]
+        wledlab._cmd_install(self.args)
+        # Only the new file goes up; no preset shows it, so none is recalled and the look is not touched.
+        self.assertEqual([c[1] for c in self.lamp.calls if c[0] == "upload"], ["/squid-ink.gif"])
         self.assertEqual([c for c in self.lamp.calls if c[0] == "post"], [])
         self.assertEqual(self.lamp.state, before)
+
+    def with_palettes(self, *slots):
+        for slot in slots:
+            self.lamp.files[f"/palette{slot}.json"] = b'{"palette":[0,0,0,0,255,255,255,255]}'
+        self.lamp.load_palettes()
+        self.args.presets, self.args.restore, self.args.file = None, False, None
+
+    def test_a_removed_palette_is_gone_and_the_lamps_list_follows(self):
+        self.with_palettes(0)
+        self.lamp.state.update(on=False, ps=3)
+        before, self.args.remove_palette = copy.deepcopy(self.lamp.state), [0]
+        wledlab._cmd_install(self.args)
+        self.assertEqual((self.lamp.files, self.lamp.palettes), ({}, 0))
+        self.assertEqual([c for c in self.lamp.calls if c[0] == "post"], [("post", {"rmcpal": 0})])
+        # WLED's removal leaves power, brightness and the preset marker alone, and so does the tool.
+        self.assertEqual(self.lamp.state, before)
+
+    def test_a_palette_after_the_ports_six_goes_and_the_six_stay(self):
+        # The GLORBs: palette0 to palette5 are the port's, palette6 was the TycStation one.
+        self.with_palettes(*range(7))
+        self.args.remove_palette = [6]
+        wledlab._cmd_install(self.args)
+        self.assertEqual((sorted(self.lamp.files), self.lamp.palettes), ([f"/palette{n}.json" for n in range(6)], 6))
+
+    def test_a_palette_that_is_not_on_the_lamp_sends_nothing(self):
+        self.with_palettes()
+        self.args.remove_palette = [0]
+        wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.calls, [])
+
+    def test_a_delete_the_lamp_loses_is_sent_again(self):
+        self.with_palettes(0)
+        self.lamp.lost, self.args.remove_palette = 2, [0]
+        wledlab._cmd_install(self.args)
+        self.assertEqual((self.lamp.files, [c for c in self.lamp.calls if c[0] == "post"]), ({}, [("post", {"rmcpal": 0})] * 3))
+
+    def test_a_delete_the_lamp_keeps_losing_fails(self):
+        self.with_palettes(0)
+        self.lamp.lost, self.args.remove_palette = 3, [0]
+        with self.assertRaisesRegex(SystemExit, "/palette0.json: still on the lamp after 3 removals"):
+            wledlab._cmd_install(self.args)
+
+    def test_a_lamp_whose_list_does_not_follow_fails(self):
+        # What a delete through /edit does (wled_server.cpp): the file goes, the palette list stays until a reboot.
+        self.with_palettes(0)
+        self.lamp.keeps_list, self.args.remove_palette = True, [0]
+        with self.assertRaisesRegex(SystemExit, "still counts 1 after its highest slot 0 went"):
+            wledlab._cmd_install(self.args)
+
+    def test_an_answer_that_is_neither_there_nor_gone_stops_the_removal(self):
+        self.with_palettes(0)
+        self.args.remove_palette = [0]
+        with patch.object(wledlab, "settings_request", lambda host, path, fields=None: 401), self.assertRaisesRegex(RuntimeError, "HTTP 401"):
+            wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.calls, [])
 
     def test_a_changed_file_a_preset_shows_is_recalled_again(self):
         wledlab._cmd_install(self.args)
