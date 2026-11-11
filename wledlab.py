@@ -113,30 +113,32 @@ def upload(ip, name, path, timeout=30):
     return r.stdout.strip()
 
 
-def upload_presets(host, presets, attempts=3):
-    """Put `presets` on the lamp as its presets.json; the upload's answer, or None when the lamp never read them back.
+def compact_presets(presets):
+    """presets.json as it goes onto a lamp: compact, as WLED itself writes it. The repository's copies are formatted for
+    reading and up to 2.4 times as large, and a lamp serves about 11 KB a second (69 KB took 6.3 s on 2026-11-11)."""
+    return json.dumps(presets, separators=(",", ":")).encode()
 
-    The file goes compact, as WLED itself writes it: the repository's copies are formatted for reading and up to 2.4
-    times as large. An upload that breaks off leaves a cut-off file on the lamp (the Exoy controller dropped a 69 KB
-    upload after 21 KB on 2026-11-11, curl exit 52), so the upload is repeated until the lamp reads the presets back."""
+
+def upload_presets(host, presets, attempts=3):
+    """Put `presets` on the lamp as its presets.json; True once the lamp reads back exactly the compact file.
+
+    What the lamp reads back decides, not the upload's answer: on 2026-11-11 the Exoy controller dropped one 69 KB
+    upload after 21 KB and kept the cut-off file, and wrote the next one completely without answering (curl exit 52
+    both times). So the upload is repeated until the file is there."""
     folder = tempfile.mkdtemp(prefix="wledlab-presets-")
     path = os.path.join(folder, "presets.json")
     try:
-        with open(path, "w") as f:
-            json.dump(presets, f, separators=(",", ":"))
+        with open(path, "wb") as f:
+            f.write(compact_presets(presets))
         for attempt in range(attempts):
             try:
-                answer = upload(host, "/presets.json", path, timeout=60)
+                upload(host, "/presets.json", path, timeout=60)
             except RuntimeError as error:
-                answer = None
-                print(f"presets: upload {attempt + 1} of {attempts} broke off: {error}")
-            try:
-                if answer is not None and json.loads(readback(host, "/presets.json")) == presets:
-                    return answer
-            except ValueError:
-                pass
+                print(f"presets: upload {attempt + 1} of {attempts} got no answer: {error}")
+            if readback(host, "/presets.json", timeout=60) == compact_presets(presets):
+                return True
             time.sleep(5)
-        return None
+        return False
     finally:
         shutil.rmtree(folder, ignore_errors=True)
 
@@ -1097,10 +1099,11 @@ def restore_look(host, before):
 def _cmd_install(a):
     # Presets the lamp already holds, with no file a preset shows changed, are not recalled: a recall shows on the lamp
     # (and on everything that follows it), so an install that only adds a file leaves the look alone.
-    held = None
+    held = held_raw = None
     if a.presets:
+        held_raw = readback(a.host, "/presets.json", timeout=60)
         try:
-            held = json.loads(readback(a.host, "/presets.json"))
+            held = json.loads(held_raw)
         except ValueError:
             held = None
     recall = a.presets and held != json.load(open(a.presets))
@@ -1131,15 +1134,18 @@ def _cmd_install(a):
     if a.presets:
         names = {ws.get("n") for v in json.load(open(a.presets)).values() if v for ws in v.get("seg", [])}
         recall = recall or bool(changed & names)
-    if a.presets and held == json.load(open(a.presets)):
+    if a.presets and held_raw == compact_presets(json.load(open(a.presets))):
         print("presets: already on the lamp" + ("" if recall else "; no file they show changed, not recalled"))
     elif a.presets:
+        # The same presets in another form (the repository's readable one, from before 2026-11-11) are sent once
+        # more, compact, and not recalled: nothing a preset shows has changed.
         sent = upload_presets(a.host, json.load(open(a.presets)))
-        print("presets:", sent if sent is not None else "NOT WRITTEN", "| readback ok:", sent is not None)
-        if sent is None:
-            # The lamp holds a cut-off file now: what it held before goes back, and nothing is recalled.
+        print("presets:", "written compact" if sent else "NOT WRITTEN", "| readback ok:", sent,
+              "" if recall else "| same presets as before, not recalled")
+        if not sent:
+            # The lamp may hold a cut-off file now: what it held before goes back, and nothing is recalled.
             if held is not None:
-                print("previous presets put back:", "OK" if upload_presets(a.host, held) is not None else "FAILED")
+                print("previous presets put back:", "OK" if upload_presets(a.host, held) else "FAILED")
             sys.exit("presets.json did not arrive on the lamp as written")
     if a.cfg:
         overrides = json.load(open(a.cfg)); before = get(a.host, "/json/cfg")
