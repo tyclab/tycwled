@@ -57,7 +57,8 @@ output, limits, remotes and central OTA access are in
 
 The black GL-C-618WL drives both Exoy lamps. Its identity, boot preset, two outputs,
 limits and 60×16 matrix are in [`overlays/exoy-gledopto.json`](overlays/exoy-gledopto.json),
-read from the live controller.
+read from the live controller. Each output is limited to 6000 mA at 55 mA per LED: both
+supplies deliver 6 A (operator, 2026-11-11). `wledlab.py install --cfg` writes the file.
 
 Pin, LED and mic settings live in each lamp's cfg.json, not in the build. OTA retains
 the filesystem, but a new WLED version can migrate its configuration schema on boot.
