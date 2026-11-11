@@ -105,7 +105,10 @@ different liveview frames in three seconds. `--restore` puts back the power,
 brightness and segments the lamp had before the presets were recalled. A preset that
 does not read back as written makes `install` exit non-zero.
 
-A file or `presets.json` the lamp already holds byte for byte is not sent again. Presets are
+A file the lamp already holds byte for byte, or presets it holds with the same content, is not sent
+again. `presets.json` goes up compact, as WLED writes it itself, and an upload that breaks off is
+repeated until the lamp reads the presets back; if it never does, the earlier presets go back and
+`install` exits non-zero. Presets are
 recalled only when `presets.json` changed or a file a preset shows (a segment name) changed, so
 adding a palette or another file leaves the lamp's look alone.
 
