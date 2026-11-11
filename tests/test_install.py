@@ -26,12 +26,18 @@ class Lamp:
     writing a segment with an effect ends a running playlist."""
 
     def __init__(self):
-        self.files, self.calls, self.frozen, self.deaf, self.stuck = {}, [], False, False, False
+        self.files, self.calls, self.frozen, self.deaf, self.stuck, self.drops = {}, [], False, False, False, 0
         self.state = {"on": True, "bri": 100, "ps": -1, "pl": -1, "transition": 7, "seg": [segment(191)]}
 
     def upload(self, host, name, path, timeout=30):
         self.calls.append(("upload", name))
-        self.files[name] = open(path, "rb").read()
+        raw = open(path, "rb").read()
+        if name == "/presets.json" and self.drops:
+            # The connection drops part-way (curl exit 52): the lamp keeps what had arrived, a cut-off file.
+            self.drops -= 1
+            self.files[name] = raw[:len(raw) // 3]
+            raise RuntimeError(f"upload {path} -> lamp{name}: curl exit 52")
+        self.files[name] = raw
         return "ok"
 
     def readback(self, host, name, timeout=10):
@@ -110,6 +116,30 @@ class Install(unittest.TestCase):
         wledlab._cmd_install(self.args)
         self.assertEqual(self.lamp.state, before)
         self.assertEqual(self.lamp.calls[-1][1]["pd"], 1)
+
+    def test_presets_go_up_compact_whatever_the_file_looks_like(self):
+        presets = json.load(open(self.presets))
+        with open(self.presets, "w") as f:
+            json.dump(presets, f, indent=2)
+        wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.files["/presets.json"], json.dumps(presets, separators=(",", ":")).encode())
+
+    def test_an_upload_that_breaks_off_is_sent_again(self):
+        self.lamp.drops = 2
+        before = copy.deepcopy(self.lamp.state)
+        wledlab._cmd_install(self.args)
+        self.assertEqual([c[1] for c in self.lamp.calls if c[0] == "upload"].count("/presets.json"), 3)
+        self.assertEqual(json.loads(self.lamp.files["/presets.json"]), json.load(open(self.presets)))
+        self.assertEqual(self.lamp.state, before)
+
+    def test_presets_that_never_arrive_put_the_earlier_ones_back_and_recall_nothing(self):
+        earlier = {"0": {}, "1": {"n": "Earlier", "seg": [segment(9)]}}
+        self.lamp.files["/presets.json"] = json.dumps(earlier).encode()
+        self.lamp.drops = 3
+        with self.assertRaisesRegex(SystemExit, "did not arrive"):
+            wledlab._cmd_install(self.args)
+        self.assertEqual(json.loads(self.lamp.files["/presets.json"]), earlier)
+        self.assertEqual([c for c in self.lamp.calls if c[0] == "post"], [])
 
     def with_playlist(self):
         presets = json.load(open(self.presets)) | {"20": {"n": "Cycle", "on": True, "playlist": {"ps": [4, 1], "dur": [300, 300], "r": 0, "end": 0}}}
