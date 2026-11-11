@@ -1034,8 +1034,13 @@ def gif_frames(raw):
 def look_request(before):
     """The state request that puts a lamp back as `before` read it. "tt" is the one-shot transition ("transition" would
     stay as the lamp's setting). A lamp that showed an unchanged preset reports its id as "ps"; a segment write clears
-    that, so "pd" names the preset the segments are, and what reads the preset (Home Assistant's select) still sees it."""
+    that, so "pd" names the preset the segments are, and what reads the preset (Home Assistant's select) still sees it.
+    A segment write that names an effect also ends a running playlist (json.cpp), so a playlist recalled during the
+    install does not outlive it."""
     request = {k: before[k] for k in ("on", "bri", "mainseg") if k in before}
+    if before.get("pl", -1) > 0:
+        # The lamp was playing a playlist: recalling it starts it again, and its entries set the segments.
+        return request | {"tt": 0, "ps": before["pl"]}
     request |= {"tt": 0, "seg": [dict(seg, n=seg.get("n", "")) for seg in before.get("seg", [])]}
     if before.get("ps", -1) > 0:
         request["pd"] = before["ps"]
@@ -1049,9 +1054,12 @@ def restore_look(host, before):
     time.sleep(1.5)
     after = get(host, "/json/state")
     now = {seg.get("id"): seg for seg in after.get("seg", [])}
-    same = after.get("on") == before.get("on") and after.get("bri") == before.get("bri") and all(
-        now.get(seg.get("id"), {}).get(key) == seg.get(key) for seg in request["seg"] for key in SEGMENT_KEYS if key in seg)
-    same = same and (before.get("ps", -1) <= 0 or after.get("ps") == before["ps"])
+    # Which playlist plays, if any, must be as before; a playlist's own entries then decide brightness and segments.
+    same = after.get("on") == before.get("on") and after.get("pl", -1) == before.get("pl", -1)
+    if "seg" in request:
+        same = same and after.get("bri") == before.get("bri") and all(
+            now.get(seg.get("id"), {}).get(key) == seg.get(key) for seg in request["seg"] for key in SEGMENT_KEYS if key in seg)
+        same = same and (before.get("ps", -1) <= 0 or after.get("ps") == before["ps"])
     print("look restored:", "OK" if same else "MISMATCH")
     return same
 
@@ -1154,6 +1162,13 @@ def _cmd_install(a):
             post(a.host, "/json/state", {"on": True, "ps": int(k)}); time.sleep(1.5)  # outlast the preset's own transition
             state = get(a.host, "/json/state"); segs = state["seg"]
             ok, note = not state.get("error"), f" error {state['error']}" if state.get("error") else ""
+            if "playlist" in v:
+                # A playlist holds no segments of its own (its entries are presets checked above or below): the lamp
+                # must report it as the playlist it plays.
+                ok &= state.get("pl") == int(k)
+                print(f"  preset {k:>2} {v.get('n', ''):<26} {'OK' if ok else 'MISMATCH'}{note} playlist")
+                bad += [] if ok else [k]
+                continue
             # An animated GIF that this run uploaded must move on the lamp: liveview shows what the Image effect draws.
             moving = next((ws["n"] for ws in v["seg"] if ws.get("n") in animated), None)
             if moving:
