@@ -44,7 +44,7 @@
     },
     {
       "customType": "regex",
-      "description": "The Renovate release the config validator in CI runs; the app runs Renovate's latest, so this follows it.",
+      "description": "The Renovate release the config validator in CI runs; it moves on Renovate majors only (packageRules).",
       "managerFilePatterns": ["/^\\.github/workflows/ci\\.yml$/"],
       "matchStrings": [
         "--package renovate@(?<currentValue>\\d+\\.\\d+\\.\\d+) "
@@ -58,6 +58,12 @@
       "description": "Patch, minor and digest updates merge themselves once the branch is green and up to date with main, after the 3-day minimumReleaseAge, as in tycstation's shared preset. Majors stay PRs. platformAutomerge arms GitHub auto-merge, which main's ruleset holds until lint, test and gitleaks pass on an up-to-date branch.",
       "matchUpdateTypes": ["patch", "minor", "digest"],
       "automerge": true
+    },
+    {
+      "description": "The validator pin moves on Renovate majors only: a PR per Renovate release moved the number and never changed the validator's verdict. A renovate.json that needs a newer option bumps the pin in the same PR.",
+      "matchDepNames": ["renovate"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "enabled": false
     },
     {
       "description": "A WLED bump changes the firmware flashed to the lamps and the effect ids the fleet configs were checked against (glorb_fx), so it is reviewed and re-verified, never automerged.",
