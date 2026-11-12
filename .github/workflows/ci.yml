@@ -42,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # A renovate.json the validator rejects fails here, not silently at the app's next run. The pin moves on Renovate majors (renovate.json).
-      - run: npx --yes --package renovate@44.222.6 renovate-config-validator --strict
+      - run: npx --yes --package renovate@44.224.0 renovate-config-validator --strict
 
   gitleaks:
     runs-on: ubuntu-latest
