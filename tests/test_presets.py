@@ -80,7 +80,7 @@ class Buttons(unittest.TestCase):
 
     A lamp without a preset in a slot stays as it was, so the same button gave different results depending
     on what was pressed before (2026-11-10). Every lamp therefore has a look on every button, and buttons
-    4 to 7, the curtain's squid looks, play the squid's arm waves on the other lamps."""
+    1 to 5, the curtain's squid looks, play the squid's arm waves on the other lamps."""
 
     FOLLOWERS = {"fleet/overlays/couch-presets.json": ("squid-arms-300x1.gif", 300, None),
                  "fleet/overlays/moon-presets.json": ("squid-arms-8x8.gif", 8, 8),
@@ -95,9 +95,9 @@ class Buttons(unittest.TestCase):
             presets = self.load(path)
             self.assertEqual([k for k in "1234567" if not presets.get(k)], [], path)
 
-    def test_buttons_4_to_7_are_the_squid_on_every_lamp(self):
+    def test_the_squid_slots_match_on_every_follower(self):
         curtain = self.load("curtain/presets.json")
-        names = {k: curtain[k]["n"] for k in "4567"}
+        names = {k: curtain[k]["n"] for k in "123458"}
         self.assertTrue(all(name.startswith("Squid ") for name in names.values()), names)
         # The segment hatyc packages/squid.yaml sends: every field WLED reports for a segment.
         image = {"grp": 1, "spc": 0, "of": 0, "on": True, "frz": False, "bri": 255, "cct": 127, "set": 0,
@@ -113,17 +113,25 @@ class Buttons(unittest.TestCase):
                 self.assertEqual(presets[k]["n"], name, f"{path} preset {k}")
                 self.assertEqual([s for s in presets[k]["seg"] if s.get("stop") != 0], [waves], f"{path} preset {k}")
 
-    def test_the_couch_and_the_moon_show_their_own_look_on_buttons_1_to_3(self):
+    def test_the_curtain_keeps_eight_unique_looks_with_the_approved_remote_order(self):
+        curtain = self.load("curtain/presets.json")
+        self.assertEqual([curtain[str(k)]["n"] for k in range(1, 9)],
+                         ["Squid Breathing", "Squid Ink Burst", "Squid Deep Sea", "Squid Chromatophores",
+                          "Squid Water", "PS Fuzzy Noise", "TycStation", "Squid Eyes"])
+        self.assertEqual(set(curtain), set("012345678"))
+
+    def test_the_couch_and_the_moon_show_their_own_look_on_buttons_6_and_7(self):
         for path in ("fleet/overlays/couch-presets.json", "fleet/overlays/moon-presets.json"):
             presets = self.load(path)
-            self.assertEqual((presets["2"], presets["3"]), (presets["1"], presets["1"]), path)
+            self.assertEqual(presets["6"], presets["7"], path)
+            self.assertEqual(presets["7"]["n"], "DJ Light" if "couch" in path else "Blurz")
 
-    def test_the_glorbs_keep_every_port_look_with_three_moved_off_the_squid_buttons(self):
+    def test_the_glorbs_keep_every_port_look_off_the_squid_buttons(self):
         fleet = self.load("fleet/overlays/glorb-presets.json")
-        moved = {"4": "15", "5": "16", "7": "17"}
+        moved = {"1": "7", "2": "6", "3": "18", "4": "15", "5": "16", "7": "17"}
         for k, look in PORT.items():
             self.assertEqual(fleet[moved.get(k, k)], look, f"port preset {k}")
-        self.assertEqual(sorted(fleet, key=int), sorted(set(PORT) - set(moved) | set(moved.values()) | set("4567"), key=int))
+        self.assertEqual(sorted(fleet, key=int), sorted(set(PORT) - set(moved) | set(moved.values()) | set("123458"), key=int))
 
 
 class Effects(unittest.TestCase):

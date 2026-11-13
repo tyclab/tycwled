@@ -180,6 +180,33 @@ class Install(unittest.TestCase):
         wledlab._cmd_install(self.args)
         self.assertEqual(self.lamp.files["/presets.json"], json.dumps(presets, separators=(",", ":")).encode())
 
+    def test_reordering_presets_restores_the_look_with_its_new_number(self):
+        old = json.load(open(self.presets))
+        self.lamp.files["/presets.json"] = json.dumps(old).encode()
+        self.lamp.state.update(ps=1, seg=copy.deepcopy(old["1"]["seg"]))
+        before = copy.deepcopy(self.lamp.state)
+        with open(self.presets, "w") as f:
+            json.dump({"0": {}, "1": old["4"], "7": old["1"]}, f)
+        wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.state, before | {"ps": 7})
+        self.assertEqual(self.lamp.calls[-1][1]["pd"], 7)
+
+    def test_removing_a_preset_keeps_its_look_without_claiming_the_reused_slot(self):
+        old = {"1": {"n": "Removed", "seg": [segment(191)]}}
+        self.lamp.files["/presets.json"] = json.dumps(old).encode()
+        self.lamp.state["ps"] = 1
+        before = copy.deepcopy(self.lamp.state)
+        wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.state, before | {"ps": -1})
+        self.assertNotIn("pd", self.lamp.calls[-1][1])
+
+    def test_changing_a_running_playlist_refuses_before_any_upload(self):
+        self.lamp.files["/presets.json"] = json.dumps({"20": {"playlist": {"ps": [1, 4]}}}).encode()
+        self.lamp.state["pl"] = 20
+        with self.assertRaisesRegex(SystemExit, "running playlist"):
+            wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.calls, [])
+
     def test_an_upload_that_breaks_off_is_sent_again(self):
         self.lamp.drops = 2
         before = copy.deepcopy(self.lamp.state)

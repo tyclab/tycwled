@@ -102,7 +102,9 @@ python3 wledlab.py install --host <lamp> \
 `--file <path>` (repeatable) stores any other file under its own name, such as a GIF
 for the Image effect; an animated GIF a preset names must then show at least three
 different liveview frames in three seconds. `--restore` puts back the power,
-brightness and segments the lamp had before the presets were recalled. A preset that
+brightness and segments the lamp had before the presets were recalled. If that preset moves,
+its marker follows the unchanged look to its new slot; if removed, the marker is cleared.
+An active playlist that changes or disappears is refused before uploading: stop it first. A preset that
 does not read back as written makes `install` exit non-zero.
 
 `--remove-palette <slot>` (repeatable) takes a custom palette off the lamp with WLED's own
