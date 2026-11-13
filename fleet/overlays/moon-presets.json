@@ -6,438 +6,6 @@
     "transition": 7,
     "bs": 0,
     "mainseg": 0,
-    "seg": [
-      {
-        "id": 0,
-        "start": 0,
-        "stop": 8,
-        "startY": 0,
-        "stopY": 8,
-        "grp": 1,
-        "spc": 0,
-        "of": 0,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
-        "n": "",
-        "col": [
-          [255, 160, 0],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 163,
-        "sx": 128,
-        "ix": 128,
-        "pal": 6,
-        "c1": 128,
-        "c2": 128,
-        "c3": 16,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": false,
-        "si": 0,
-        "m12": 0,
-        "bm": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      }
-    ],
-    "n": "Blurz"
-  },
-  "2": {
-    "on": true,
-    "bri": 200,
-    "transition": 7,
-    "bs": 0,
-    "mainseg": 0,
-    "seg": [
-      {
-        "id": 0,
-        "start": 0,
-        "stop": 8,
-        "startY": 0,
-        "stopY": 8,
-        "grp": 1,
-        "spc": 0,
-        "of": 0,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
-        "n": "",
-        "col": [
-          [255, 160, 0],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 163,
-        "sx": 128,
-        "ix": 128,
-        "pal": 6,
-        "c1": 128,
-        "c2": 128,
-        "c3": 16,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": false,
-        "si": 0,
-        "m12": 0,
-        "bm": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      }
-    ],
-    "n": "Blurz"
-  },
-  "3": {
-    "on": true,
-    "bri": 200,
-    "transition": 7,
-    "bs": 0,
-    "mainseg": 0,
-    "seg": [
-      {
-        "id": 0,
-        "start": 0,
-        "stop": 8,
-        "startY": 0,
-        "stopY": 8,
-        "grp": 1,
-        "spc": 0,
-        "of": 0,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
-        "n": "",
-        "col": [
-          [255, 160, 0],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 163,
-        "sx": 128,
-        "ix": 128,
-        "pal": 6,
-        "c1": 128,
-        "c2": 128,
-        "c3": 16,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": false,
-        "si": 0,
-        "m12": 0,
-        "bm": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      }
-    ],
-    "n": "Blurz"
-  },
-  "4": {
-    "on": true,
-    "bri": 200,
-    "transition": 7,
-    "bs": 0,
-    "mainseg": 0,
     "n": "Squid Breathing",
     "seg": [
       {
@@ -575,7 +143,7 @@
       }
     ]
   },
-  "5": {
+  "2": {
     "on": true,
     "bri": 200,
     "transition": 7,
@@ -718,7 +286,7 @@
       }
     ]
   },
-  "6": {
+  "3": {
     "on": true,
     "bri": 200,
     "transition": 7,
@@ -861,7 +429,581 @@
       }
     ]
   },
+  "4": {
+    "on": true,
+    "bri": 200,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "n": "Squid Chromatophores",
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 8,
+        "startY": 0,
+        "stopY": 8,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "col": [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0,
+        "n": "squid-arms-8x8.gif",
+        "rY": false,
+        "mY": false,
+        "tp": false
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ]
+  },
+  "5": {
+    "on": true,
+    "bri": 200,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "n": "Squid Water",
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 8,
+        "startY": 0,
+        "stopY": 8,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "col": [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0,
+        "n": "squid-arms-8x8.gif",
+        "rY": false,
+        "mY": false,
+        "tp": false
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ]
+  },
+  "6": {
+    "on": true,
+    "bri": 200,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 8,
+        "startY": 0,
+        "stopY": 8,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 163,
+        "sx": 128,
+        "ix": 128,
+        "pal": 6,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Blurz"
+  },
   "7": {
+    "on": true,
+    "bri": 200,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 8,
+        "startY": 0,
+        "stopY": 8,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 163,
+        "sx": 128,
+        "ix": 128,
+        "pal": 6,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Blurz"
+  },
+  "8": {
     "on": true,
     "bri": 200,
     "transition": 7,

@@ -1119,6 +1119,21 @@ def look_request(before):
     return request
 
 
+def remap_restored_look(before, old, new):
+    """Keep the displayed look's identity when an install moves or removes its preset slot."""
+    restored = dict(before)
+    for field in ("ps", "pl"):
+        slot = str(before.get(field, -1))
+        if int(slot) <= 0:
+            continue
+        preset = (old or {}).get(slot)
+        matches = [int(k) for k, value in new.items() if preset and value == preset]
+        if field == "pl" and not matches:
+            sys.exit("REFUSED: the running playlist changes or disappears; stop it before installing")
+        restored[field] = int(slot) if int(slot) in matches else min(matches, default=-1)
+    return restored
+
+
 def restore_look(host, before):
     """Put back power, brightness, segments and the preset marker as read before the presets were recalled; False when they do not read back."""
     request = look_request(before)
@@ -1148,6 +1163,8 @@ def _cmd_install(a):
             held = None
     recall = a.presets and held != json.load(open(a.presets))
     look = get(a.host, "/json/state") if a.presets and getattr(a, "restore", False) else None
+    if look and recall:
+        look = remap_restored_look(look, held, json.load(open(a.presets)))
     animated, changed = {}, set()
     if a.ledmap:
         raw = open(a.ledmap, "rb").read()

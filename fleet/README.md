@@ -221,15 +221,28 @@ A `remote.json` that sends `{"ps": N}` for those buttons gains nothing and loses
 stock handler does: the JSON path skips a preset that is already current (`json.cpp`), and it
 does not end the remote's night mode, which then blocks the brightness buttons (`remote.cpp`).
 
-Presets 1 to 7 are therefore the remote's looks on every lamp, and every lamp has one in every
-slot: a lamp without one stayed as it was, so the same button gave different results depending on
-what was pressed before (2026-11-10). Buttons 4 to 7 are the curtain's squid looks, and on the
-couch, the Moon and the GLORBs they play the squid's arm waves; the couch and the Moon show their
-own look on 1 to 3. The GLORBs' installed presets are
-[`overlays/glorb-presets.json`](overlays/glorb-presets.json): the port's looks
-(`glorb/wled16-port/presets.json`, the factory's field for field) with the three from slots 4, 5
-and 7 in 15, 16 and 17. Anything that is not a look (a boot layout, a test pattern) belongs above 7. The couch's boot layout is preset 250 for that reason; in slot 2 it switched
-the strip off from the remote (2026-11-10).
+Presets 1 to 7 are the remote's looks on every lamp. The curtain uses this order:
+
+| Button | Curtain look                                    |
+| ------ | ----------------------------------------------- |
+| 1      | Squid Breathing                                 |
+| 2      | Squid Ink Burst                                 |
+| 3      | Squid Deep Sea                                  |
+| 4      | Squid Chromatophores — dark squid, bright cells |
+| 5      | Squid Water — slower drifting background        |
+| 6      | PS Fuzzy Noise                                  |
+| 7      | TycStation                                      |
+
+Squid Eyes stays available as preset 8 in WLED and Home Assistant. The old curtain presets 2
+and 3 were identical; their single remaining copy is 6. On the couch, Moon and GLORBs, slots
+1–5 and 8 play the squid's arm waves with matching names; 6 and 7 show their own looks.
+The Exoys keep their distinct looks on all seven buttons.
+
+The GLORBs' installed presets are [`overlays/glorb-presets.json`](overlays/glorb-presets.json).
+Every port look (`glorb/wled16-port/presets.json`, the factory's field for field) is preserved:
+original slots 1, 2, 3, 4, 5 and 7 live in 7, 6, 18, 15, 16 and 17 respectively. Anything that
+is not a look (a boot layout, a test pattern) belongs above 7. The couch's boot layout is
+preset 250; in slot 2 it switched the strip off from the remote (2026-11-10).
 
 Every look carries power and brightness (`"on": true` and `"bri"`: 45, and 200 on the Moon, the
 operator's values of 2026-11-10), on every lamp: a preset without them leaves both as they were, so two lamps on the
@@ -239,7 +252,7 @@ same button stayed apart (the GLORBs at 6 and 255 after one of them rebooted). T
 [`overlays/couch-presets.json`](overlays/couch-presets.json),
 [`overlays/moon-presets.json`](overlays/moon-presets.json) and
 [`overlays/exoy-presets.json`](overlays/exoy-presets.json) (read from tycdodeca on
-2026-11-11, whose looks stood at 128; it has no squid look, so its buttons 4 to 7 keep its own); `tests/test_presets.py` holds the
+2026-11-11, whose looks stood at 128; it has no squid look, so all seven buttons keep its own); `tests/test_presets.py` holds the
 value, and tycpve's `wled:install` puts them on the lamps.
 
 ## Curtain
@@ -376,7 +389,7 @@ right side. The door glass spans about 20.5–38.5. In ledmap columns string 20 
 `favicon.svg` without its tile), 46 × 40 pixels placed at x 13, y 1 of a 68 × 42 frame, so it
 sits centred on the door in the ledmap grid. WLED's Image effect (fx 53) draws the GIF named
 by its segment, so the segment is named `tycstation.gif`;
-[`presets.json`](../curtain/presets.json) keeps that as preset 1 "TycStation", which Home
+[`presets.json`](../curtain/presets.json) keeps that as preset 7 "TycStation", which Home
 Assistant's Evening look "TycStation" recalls. Both files upload like the ledmap
 (`curl -F "data=@curtain/tycstation.gif;filename=/tycstation.gif" http://<host>/upload`,
 the same for `/presets.json`). Rebuild the GIF with the tile removed from the SVG, then

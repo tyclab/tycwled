@@ -9,6 +9,13 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The curtain's seven remote buttons now show Breathing, Ink Burst, Deep Sea,
+  Chromatophores, Water, PS Fuzzy Noise and TycStation, in that order. Eyes
+  remains in slot 8; the duplicate Fuzzy Noise is removed. Companion lamps
+  match the squid slots and keep every native look.
+- Installing reordered presets preserves the displayed look with its new preset
+  number, or clears that marker if the look was removed.
+
 - **The port is a reimplementation now, not an approximation.** The six fork
   effects (Colorwaves, Running, Frizzles, Black Hole, Hiphotic, Tartan) were
   disassembled out of the factory firmware image and rebuilt as the WLED 16
