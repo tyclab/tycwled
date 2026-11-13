@@ -22,438 +22,6 @@
         "cct": 127,
         "set": 0,
         "lc": 1,
-        "n": "tycstation.gif",
-        "col": [
-          [255, 160, 80],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 53,
-        "sx": 128,
-        "ix": 128,
-        "pal": 0,
-        "c1": 220,
-        "c2": 30,
-        "c3": 21,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": false,
-        "si": 0,
-        "m12": 0,
-        "bm": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      }
-    ],
-    "n": "TycStation"
-  },
-  "2": {
-    "on": true,
-    "bri": 45,
-    "transition": 0,
-    "bs": 0,
-    "mainseg": 0,
-    "seg": [
-      {
-        "id": 0,
-        "start": 0,
-        "stop": 68,
-        "startY": 0,
-        "stopY": 42,
-        "grp": 1,
-        "spc": 0,
-        "of": 6,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
-        "n": "",
-        "col": [
-          [255, 160, 0],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 191,
-        "sx": 62,
-        "ix": 26,
-        "pal": 9,
-        "c1": 104,
-        "c2": 67,
-        "c3": 5,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": true,
-        "si": 0,
-        "m12": 0,
-        "bm": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      }
-    ],
-    "n": "PS Fuzzy Noise"
-  },
-  "3": {
-    "on": true,
-    "bri": 45,
-    "transition": 0,
-    "bs": 0,
-    "mainseg": 0,
-    "seg": [
-      {
-        "id": 0,
-        "start": 0,
-        "stop": 68,
-        "startY": 0,
-        "stopY": 42,
-        "grp": 1,
-        "spc": 0,
-        "of": 6,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
-        "n": "",
-        "col": [
-          [255, 160, 0],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 191,
-        "sx": 62,
-        "ix": 26,
-        "pal": 9,
-        "c1": 104,
-        "c2": 67,
-        "c3": 5,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": true,
-        "si": 0,
-        "m12": 0,
-        "bm": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      }
-    ],
-    "n": "PS Fuzzy Noise"
-  },
-  "4": {
-    "on": true,
-    "bri": 45,
-    "transition": 0,
-    "bs": 0,
-    "mainseg": 0,
-    "seg": [
-      {
-        "id": 0,
-        "start": 0,
-        "stop": 68,
-        "startY": 0,
-        "stopY": 42,
-        "grp": 1,
-        "spc": 0,
-        "of": 0,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
         "n": "squid-breathing.gif",
         "col": [
           [255, 160, 80],
@@ -576,7 +144,7 @@
     ],
     "n": "Squid Breathing"
   },
-  "5": {
+  "2": {
     "on": true,
     "bri": 45,
     "transition": 0,
@@ -720,7 +288,7 @@
     ],
     "n": "Squid Ink Burst"
   },
-  "6": {
+  "3": {
     "on": true,
     "bri": 45,
     "transition": 0,
@@ -864,151 +432,7 @@
     ],
     "n": "Squid Deep Sea"
   },
-  "7": {
-    "on": true,
-    "bri": 45,
-    "transition": 0,
-    "bs": 0,
-    "mainseg": 0,
-    "seg": [
-      {
-        "id": 0,
-        "start": 0,
-        "stop": 68,
-        "startY": 0,
-        "stopY": 42,
-        "grp": 1,
-        "spc": 0,
-        "of": 0,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
-        "n": "squid-eyes.gif",
-        "col": [
-          [255, 160, 80],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 53,
-        "sx": 128,
-        "ix": 0,
-        "pal": 0,
-        "c1": 220,
-        "c2": 30,
-        "c3": 21,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": false,
-        "si": 0,
-        "m12": 0,
-        "bm": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      },
-      {
-        "stop": 0
-      }
-    ],
-    "n": "Squid Eyes"
-  },
-  "8": {
+  "4": {
     "on": true,
     "bri": 45,
     "transition": 0,
@@ -1152,7 +576,7 @@
     ],
     "n": "Squid Chromatophores"
   },
-  "9": {
+  "5": {
     "on": true,
     "bri": 45,
     "transition": 0,
@@ -1295,5 +719,437 @@
       }
     ],
     "n": "Squid Water"
+  },
+  "6": {
+    "on": true,
+    "bri": 45,
+    "transition": 0,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 68,
+        "startY": 0,
+        "stopY": 42,
+        "grp": 1,
+        "spc": 0,
+        "of": 6,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 191,
+        "sx": 62,
+        "ix": 26,
+        "pal": 9,
+        "c1": 104,
+        "c2": 67,
+        "c3": 5,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": true,
+        "si": 0,
+        "m12": 0,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "PS Fuzzy Noise"
+  },
+  "7": {
+    "on": true,
+    "bri": 45,
+    "transition": 0,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 68,
+        "startY": 0,
+        "stopY": 42,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "tycstation.gif",
+        "col": [
+          [255, 160, 80],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 53,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 220,
+        "c2": 30,
+        "c3": 21,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "TycStation"
+  },
+  "8": {
+    "on": true,
+    "bri": 45,
+    "transition": 0,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 68,
+        "startY": 0,
+        "stopY": 42,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "squid-eyes.gif",
+        "col": [
+          [255, 160, 80],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
+        "c1": 220,
+        "c2": 30,
+        "c3": 21,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Squid Eyes"
   }
 }
