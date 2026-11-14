@@ -245,7 +245,7 @@ static const char _data_FX_MODE_GLORB_HIPHOTIC[] PROGMEM = "Hiphotic@Speed,Hue v
 // sx=X scale (bpm), ix=Y scale (bpm), c1=Intensity (star count 2..5),
 // c2=Fade rate. Delta vs stock: single star loop (inner stars + white dot
 // removed), X beat range widened to [cols/2, cols*5/2-1] then wrapped %cols,
-// Y in [1, rows-2], palette index i*63, blur 32.
+// Y in [1, rows-2], palette index i*63 with mcol 0 (0x420431d9; check1 unread), blur 32.
 static void glorb_mode_blackhole(void) {
   if (!strip.isMatrix || !SEGMENT.is2D()) GLORB_FALLBACK;
   const int cols = SEG_W;
@@ -262,7 +262,7 @@ static void glorb_mode_blackhole(void) {
     const uint8_t yphase = ((i & 1) ? 192 : 64) + (uint8_t)(i * t8);
     const int x = glorb_beatsin8((SEGMENT.speed >> 5) + 1, cols / 2, (cols * 5) / 2 - 1, 0, xphase);
     const int y = glorb_beatsin8((SEGMENT.intensity >> 4) + 1, 1, rows - 2, 0, yphase);
-    const uint32_t col = glorb_color_from_palette(i * 63, false, PALETTE_SOLID_WRAP, SEGMENT.check1 ? 0 : 255);
+    const uint32_t col = glorb_color_from_palette(i * 63, false, PALETTE_SOLID_WRAP, 0);
     glorb_addPixelColorXY(x % cols, y, col);
   }
   glorb_blur2d(32);
