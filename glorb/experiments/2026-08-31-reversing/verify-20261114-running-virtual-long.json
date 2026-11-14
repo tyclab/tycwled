@@ -1,0 +1,298 @@
+{
+  "all_input_runtime_source_pins_rechecked": true,
+  "comparisons": {
+    "p4-after": {
+      "event_counts": {
+        "left": {},
+        "right": {}
+      },
+      "events_compared": 0,
+      "events_compared_by_kind": {},
+      "first_difference": null,
+      "frames_compared": 4201,
+      "implementations": {
+        "left": {
+          "backend": "ghidra-pcode",
+          "tool_source_sha256": "f88c5906158224a98a10440a6dd438cb620450957ed357aed73c7a865717cd98",
+          "tool_version": "0.2.0"
+        },
+        "right": {
+          "backend": "glorb-host-v1",
+          "tool_source_sha256": "f88c5906158224a98a10440a6dd438cb620450957ed357aed73c7a865717cd98",
+          "tool_version": "0.2.0"
+        }
+      },
+      "input_sha256": "38785b34024b86c911ab01195f03b3f3a7044620c92ba7f800103bc25aa0808f",
+      "interpretation": "Equal for these declared inputs, snapshots and comparison scope; not a proof of physical equivalence.",
+      "left_capture_sha256": "cd32c1945885a0db8be62711197cad7ece7544271e6610e1d7750e8e443d083f",
+      "left_execution": "original-firmware",
+      "right_capture_sha256": "6d93edecaedc33751c128d1819b8bd73ca109a64eeb62996e2683f2d31e645f4",
+      "right_execution": "recovered-code",
+      "schema": "vfl.comparison.v1",
+      "scope": {
+        "event_kinds": [],
+        "events": false,
+        "omitted_empty_event_kinds": [],
+        "rgb": true,
+        "state": true
+      },
+      "verdict": "equal",
+      "verification": "completed-run"
+    },
+    "p4-before": {
+      "event_counts": {
+        "left": {},
+        "right": {}
+      },
+      "events_compared": 0,
+      "events_compared_by_kind": {},
+      "first_difference": {
+        "bus": "logical",
+        "byte_offset": 1,
+        "channel": "G",
+        "frame": 0,
+        "left": 24,
+        "pixel": 0,
+        "reason": "rgb",
+        "right": 14,
+        "time_us": 0
+      },
+      "frames_compared": 0,
+      "implementations": {
+        "left": {
+          "backend": "ghidra-pcode",
+          "tool_source_sha256": "f88c5906158224a98a10440a6dd438cb620450957ed357aed73c7a865717cd98",
+          "tool_version": "0.2.0"
+        },
+        "right": {
+          "backend": "glorb-host-v1",
+          "tool_source_sha256": "f88c5906158224a98a10440a6dd438cb620450957ed357aed73c7a865717cd98",
+          "tool_version": "0.2.0"
+        }
+      },
+      "input_sha256": "38785b34024b86c911ab01195f03b3f3a7044620c92ba7f800103bc25aa0808f",
+      "left_capture_sha256": "cd32c1945885a0db8be62711197cad7ece7544271e6610e1d7750e8e443d083f",
+      "left_execution": "original-firmware",
+      "right_capture_sha256": "583c55641f1bdae1f6c8d363fe325c71d22058e17d07172f8ea83a6ae5659a2d",
+      "right_execution": "recovered-code",
+      "schema": "vfl.comparison.v1",
+      "scope": {
+        "event_kinds": [],
+        "events": false,
+        "omitted_empty_event_kinds": [],
+        "rgb": true,
+        "state": true
+      },
+      "verdict": "different",
+      "verification": "completed-run"
+    },
+    "p4-sr-after": {
+      "event_counts": {
+        "left": {},
+        "right": {}
+      },
+      "events_compared": 0,
+      "events_compared_by_kind": {},
+      "first_difference": null,
+      "frames_compared": 4201,
+      "implementations": {
+        "left": {
+          "backend": "ghidra-pcode",
+          "tool_source_sha256": "f88c5906158224a98a10440a6dd438cb620450957ed357aed73c7a865717cd98",
+          "tool_version": "0.2.0"
+        },
+        "right": {
+          "backend": "glorb-host-v1",
+          "tool_source_sha256": "f88c5906158224a98a10440a6dd438cb620450957ed357aed73c7a865717cd98",
+          "tool_version": "0.2.0"
+        }
+      },
+      "input_sha256": "38785b34024b86c911ab01195f03b3f3a7044620c92ba7f800103bc25aa0808f",
+      "interpretation": "Equal for these declared inputs, snapshots and comparison scope; not a proof of physical equivalence.",
+      "left_capture_sha256": "6471cd44fa8ea21956ce488dcb3ca34824e786dadf1d352217abe66b03b90b8f",
+      "left_execution": "original-firmware",
+      "right_capture_sha256": "2dee92fbfa279445bfb64fdd9158e5b61253b6de28d4fca78defb8fa8e3392fa",
+      "right_execution": "recovered-code",
+      "schema": "vfl.comparison.v1",
+      "scope": {
+        "event_kinds": [],
+        "events": false,
+        "omitted_empty_event_kinds": [],
+        "rgb": true,
+        "state": true
+      },
+      "verdict": "equal",
+      "verification": "completed-run"
+    },
+    "p4-sr-before": {
+      "event_counts": {
+        "left": {},
+        "right": {}
+      },
+      "events_compared": 0,
+      "events_compared_by_kind": {},
+      "first_difference": {
+        "bus": "logical",
+        "byte_offset": 1,
+        "channel": "G",
+        "frame": 0,
+        "left": 23,
+        "pixel": 0,
+        "reason": "rgb",
+        "right": 14,
+        "time_us": 0
+      },
+      "frames_compared": 0,
+      "implementations": {
+        "left": {
+          "backend": "ghidra-pcode",
+          "tool_source_sha256": "f88c5906158224a98a10440a6dd438cb620450957ed357aed73c7a865717cd98",
+          "tool_version": "0.2.0"
+        },
+        "right": {
+          "backend": "glorb-host-v1",
+          "tool_source_sha256": "f88c5906158224a98a10440a6dd438cb620450957ed357aed73c7a865717cd98",
+          "tool_version": "0.2.0"
+        }
+      },
+      "input_sha256": "38785b34024b86c911ab01195f03b3f3a7044620c92ba7f800103bc25aa0808f",
+      "left_capture_sha256": "6471cd44fa8ea21956ce488dcb3ca34824e786dadf1d352217abe66b03b90b8f",
+      "left_execution": "original-firmware",
+      "right_capture_sha256": "7ddfedfb9292c5f24dc6df8160f866cba0b6a14228a9a2d9a2792c1825bbc987",
+      "right_execution": "recovered-code",
+      "schema": "vfl.comparison.v1",
+      "scope": {
+        "event_kinds": [],
+        "events": false,
+        "omitted_empty_event_kinds": [],
+        "rgb": true,
+        "state": true
+      },
+      "verdict": "different",
+      "verification": "completed-run"
+    }
+  },
+  "independent_inventory_check": {
+    "p4-after": {
+      "completed_run": true,
+      "frames": 4201,
+      "last_time_us": 100000000,
+      "observer_counts": {}
+    },
+    "p4-before": {
+      "completed_run": true,
+      "frames": 4201,
+      "last_time_us": 100000000,
+      "observer_counts": {}
+    },
+    "p4-original": {
+      "completed_run": true,
+      "frames": 4201,
+      "last_time_us": 100000000,
+      "observer_counts": {
+        "running": 4201
+      }
+    },
+    "p4-sr-after": {
+      "completed_run": true,
+      "frames": 4201,
+      "last_time_us": 100000000,
+      "observer_counts": {
+        "null": 4201
+      }
+    },
+    "p4-sr-before": {
+      "completed_run": true,
+      "frames": 4201,
+      "last_time_us": 100000000,
+      "observer_counts": {
+        "null": 4201
+      }
+    },
+    "p4-sr-original": {
+      "completed_run": true,
+      "frames": 4201,
+      "last_time_us": 100000000,
+      "observer_counts": {
+        "audio-lookup": 4201,
+        "audio-value-read": 4201,
+        "running": 4201
+      }
+    }
+  },
+  "schema": "glorb-running-long-renderer-validation.v1",
+  "scope": "Isolated original renderer/WLED-helper closure vs recovered host source; not as-shipped S3 firmware acceptance.",
+  "status": {
+    "cases": [
+      {
+        "after": {
+          "first_difference": null,
+          "frames_compared": 4201,
+          "verdict": "equal"
+        },
+        "before": {
+          "first_difference": {
+            "bus": "logical",
+            "byte_offset": 1,
+            "channel": "G",
+            "frame": 0,
+            "left": 24,
+            "pixel": 0,
+            "reason": "rgb",
+            "right": 14,
+            "time_us": 0
+          },
+          "frames_compared": 0,
+          "verdict": "different"
+        },
+        "case": "p4",
+        "finished_at": "2026-11-14T04:48:44.802338+00:00",
+        "original_capture_sha256": "a953867a292ef05e6f9d35efa89e91be8e81d04f127f008d88d233a6bf4c9fc0",
+        "runner_wait_exit_code": 0,
+        "started_at": "2026-11-14T03:34:28.543457+00:00",
+        "status": "passed",
+        "wall_seconds": 4456.259
+      },
+      {
+        "after": {
+          "first_difference": null,
+          "frames_compared": 4201,
+          "verdict": "equal"
+        },
+        "before": {
+          "first_difference": {
+            "bus": "logical",
+            "byte_offset": 1,
+            "channel": "G",
+            "frame": 0,
+            "left": 23,
+            "pixel": 0,
+            "reason": "rgb",
+            "right": 14,
+            "time_us": 0
+          },
+          "frames_compared": 0,
+          "verdict": "different"
+        },
+        "case": "p4-sr",
+        "finished_at": "2026-11-14T06:10:13.469104+00:00",
+        "original_capture_sha256": "d5f8ea3158816f9d05b6a72ca945bb66778fbac31c76c55574eba87097de610d",
+        "runner_wait_exit_code": 0,
+        "started_at": "2026-11-14T04:48:44.808854+00:00",
+        "status": "passed",
+        "wall_seconds": 4888.66
+      }
+    ],
+    "duration_us": 100000000,
+    "finished_at": "2026-11-14T06:10:13.480360+00:00",
+    "fps": 42,
+    "frames_per_case": 4201,
+    "memory_limit_bytes": 3221225472,
+    "schema": "glorb-running-phase-long-status.v1",
+    "scope": "original renderer closure vs recovered source; not full S3 WLED output",
+    "started_at": "2026-11-14T03:34:28.523202+00:00",
+    "status": "passed",
+    "timeout_seconds_per_original": 5400
+  },
+  "status_sha256": "649f8fa7b28e6721fd0e11343e177c724c9039366926087bbec7d59fb939e0bd"
+}
