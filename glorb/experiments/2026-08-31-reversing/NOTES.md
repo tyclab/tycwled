@@ -1124,3 +1124,46 @@ adds the review's `color_blend` blend-255 early return), every preset PASS in
 a single uninterrupted run, no capture retries needed. This supersedes
 `verify-2026-09-01-holes.log` as the acceptance evidence; that log remains as
 the record of the hole-topology fix landing.
+
+## 2026-11-14: actual-firmware palette arithmetic
+
+An offline S3 run booted the unchanged original debug application and a normal
+WLED16 fleet build, then captured the final 360-byte driver buffers after genuine
+JSON configuration. Running's phase fix matched the first five callbacks, but
+callbacks 5–7 still differed at 40 blue-channel bytes each. The live 48-byte palettes,
+phase state and consumed processed-audio inputs were identical. At palette index 2
+and brightness 255, the original returned RGB `0x001d73`; WLED16 returned
+`0x001d72`. The mismatch was rejected without a tolerance.
+
+The original debug image (SHA256
+`888454572bc34beb86e1595e86aef3ff9f477e2f6501201011e91279f29c597a`)
+identifies three mechanisms:
+
+- `ColorFromPalette` at `0x4214eb50` separately truncates products weighted by
+  `256-f` and `f+1`. WLED16 combines products weighted by `256-f` and `f`.
+- Brightness 1–254 scales by `brightness+2`; brightness 0 and 255 retain their
+  explicit black and unchanged behavior.
+- The Segment wrapper at `0x42018ed4` uses `(index*241)>>8` for nonwrap lookup;
+  direct `LINEARBLEND_NOWRAP` uses `(index*240)>>8`.
+
+The GLORB usermod now owns these operations in shared legacy palette helpers used
+by all six effects. WLED's shared palette code is unchanged. The extracted native
+source host had already supplied the original arithmetic, so its passing render
+comparison did not prove the real WLED16 palette integration.
+
+After the correction, eight complete original/candidate Running callback pairs
+matched every final driver byte. An independent oracle also matched 21,504 actual
+original-machine palette calls against the compiled helper across all 256 indices,
+brightness 0/1/2/127/253/254/255, all three blend modes and four palettes. A second
+oracle matched 6,240 original Segment-wrapper calls across byte and wider indices,
+mapping/wrap flags, paletteBlend 0/3 and brightness 1/254/255. Palette 0, non-RGB
+fallback and other geometries were outside that wrapper oracle. The corrected
+source host retained the prior 48 short effect frames and 4,201-frame long non-audio
+case exactly, including state and input protocol bytes.
+
+These are diagnostic software-boundary checks, not firmware operating as shipped.
+The S3 fixtures replace hardware APIs and inject processed audio. The operator
+subsequently required execution without guest software overrides, so both long
+S3 runs were cancelled and preserved as incomplete. Whole-firmware acceptance
+remains open. Boots with no guest overrides now expose an unsupported SAR2
+conversion during PHY initialization. No hardware was flashed for this investigation.
