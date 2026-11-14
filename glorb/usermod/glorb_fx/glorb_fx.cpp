@@ -65,6 +65,36 @@ static int16_t glorb_sin16(uint16_t theta) {
 static inline uint8_t glorb_scale8(uint8_t i, uint8_t s) { return ((uint16_t)i * (uint16_t)(s + 1)) >> 8; }
 static inline uint16_t glorb_scale16(uint16_t i, uint16_t s) { return ((uint32_t)i * (uint32_t)(s + 1)) >> 16; }
 
+// Original ColorFromPalette at 0x4214eb50 rounds each interpolation product
+// separately and scales nonzero brightness below255 by brightness+2.
+static uint32_t glorb_palette_color(uint8_t index, uint8_t brightness, TBlendType blend) {
+  if (blend == LINEARBLEND_NOWRAP) index = (uint16_t(index) * 240) >> 8;
+  const uint32_t first = uint32_t(SEGPALETTE[index >> 4]);
+  const uint32_t next = uint32_t(SEGPALETTE[((index >> 4) + 1) & 15]);
+  const uint8_t fraction = (index & 15) << 4;
+  uint8_t channels[] = {R(first), G(first), B(first)};
+  const uint8_t second[] = {R(next), G(next), B(next)};
+  for (unsigned i = 0; i < 3; ++i) {
+    if (fraction && blend != NOBLEND) {
+      channels[i] = glorb_scale8(channels[i], 255 - fraction) + glorb_scale8(second[i], fraction);
+    }
+    if (brightness != 255) channels[i] = brightness ? glorb_scale8(channels[i], brightness + 1) : 0;
+  }
+  return RGBW32(channels[0], channels[1], channels[2], 0);
+}
+
+// The original Segment wrapper (0x42018ed4) uses scale8(index,240) before
+// linear lookup: its nonwrap factor is241, unlike ColorFromPalette's240.
+static uint32_t glorb_color_from_palette(uint16_t index, bool mapping, bool wrap, uint8_t mcol, uint8_t brightness = 255) {
+  if ((SEGMENT.palette == 0 && mcol < 3) || !SEGMENT.hasRGB()) {
+    return SEGMENT.color_from_palette(index, mapping, wrap, mcol, brightness);
+  }
+  if (mapping && SEGLEN > 1) index = (uint32_t(index) * 255) / (SEGLEN - 1);
+  uint8_t slot = index;
+  if (!wrap && paletteBlend != 3) slot = glorb_scale8(slot, 240);
+  return glorb_palette_color(slot, brightness, paletteBlend == 3 ? NOBLEND : LINEARBLEND);
+}
+
 static inline uint16_t glorb_beat88(uint32_t bpm88, uint32_t timebase) {
   return ((strip.now - timebase) * bpm88 * 280) >> 16;
 }
@@ -194,7 +224,7 @@ static void glorb_mode_hiphotic(void) {
     for (int y = 0; y < rows; y++, hy += ystep) {
       const uint8_t v = glorb_sin8(glorb_sin8(hy) + glorb_sin8(hx) + (uint8_t)a);
       const uint8_t idx = (v >> shift) + bwave;
-      const uint32_t col = SEGMENT.color_from_palette(idx, false, PALETTE_SOLID_WRAP, 0);
+      const uint32_t col = glorb_color_from_palette(idx, false, PALETTE_SOLID_WRAP, 0);
       glorb_setPixelColorXY(x, y, glorb_color_blend(glorb_getPixelColorXY(x, y), col, 64));
     }
   }
@@ -222,7 +252,7 @@ static void glorb_mode_blackhole(void) {
     const uint8_t yphase = ((i & 1) ? 192 : 64) + (uint8_t)(i * t8);
     const int x = glorb_beatsin8((SEGMENT.speed >> 5) + 1, cols / 2, (cols * 5) / 2 - 1, 0, xphase);
     const int y = glorb_beatsin8((SEGMENT.intensity >> 4) + 1, 1, rows - 2, 0, yphase);
-    const uint32_t col = SEGMENT.color_from_palette(i * 63, false, PALETTE_SOLID_WRAP, SEGMENT.check1 ? 0 : 255);
+    const uint32_t col = glorb_color_from_palette(i * 63, false, PALETTE_SOLID_WRAP, SEGMENT.check1 ? 0 : 255);
     glorb_addPixelColorXY(x % cols, y, col);
   }
   glorb_blur2d(32);
@@ -244,7 +274,7 @@ static void glorb_mode_frizzles(void) {
     // 0x42043632: (intensity>>6) + 8 - i), both with timebase 0
     const int x = glorb_beatsin8(i + (SEGMENT.speed >> 5), cols / 2, (cols * 5) / 2 - 1);
     const int y = glorb_beatsin8((SEGMENT.intensity >> 6) + 8 - i, 1, rows - 2);
-    const uint32_t c = ColorFromPalette(SEGPALETTE, glorb_beatsin8(12, 0, 255), 255, LINEARBLEND);
+    const uint32_t c = glorb_palette_color(glorb_beatsin8(12, 0, 255), 255, LINEARBLEND);
     glorb_addPixelColorXY(x % cols, y, c);
   }
   glorb_blur2d((SEGMENT.custom1 >> 4) + 4);
@@ -294,7 +324,7 @@ static void glorb_mode_colorwaves(void) {
       const uint16_t bri16 = (uint32_t)((uint32_t)b16 * (uint32_t)b16) / 65536;
       uint8_t bri8 = (uint32_t)(((uint32_t)bri16) * brightdepth) / 65536;
       bri8 += (255 - brightdepth);
-      const uint32_t col = SEGMENT.color_from_palette(hue8, false, PALETTE_SOLID_WRAP, 0, bri8);
+      const uint32_t col = glorb_color_from_palette(hue8, false, PALETTE_SOLID_WRAP, 0, bri8);
       glorb_setPixelColorXY(x, y, glorb_color_blend(glorb_getPixelColorXY(x, y), col, 128));
     }
   }
@@ -324,9 +354,9 @@ static void glorb_mode_running(void) {
   hPhase = (hPhase + SEGENV.aux0) & 0xFFFF;
   const uint8_t x_scale = (SEGMENT.intensity >> 2) + 12;
   const uint8_t idx = glorb_triwave16((uint16_t)hPhase) >> 8;
-  const uint32_t pcol = SEGMENT.color_from_palette(idx, false, PALETTE_SOLID_WRAP, 0);
+  const uint32_t pcol = glorb_color_from_palette(idx, false, PALETTE_SOLID_WRAP, 0);
   for (int i = 0; i < (int)SEGLEN; i++) {
-    const uint8_t s = glorb_sin8((uint8_t)(aPhase + i * x_scale));
+    const uint8_t s = glorb_sin8((uint8_t)(aPhase + (i + 1) * x_scale));
     SEGMENT.setPixelColor(i, glorb_color_blend(BLACK, pcol, s));
   }
   SEGENV.step = aPhase;
@@ -358,12 +388,12 @@ static void glorb_mode_tartan(void) {
       size_t inten = bri;
       for (int i = 0; i < sharpness; i++) inten *= bri;
       inten >>= 8 * sharpness;
-      glorb_setPixelColorXY(x, y, ColorFromPalette(SEGPALETTE, ghue, inten, LINEARBLEND));
+      glorb_setPixelColorXY(x, y, glorb_palette_color(ghue, inten, LINEARBLEND));
       bri = glorb_sin8((uint8_t)(y * SEGMENT.intensity / 2 + offsetY));
       inten = bri;
       for (int i = 0; i < sharpness; i++) inten *= bri;
       inten >>= 8 * sharpness;
-      glorb_addPixelColorXY(x, y, ColorFromPalette(SEGPALETTE, ghue, inten, LINEARBLEND));
+      glorb_addPixelColorXY(x, y, glorb_palette_color(ghue, inten, LINEARBLEND));
     }
   }
 }

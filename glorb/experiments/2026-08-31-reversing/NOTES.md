@@ -677,7 +677,7 @@ Answers to the three questions:
   (In the audio path it also appears in the divisor `12-(intensity>>5)`.)
 - `msmultiplier = beatsin88(147,23,60)` multiplies `duration` for `sPseudotime` (as stock).
 
-### 10.4 Running per-pixel body — DEFINITIVE (closes §6's open flag) (CONFIDENCE: HIGH)
+### 10.4 Running per-pixel body — corrected by virtual execution on 2026-11-14
 
 With `aPhase` (wave) and `hPhase` (hue) as recovered in §9.4, the frame setup then computes a
 **triangle wave of hPhase** as a single global palette index, and the loop applies a running
@@ -692,7 +692,7 @@ uint8_t  x_scale = (SEGMENT.intensity>>2) + 12;            // ix="Wave width"
 bool wrap = (strip.paletteBlend-ish bit) ... ;            // PALETTE_SOLID_WRAP flag from strip[1]&~2
 
 for (int i = 0; i < SEGLEN; i++) {
-    uint8_t s = sin8( (uint8_t)(ap + i * x_scale) );                 // running brightness wave
+    uint8_t s = sin8( (uint8_t)(ap + (i + 1) * x_scale) );                 // running brightness wave
     uint32_t pcol = SEGMENT.color_from_palette(hueIdx, /*mapping*/false, wrap, /*mcol*/0, 255);
     uint32_t c    = color_blend(/*BLACK*/0, pcol, s, false);
     SEGMENT.setPixelColor(i, c);                                     // 1D writer @0x403757e8
@@ -702,8 +702,16 @@ SEGMENT.step = ap-ish; SEGMENT.aux0 = hp-ish;             // persisted
 
 Exact per-pixel facts:
 
-- **sin8 argument** = `(aPhase + i*x_scale) & 0xFF`, where the accumulator adds
-  `x_scale = (intensity>>2)+12` each pixel — i.e. `sin8(aPhase + i*x_scale)`.
+- **sin8 argument** = `(ap + (i+1)*x_scale) & 0xFF`. The original loop adds
+  `x_scale = (intensity>>2)+12` **before** its first sine lookup: base phase at
+  `0x42043472`, zero index at `0x42043474`, phase addition at `0x4204348f`, low-byte
+  extraction at `0x42043494`, then `sin8` at `0x42043497`. The earlier text and port
+  missed this first addition. At factory intensity 80, the 32-unit phase error
+  is one logical cell, or 45 degrees of the eight-cell brightness period.
+  The base phase stored in `SEGMENT.step` remains unchanged.
+  `verify-20261114-running-virtual.log` records the exact before/after byte and
+  state comparison with sound reaction both off and on. This closes the specific
+  source defect; the longer run and whole-firmware output comparison are separate.
 - **palette index** = `hueIdx = triangle(hPhase) >> 8` — a **single value shared by all pixels**,
   advancing only in time (hPhase = speed/audio/aux0), **not** `i`. **mapping flag = false**
   (stock passed `i` with mapping=**true**). So the whole strip is one time-evolving color whose
@@ -856,14 +864,14 @@ and it once produced a change that scored _better_ while being provably wrong. T
 six effects against the disassembly instead, and states for each whether it was verified or
 corrected.
 
-| effect     | outcome                                                                                                                                                                      |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Colorwaves | 2 defects: hue fold was half-range, hue advanced per pixel not per row. Also still blending through WLED 16's `color_blend`. All fixed.                                      |
-| Tartan     | 1 defect: the fork derives ONE palette index per frame; this port coloured by position. Fixed. `amp = custom2+232` and both `beatsin16` ranges verified.                     |
-| Running    | Verified exact (setup, audio path, hoisted palette index, `color_blend(BLACK, pcol, s)`, `SEGENV.step` stores the base phase). `triwave16` fold form corrected -- see below. |
-| Frizzles   | Verified exact: fade 8, count `(custom2>>5)+1`, both bpm terms, `blur((custom1>>4)+4)`, `beatsin8(12,0,255)` colour. Both NOTE-MED markers retired.                          |
-| Hiphotic   | Verified exact: `step += (speed>>6)+1`, xstep/ystep `(cN>>5)+8`, `shift = 3-(ix>>6)`, `himask = ~(255>>shift)`, `bwave = beatsin8(2,0,himask)`, `hx = a/3+64`, `hy = a/4`.   |
-| Black Hole | Verified exact, and STILL measures x1.20. Open -- see below.                                                                                                                 |
+| effect     | outcome                                                                                                                                                                                                                           |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Colorwaves | 2 defects: hue fold was half-range, hue advanced per pixel not per row. Also still blending through WLED 16's `color_blend`. All fixed.                                                                                           |
+| Tartan     | 1 defect: the fork derives ONE palette index per frame; this port coloured by position. Fixed. `amp = custom2+232` and both `beatsin16` ranges verified.                                                                          |
+| Running    | The September exactness claim missed the first per-pixel phase addition. Corrected by original-code virtual comparison on 2026-11-14; see §10.4 and its acceptance log. The persisted base phase and triangle fold are unchanged. |
+| Frizzles   | Verified exact: fade 8, count `(custom2>>5)+1`, both bpm terms, `blur((custom1>>4)+4)`, `beatsin8(12,0,255)` colour. Both NOTE-MED markers retired.                                                                               |
+| Hiphotic   | Verified exact: `step += (speed>>6)+1`, xstep/ystep `(cN>>5)+8`, `shift = 3-(ix>>6)`, `himask = ~(255>>shift)`, `bwave = beatsin8(2,0,himask)`, `hx = a/3+64`, `hy = a/4`.                                                        |
+| Black Hole | Verified exact, and STILL measures x1.20. Open -- see below.                                                                                                                                                                      |
 
 ### The `beatsin8` helper takes no timebase
 
@@ -1116,3 +1124,46 @@ adds the review's `color_blend` blend-255 early return), every preset PASS in
 a single uninterrupted run, no capture retries needed. This supersedes
 `verify-2026-09-01-holes.log` as the acceptance evidence; that log remains as
 the record of the hole-topology fix landing.
+
+## 2026-11-14: actual-firmware palette arithmetic
+
+An offline S3 run booted the unchanged original debug application and a normal
+WLED16 fleet build, then captured the final 360-byte driver buffers after genuine
+JSON configuration. Running's phase fix matched the first five callbacks, but
+callbacks 5–7 still differed at 40 blue-channel bytes each. The live 48-byte palettes,
+phase state and consumed processed-audio inputs were identical. At palette index 2
+and brightness 255, the original returned RGB `0x001d73`; WLED16 returned
+`0x001d72`. The mismatch was rejected without a tolerance.
+
+The original debug image (SHA256
+`888454572bc34beb86e1595e86aef3ff9f477e2f6501201011e91279f29c597a`)
+identifies three mechanisms:
+
+- `ColorFromPalette` at `0x4214eb50` separately truncates products weighted by
+  `256-f` and `f+1`. WLED16 combines products weighted by `256-f` and `f`.
+- Brightness 1–254 scales by `brightness+2`; brightness 0 and 255 retain their
+  explicit black and unchanged behavior.
+- The Segment wrapper at `0x42018ed4` uses `(index*241)>>8` for nonwrap lookup;
+  direct `LINEARBLEND_NOWRAP` uses `(index*240)>>8`.
+
+The GLORB usermod now owns these operations in shared legacy palette helpers used
+by all six effects. WLED's shared palette code is unchanged. The extracted native
+source host had already supplied the original arithmetic, so its passing render
+comparison did not prove the real WLED16 palette integration.
+
+After the correction, eight complete original/candidate Running callback pairs
+matched every final driver byte. An independent oracle also matched 21,504 actual
+original-machine palette calls against the compiled helper across all 256 indices,
+brightness 0/1/2/127/253/254/255, all three blend modes and four palettes. A second
+oracle matched 6,240 original Segment-wrapper calls across byte and wider indices,
+mapping/wrap flags, paletteBlend 0/3 and brightness 1/254/255. Palette 0, non-RGB
+fallback and other geometries were outside that wrapper oracle. The corrected
+source host retained the prior 48 short effect frames and 4,201-frame long non-audio
+case exactly, including state and input protocol bytes.
+
+These are diagnostic software-boundary checks, not firmware operating as shipped.
+The S3 fixtures replace hardware APIs and inject processed audio. The operator
+subsequently required execution without guest software overrides, so both long
+S3 runs were cancelled and preserved as incomplete. Whole-firmware acceptance
+remains open. Boots with no guest overrides now expose an unsupported SAR2
+conversion during PHY initialization. No hardware was flashed for this investigation.

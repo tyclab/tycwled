@@ -1,0 +1,130 @@
+GLORB Running spatial phase correction -- virtual acceptance record
+Date: 2026-11-14
+Base: tycwled b3b6229
+Status: short regression and both 4201-frame SR-off/SR-on comparisons passed
+
+Change
+  Running advances the spatial phase before sampling the first pixel.
+  Only i * x_scale becomes (i + 1) * x_scale; persistent step and hue state
+  remain the base phases. No other effect, palette, gamma or configuration changes.
+
+Original mechanism
+  Supported GLORB.1.3 debug ESP32-S3 application SHA256:
+  888454572bc34beb86e1595e86aef3ff9f477e2f6501201011e91279f29c597a
+  dis_running.txt: 0x42043472 copies the base phase into a7;
+  0x42043474 initializes pixel index zero; 0x4204348f adds x_scale;
+  0x42043494 selects the low eight bits; 0x42043497 calls original sin8.
+  Thus the first sample already includes one spatial increment.
+  This supersedes NOTES.md's previous ap + i*x_scale and exactness claims
+  for Running. The error is spatial; the persisted segment state already matched.
+
+Independent before/after regression
+  Newly compiled complete glorb_fx.cpp through TycVirtualLab's WLED host boundary.
+  Original captures regenerated from their archived raw protocol output and
+  checked against request nonce, command hash, firmware assets, frozen runtime,
+  strict read-fault enforcement, original effect entry and audio-read counts.
+  Archived originals have no outer-runner completion envelope; this limitation
+  is retained. Host captures have completed-run records. No tolerance is used.
+  Inputs: six frames at 0,16,32,64,128,256 milliseconds; volumeSmth values
+  0,1.5,64,1023.75,512.5,0; 20x6 logical geometry, factory holes and 120-pixel bus.
+  Compared every logical and mapped RGB byte and all 12 segment-state bytes.
+
+  Preset/effect              Before                 After
+  p1 Colorwaves SR off       6/6 equal              6/6 equal
+  p1 Colorwaves SR on        6/6 equal              6/6 equal
+  p2 Hiphotic                6/6 equal              6/6 equal
+  p4 Running SR off          frame0 G:24 vs14       6/6 equal
+  p4 Running SR on           frame0 G:23 vs14       6/6 equal
+  p7 Frizzles                6/6 equal              6/6 equal
+  p11 BlackHole              6/6 equal              6/6 equal
+  p12 Tartan                 6/6 equal              6/6 equal
+  Before differences are original vs port at logical pixel0, time0.
+  The unchanged baseline is a negative control for the actual source defect.
+
+Pins
+  Before source: 8a2be540d0e9569ec505392534beab3be3892aab59f2acfe8a6cb9807437f130
+  After source: c20dc6a395b58fbc5357bf3f1992e477efb17b3f74dacc26e9a2339455c2eead
+  Before host: 07fda52ada113560f3030dfd53ba22796176c0baaa51c50d1d4febb0c253af25
+  After host: 8ba3121aefa2bdf4ce65aae97ab56548ece81e1c4573e8c8e501496c94fbc492
+  Host wled.h: 4de9eaa5648c413c1f9cd6aaacf4c266f81db819680ff8e800ada0363fb00a21
+  Host driver: 7b4e2a9e3f7e7d4381f577de49d59bb7e8d7dd144b11afd3418ed10f05830c53
+  Input digest: 7d19e21323e15027b64c8c481de4c60b7ababa3c60a7957cf503171ab12b89dd
+  Short result: 52f83fd2e8e3dbac7c07c9237e568874f55ac63feb2c93fcefddcd54534b9321
+  Regression script: c0e89ca16ec6476642762397f1f3c5cebea8ea6b6a96ca07880e464a03a6d85f
+
+Repository checks
+  make lint: all pre-commit checks passed.
+  make test check-palettes check-ledmaps: 131 tests passed; palettes and ledmaps passed.
+  The first sandbox test invocation failed because existing LeakSanitizer tests
+  cannot run under ptrace. The unchanged suite passed natively with sanitizers on.
+
+Actual WLED build
+  fleet_glorb on WLED v16.0.1 built successfully in 184.6 seconds.
+  The source SHA256 above was checked before and after the build and stayed equal.
+  Application: 681defe211cec7142dd45fea029358e785859b8912ad822c34b721a93cbee2a6
+  ELF: 4b7bde473156e2e31d601b07d714d324fa425a71b476fca54e3b49f6bda7aa86
+  This confirms compilation of the fixed source, not full S3 output equivalence.
+
+
+Actual candidate WLED virtual bus
+  The fixed fleet_glorb application boots on virtual ESP32-S3 and executes its
+  genuine JSON parser and serializer. The bounded solid-color test captures
+  one startup transfer and seven normal 360-byte GRB transfers: all 80 mapped
+  LEDs equal [32,16,64], and the 40 unused physical positions remain black.
+  All three loaded executable/read-only segments match the image before and
+  after capture. An actual driver-buffer mutation changes byte3 of capture1
+  from32 to33; the ordinary comparator rejects that exact one-byte difference.
+  Eighteen corruption controls pass. An independent verification also passes.
+  USB CDC availability/input/output and ADC calibration are declared API/SDK
+  substitutions; AudioReactive is disabled only in the disposable configuration.
+  This is an instrumented diagnostic profile, not as-shipped runtime acceptance.
+  This verifies candidate boot/mapping/output access, not original/candidate
+  scene equivalence, microphone DSP, long stability or physical output.
+
+Long execution
+  Two sequential Running cases, SR off/on, each 4201 actual frames
+  through 100.000 scripted seconds, 42Hz rounded to millisecond frame times.
+  Each original execution is bounded to 90 minutes; the detached service has
+  one shared emulator slot, 3GiB memory and no swap. It started with one CPU of
+  quota. At 03:43:23 UTC the quota was raised to two CPUs after 34.2 seconds of
+  cgroup throttling in 519 seconds; 420 frames had been observed. The original
+  launcher record is retained and a separate timestamped resource-event log
+  records both limits and the successful change. Frame count, input, timeout
+  and firmware pins were unchanged; the same single JVM continued running.
+  Two early preflight failures are retained separately (redundant post-launcher
+  HOLD flag; sub-millisecond timestamps unsupported by the adapter). Neither
+  started Java or executed firmware. The fully preflighted run is attempt v3.
+
+  SR off completed at 04:48:44 UTC, actual original runner wait exit code 0,
+  4456.259 seconds wall time. All 4201 original/fixed-source frames match every
+  logical RGB byte, mapped 120-LED RGB byte and all 12 segment-state bytes.
+  The unchanged baseline fails at frame0/pixel0/green: original24 vs baseline14.
+  Both comparisons require completed-run envelopes; no archived-run exception.
+  Input SHA256: 38785b34024b86c911ab01195f03b3f3a7044620c92ba7f800103bc25aa0808f
+  Original capture: cd32c1945885a0db8be62711197cad7ece7544271e6610e1d7750e8e443d083f
+  Fixed capture: 6d93edecaedc33751c128d1819b8bd73ca109a64eeb62996e2683f2d31e645f4
+  SR on completed at 06:10:13 UTC, actual original runner wait exit code 0,
+  4888.660 seconds wall time, within the unchanged 5400-second per-case cap.
+  All 4201 original/fixed-source frames match every logical RGB byte, mapped
+  120-LED RGB byte and all 12 segment-state bytes. No frames were trimmed.
+  The unchanged baseline fails at frame0/pixel0/green: original23 vs baseline14.
+  Original capture: 6471cd44fa8ea21956ce488dcb3ca34824e786dadf1d352217abe66b03b90b8f
+  Fixed capture: 2dee92fbfa279445bfb64fdd9158e5b61253b6de28d4fca78defb8fa8e3392fa
+  Independent completed-capture validation reloaded all six original/before/after
+  captures, checked 4201 frames and final time 100.000 seconds in each, and checked
+  4201 original Running entries for both cases. SR-on has exactly 4201 audio-value
+  reads and 4201 audio lookups; SR-off has zero. Every input/runtime/source pin was
+  rechecked after completion. The final supervisor status is passed.
+  Polling counters 4194/4200 were the last pre-exit samples, not final frame counts;
+  completed capture validation confirms 4201 frames for each original.
+  Small records: verify-20261114-running-virtual-long.json.
+
+Claim boundary
+  Original effect instructions and original WLED helper closure execute against
+  an authored memory Bus. Inputs are processed volumeSmth and an expanded palette.
+  This is not a full S3 WLED boot, physical LED driver or raw PDM audio test.
+  The two 100-second runs verify these scripted Running trajectories with SR off
+  and on. They cover 8402 original/fixed frame comparisons with zero byte/state
+  differences. Other effects retain short checks. Full original/port S3 firmware,
+  raw microphone DSP and hardware-boundary output acceptance remain open.
+  No hardware was accessed or flashed. Vendor bytes and captures remain untracked.

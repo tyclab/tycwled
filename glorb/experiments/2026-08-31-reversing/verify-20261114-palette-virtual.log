@@ -1,0 +1,53 @@
+GLORB palette compatibility fix — offline diagnostic verification, 2026-11-14
+
+Source glorb_fx.cpp SHA256:
+061224dd57e8ac14cafe82590c84a71a0df29439849552d6425be5b9b197c2b7
+Original debug app SHA256:
+888454572bc34beb86e1595e86aef3ff9f477e2f6501201011e91279f29c597a
+Current fleet_glorb application SHA256:
+ac2c9043706de1ba2e4f605fdf7ba69ca9ca4c28144d3a6c27e8e9cc950e5764
+Build passed in26.2s with normal fleet USB and16-bit microphone build flags.
+
+Mechanism: original4214eb50 separately truncates weighted products(256-f),(f+1),
+scales nonzero brightness below255 by brightness+2, and Segment42018ed4 maps
+nonwrap indices by241/256. Direct LINEARBLEND_NOWRAP uses240/256. WLED16 differs.
+Both observed live48-byte palettes were equal, but frame5 index2 returned
+originalRGB0x001d73 versus candidate0x001d72. The old paired capture failed.
+The corrected8-callback diagnostic pair has zero differing final driver bytes.
+
+Independent original-instruction oracle:21,504 palette calls,64,512 RGB bytes,
+all256indices ×7brightnessvalues ×3blendmodes ×4palettes, exact equality.
+Original capture SHA256:
+8ce8476f9671310f3a2ee567382e2a3ac125e7c873ad8ce9af85fa32195e63b2
+Second oracle:6,240 actual Segment-wrapper calls,18,720 RGB bytes, exact equality.
+Both original runner processes exited0 and every expected entry was observed.
+Wrapper exclusions: palette0/nonRGB fallback and geometry lengths other than120.
+Fresh source-host replay preserves48 short frames across six effects plus4,201
+completed sound-off Running frames, including input/state/output protocol bytes.
+The original sound-on run then completed normally within its unchanged90-minute
+bound. A fresh build of this same palette source matches all4,201 sound-on frames,
+logical/mapped RGB and12 state bytes through100.000 scripted seconds; all4,201
+processed-audio reads are retained. A one-byte change(frame0/pixel0/G23->22) fails
+at that exact location. See verify-20261114-palette-sron-host.json. No original
+emulation was repeated for this host replay. Across both long Running cases,
+8,402 comparisons are exact; this remains the isolated renderer/helper scope.
+
+Durable regression tests compile the actual production helper with26 selected
+original-captured authored-palette vectors. Three changed arithmetic variants
+(combined truncation, brightness scale, direct nonwrap scale) fail the vectors.
+All six effect paths are checked for routing through the compatibility helpers.
+
+Scope: routine/code and substituted-API integration diagnostics only. The
+full-application S3 fixture replaces USB/RMT/radio APIs and supplies processed
+volumeSmth; it does not execute microphone DSP or model physical timing.
+The operator required firmware running unchanged without guest software overrides.
+Both planned4,401-frame S3 runs were cancelled:525 original and737 candidate
+frames preserved, neither a complete run or acceptance pass. Fresh45-second boots
+with no guest overrides naturally wait for an unsupported private SAR2 conversion
+state during PHY initialization. The original also logs RMT translator allocation
+failure. Hardware-model work is separate; no as-shipped acceptance is claimed.
+No live device or Home Assistant state was modified. Raw artifacts remain private.
+
+Repository validation: make lint test check-palettes check-ledmaps exited0.
+All134 unit tests passed, including the three new helper/routing controls;
+existing sanitizer-backed tests ran under native execution.
