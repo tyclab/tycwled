@@ -1167,3 +1167,29 @@ subsequently required execution without guest software overrides, so both long
 S3 runs were cancelled and preserved as incomplete. Whole-firmware acceptance
 remains open. Boots with no guest overrides now expose an unsupported SAR2
 conversion during PHY initialization. No hardware was flashed for this investigation.
+
+## 2026-11-14: the adding effects use the original color_add
+
+Black Hole, Frizzles and Tartan add their stars, points and second Tartan pass
+through the original `color_add(c1, c2, fast)` at `0x42026220`, always with
+`fast = 0`: Tartan's call at `0x42043cfd` loads `a14` with `movi.n a14, 0`
+(`0x42043ced`); Black Hole's at `0x420431fa` loads it from a stack slot set to
+0 at `0x420431c9`; Frizzles' at `0x420436b8` passes `a4`, zeroed at
+`0x420435ec`. With `fast = 0` the routine sums each channel, takes the largest
+sum with `maxu`, and when that exceeds 255 rescales every channel as
+`(v*256 - v) / max` with `quou`: `v*255/max`, truncated.
+
+The usermod called WLED 16's `addPixelColorXY`, whose default
+`preserveCR = true` scales by `((255 << 8) / max) >> 8`, one step lower for
+many sums (300 becomes 254, not 255). The comparison host had modelled the 0.14
+rule, so its earlier six-frame matches could not see this. A host that follows
+WLED v16.0.1 for every call the usermod makes found it at Tartan frame 0, pixel
+21, blue: original 255, WLED 16 254. `glorb_color_add` now carries the original
+rule.
+
+Black Hole's palette call passes `mcol = 0` whatever `check1` holds: `0x420431d9`
+copies `a8`, zeroed at `0x420431c9`, into `a14`, and the function never loads
+segment byte +31. The section 3 pseudocode (`check1 ? 0 : 255`) was wrong. The
+argument matters only with palette 0, where the wrapper returns the segment
+colour (`0x42018c74`) passed through `gamma32` (`0x42026b7c`, skipped when
+`gammaCorrectCol` at `0x3fc993f8` is 0).
