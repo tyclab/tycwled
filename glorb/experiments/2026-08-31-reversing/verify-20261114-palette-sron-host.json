@@ -1,0 +1,115 @@
+{
+  "all_frames_compared": 4201,
+  "build": {
+    "actual_exit_code": 0,
+    "binary_sha256": "7d48fe687903174b6c883360aefe6b1b97da87537be536fc7be9e5ac10c193e7",
+    "compiler_sha256": "4404bdec30d18d8ab22a60a905f40ce11e22e54fa1e225b63fe3e17de90fb1f3",
+    "input_sha256": {
+      "call_palette.c": "7c62e1d4c983e10bc3552d89eb20dac51d3490d60477d341d6600bf2fc6ef63e",
+      "call_palette.ld": "83f48bcfcd6b3e360ac35f74c987ccb46b6687708516c42c23bbde17edfdb873",
+      "glorb_fx.cpp": "061224dd57e8ac14cafe82590c84a71a0df29439849552d6425be5b9b197c2b7",
+      "glorb_host.cpp": "7b4e2a9e3f7e7d4381f577de49d59bb7e8d7dd144b11afd3418ed10f05830c53",
+      "host_palette.cpp": "afb457f3a340a82f83e4666ad009402f82151830b8c7af09d40e832331c0ba2d",
+      "sha256.h": "76963dcfa011ea7350e52c59ccf11f0afb37b6902c3d9a93955276dd987a9496",
+      "wled.h": "aa2e2e03795530f45d1cb4283f271a6fd50d62579c881ab368942d2b1b62eec0"
+    },
+    "source_sha256": "061224dd57e8ac14cafe82590c84a71a0df29439849552d6425be5b9b197c2b7",
+    "stderr_sha256": "cbf98cb39d16b856e34e5191e82d35a459fd8682492afceaa1241f800d9e1334",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "comparison": {
+    "event_counts": {
+      "left": {},
+      "right": {}
+    },
+    "events_compared": 0,
+    "events_compared_by_kind": {},
+    "first_difference": null,
+    "frames_compared": 4201,
+    "implementations": {
+      "left": {
+        "backend": "ghidra-pcode",
+        "tool_source_sha256": "f88c5906158224a98a10440a6dd438cb620450957ed357aed73c7a865717cd98",
+        "tool_version": "0.2.0"
+      },
+      "right": {
+        "backend": "glorb-host-v1",
+        "tool_source_sha256": "f88c5906158224a98a10440a6dd438cb620450957ed357aed73c7a865717cd98",
+        "tool_version": "0.2.0"
+      }
+    },
+    "input_sha256": "38785b34024b86c911ab01195f03b3f3a7044620c92ba7f800103bc25aa0808f",
+    "interpretation": "Equal for these declared inputs, snapshots and comparison scope; not a proof of physical equivalence.",
+    "left_capture_sha256": "6471cd44fa8ea21956ce488dcb3ca34824e786dadf1d352217abe66b03b90b8f",
+    "left_execution": "original-firmware",
+    "right_capture_sha256": "de58f358b484d7b0173d95e09cb22b22576b15db90786774c765ba0ac79995ee",
+    "right_execution": "recovered-code",
+    "schema": "vfl.comparison.v1",
+    "scope": {
+      "event_kinds": [],
+      "events": false,
+      "omitted_empty_event_kinds": [],
+      "rgb": true,
+      "state": true
+    },
+    "verdict": "equal",
+    "verification": "unverified"
+  },
+  "current_completed_capture_file_sha256": "c326841948307238460701bb4da7132e8ab1e63de83606b44c2767454b9133e9",
+  "last_time_us": 100000000,
+  "negative_one_byte_control": {
+    "event_counts": {
+      "left": {},
+      "right": {}
+    },
+    "events_compared": 0,
+    "events_compared_by_kind": {},
+    "first_difference": {
+      "bus": "logical",
+      "byte_offset": 1,
+      "channel": "G",
+      "frame": 0,
+      "left": 23,
+      "pixel": 0,
+      "reason": "rgb",
+      "right": 22,
+      "time_us": 0
+    },
+    "frames_compared": 0,
+    "implementations": {
+      "left": {
+        "backend": "ghidra-pcode",
+        "tool_source_sha256": "f88c5906158224a98a10440a6dd438cb620450957ed357aed73c7a865717cd98",
+        "tool_version": "0.2.0"
+      },
+      "right": {
+        "backend": "glorb-host-v1",
+        "tool_source_sha256": "f88c5906158224a98a10440a6dd438cb620450957ed357aed73c7a865717cd98",
+        "tool_version": "0.2.0"
+      }
+    },
+    "input_sha256": "38785b34024b86c911ab01195f03b3f3a7044620c92ba7f800103bc25aa0808f",
+    "left_capture_sha256": "6471cd44fa8ea21956ce488dcb3ca34824e786dadf1d352217abe66b03b90b8f",
+    "left_execution": "original-firmware",
+    "right_capture_sha256": "fbb8ca7b4f26b84c98b1c6651d34859212551d9f62438c27f5f0ece4ebe8dc63",
+    "right_execution": "recovered-code",
+    "schema": "vfl.comparison.v1",
+    "scope": {
+      "event_kinds": [],
+      "events": false,
+      "omitted_empty_event_kinds": [],
+      "rgb": true,
+      "state": true
+    },
+    "verdict": "different",
+    "verification": "unverified"
+  },
+  "original_completed_capture_file_sha256": "d5f8ea3158816f9d05b6a72ca945bb66778fbac31c76c55574eba87097de610d",
+  "processed_audio_reads": 4201,
+  "replay_script_sha256": "7680efc9d5bc2ed1717694dd49d9f0ea649e51e59e26dcc345f2c3f7f910f633",
+  "schema": "glorb-current-palette-sron-host-replay.v1",
+  "scope": "Fresh current source host replay versus completed original renderer closure. No emulator rerun; not as-shipped S3 runtime acceptance.",
+  "source_commit": "a300280",
+  "source_sha256": "061224dd57e8ac14cafe82590c84a71a0df29439849552d6425be5b9b197c2b7",
+  "input_file_sha256": "be0d14f856282f7764b3bcf79edf173f93a3bcc558c14aee5894ceb146cde0c7"
+}
