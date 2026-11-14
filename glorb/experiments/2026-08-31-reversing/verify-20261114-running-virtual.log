@@ -1,7 +1,7 @@
 GLORB Running spatial phase correction -- virtual acceptance record
 Date: 2026-11-14
 Base: tycwled b3b6229
-Status: short regression passed; long original execution pending
+Status: short regression and both 4201-frame SR-off/SR-on comparisons passed
 
 Change
   Running advances the spatial phase before sampling the first pixel.
@@ -75,13 +75,14 @@ Actual candidate WLED virtual bus
   after capture. An actual driver-buffer mutation changes byte3 of capture1
   from32 to33; the ordinary comparator rejects that exact one-byte difference.
   Eighteen corruption controls pass. An independent verification also passes.
-  USB CDC availability/input/output and ADC calibration are declared peripheral
-  fixtures; AudioReactive is disabled only in the disposable test configuration.
+  USB CDC availability/input/output and ADC calibration are declared API/SDK
+  substitutions; AudioReactive is disabled only in the disposable configuration.
+  This is an instrumented diagnostic profile, not as-shipped runtime acceptance.
   This verifies candidate boot/mapping/output access, not original/candidate
   scene equivalence, microphone DSP, long stability or physical output.
 
 Long execution
-  Pending: two sequential Running cases, SR off/on, each 4201 actual frames
+  Two sequential Running cases, SR off/on, each 4201 actual frames
   through 100.000 scripted seconds, 42Hz rounded to millisecond frame times.
   Each original execution is bounded to 90 minutes; the detached service has
   one shared emulator slot, 3GiB memory and no swap. It started with one CPU of
@@ -94,9 +95,36 @@ Long execution
   HOLD flag; sub-millisecond timestamps unsupported by the adapter). Neither
   started Java or executed firmware. The fully preflighted run is attempt v3.
 
+  SR off completed at 04:48:44 UTC, actual original runner wait exit code 0,
+  4456.259 seconds wall time. All 4201 original/fixed-source frames match every
+  logical RGB byte, mapped 120-LED RGB byte and all 12 segment-state bytes.
+  The unchanged baseline fails at frame0/pixel0/green: original24 vs baseline14.
+  Both comparisons require completed-run envelopes; no archived-run exception.
+  Input SHA256: 38785b34024b86c911ab01195f03b3f3a7044620c92ba7f800103bc25aa0808f
+  Original capture: cd32c1945885a0db8be62711197cad7ece7544271e6610e1d7750e8e443d083f
+  Fixed capture: 6d93edecaedc33751c128d1819b8bd73ca109a64eeb62996e2683f2d31e645f4
+  SR on completed at 06:10:13 UTC, actual original runner wait exit code 0,
+  4888.660 seconds wall time, within the unchanged 5400-second per-case cap.
+  All 4201 original/fixed-source frames match every logical RGB byte, mapped
+  120-LED RGB byte and all 12 segment-state bytes. No frames were trimmed.
+  The unchanged baseline fails at frame0/pixel0/green: original23 vs baseline14.
+  Original capture: 6471cd44fa8ea21956ce488dcb3ca34824e786dadf1d352217abe66b03b90b8f
+  Fixed capture: 2dee92fbfa279445bfb64fdd9158e5b61253b6de28d4fca78defb8fa8e3392fa
+  Independent completed-capture validation reloaded all six original/before/after
+  captures, checked 4201 frames and final time 100.000 seconds in each, and checked
+  4201 original Running entries for both cases. SR-on has exactly 4201 audio-value
+  reads and 4201 audio lookups; SR-off has zero. Every input/runtime/source pin was
+  rechecked after completion. The final supervisor status is passed.
+  Polling counters 4194/4200 were the last pre-exit samples, not final frame counts;
+  completed capture validation confirms 4201 frames for each original.
+  Small records: verify-20261114-running-virtual-long.json.
+
 Claim boundary
   Original effect instructions and original WLED helper closure execute against
   an authored memory Bus. Inputs are processed volumeSmth and an expanded palette.
   This is not a full S3 WLED boot, physical LED driver or raw PDM audio test.
-  Six short frames close the specific off-by-one regression, not long stability.
+  The two 100-second runs verify these scripted Running trajectories with SR off
+  and on. They cover 8402 original/fixed frame comparisons with zero byte/state
+  differences. Other effects retain short checks. Full original/port S3 firmware,
+  raw microphone DSP and hardware-boundary output acceptance remain open.
   No hardware was accessed or flashed. Vendor bytes and captures remain untracked.
