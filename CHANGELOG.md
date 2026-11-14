@@ -107,6 +107,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Fixed
 
+- GLORB effects preserve the original palette interpolation, brightness scaling
+  and nonwrap index arithmetic when built against WLED 16.
+
 - GLORB Running now advances the spatial phase before its first sine sample,
   matching the original loop. The correction removes a one-cell brightness-wave
   offset while preserving the phase saved between frames.
