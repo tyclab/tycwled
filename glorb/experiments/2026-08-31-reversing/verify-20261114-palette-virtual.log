@@ -24,6 +24,13 @@ Both original runner processes exited0 and every expected entry was observed.
 Wrapper exclusions: palette0/nonRGB fallback and geometry lengths other than120.
 Fresh source-host replay preserves48 short frames across six effects plus4,201
 completed sound-off Running frames, including input/state/output protocol bytes.
+The original sound-on run then completed normally within its unchanged90-minute
+bound. A fresh build of this same palette source matches all4,201 sound-on frames,
+logical/mapped RGB and12 state bytes through100.000 scripted seconds; all4,201
+processed-audio reads are retained. A one-byte change(frame0/pixel0/G23->22) fails
+at that exact location. See verify-20261114-palette-sron-host.json. No original
+emulation was repeated for this host replay. Across both long Running cases,
+8,402 comparisons are exact; this remains the isolated renderer/helper scope.
 
 Durable regression tests compile the actual production helper with26 selected
 original-captured authored-palette vectors. Three changed arithmetic variants
