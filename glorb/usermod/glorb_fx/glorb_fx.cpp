@@ -326,7 +326,7 @@ static void glorb_mode_running(void) {
   const uint8_t idx = glorb_triwave16((uint16_t)hPhase) >> 8;
   const uint32_t pcol = SEGMENT.color_from_palette(idx, false, PALETTE_SOLID_WRAP, 0);
   for (int i = 0; i < (int)SEGLEN; i++) {
-    const uint8_t s = glorb_sin8((uint8_t)(aPhase + i * x_scale));
+    const uint8_t s = glorb_sin8((uint8_t)(aPhase + (i + 1) * x_scale));
     SEGMENT.setPixelColor(i, glorb_color_blend(BLACK, pcol, s));
   }
   SEGENV.step = aPhase;

@@ -107,6 +107,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Fixed
 
+- GLORB Running now advances the spatial phase before its first sine sample,
+  matching the original loop. The correction removes a one-cell brightness-wave
+  offset while preserving the phase saved between frames.
 - `fleet/` builds apply `patches/frozen-segment-reset.patch`: on WLED 16 a `/json/state`
   request that changes the effect and sets pixels with `i` left the segment frozen and black,
   and an effect change blanked a frozen segment. The reset now waits until the segment is
