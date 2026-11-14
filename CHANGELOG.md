@@ -109,6 +109,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 - GLORB effects preserve the original palette interpolation, brightness scaling
   and nonwrap index arithmetic when built against WLED 16.
+- GLORB Black Hole, Frizzles and Tartan add pixels with the original rounding:
+  on overflow each channel becomes `v*255/max`. WLED 16's ratio-preserving add
+  landed one step lower (Tartan: 254 where the original code renders 255).
 
 - GLORB Running now advances the spatial phase before its first sine sample,
   matching the original loop. The correction removes a one-cell brightness-wave
