@@ -1,0 +1,86 @@
+GLORB Colorwaves, Hiphotic, Frizzles, Black Hole, Tartan -- original-code renderer comparison
+Date: 2026-11-14
+Source: tycwled c54b327 (glorb_fx.cpp SHA256 d8eb83977ba381d4b099f866494e492f4e4d1a54e87068d4ca7fb2d97b4b7581)
+Status: all ten cases (five effects x sound option off/on) equal over 4201 frames
+
+Method
+  Original: the effect function and the WLED helper closure it calls (palette, blend, add, fade,
+  blur, ledmap, BusManager) execute from the GLORB.1.3 debug application, SHA256
+  888454572bc34beb86e1595e86aef3ff9f477e2f6501201011e91279f29c597a, in Ghidra 12.0.4's P-code
+  emulator (Xtensa windowed ABI) against an authored memory bus. Segment fields, the 48-byte
+  palette, the clock and processed volume are written by the harness: a diagnostic boundary, not
+  the firmware running as shipped.
+  Candidate: glorb_fx.cpp compiled on the host against a boundary that follows WLED v16.0.1 for
+  every WLED call the usermod makes: color_add (colors.cpp), addPixelColorXY with its default
+  preserveCR, the raw segment buffer accessors, setPixelColor, fill, the default-palette branch of
+  color_from_palette, getMappedPixelIndex/getLengthTotal. Header SHA256
+  9a270fc53b567c0ccd421b729bdcc66495307d6821f9a5317580abadca5979cf, driver
+  24b91fe59a23c2ac4b95b9ed148ef73e65b918042d1e83c0256d06f6471f66f9, binary
+  0c0e51b193938dc0240a0ced7427538975ffc543c96c80a47d5e4278de01d1f5. The host used for the
+  September and early November checks modelled WLED 0.14 there and matched; it could not see the
+  add defect below.
+  Inputs: factory presets 1, 2, 7, 11, 12 (palettes 18, 34, 18, 13, 59), 20x6 logical cells,
+  factory ledmap with 40 holes, 120-pixel bus. Long input: 4201 frames, 42 Hz rounded to whole
+  milliseconds, through 100.000 s; processed volume 0, 1.5, 64, 1023.75, 512.5, 0 in 700-frame
+  blocks (trace SHA256 38785b34024b86c911ab01195f03b3f3a7044620c92ba7f800103bc25aa0808f, the same
+  input as the Running cases). Sound option on sets check1; Hiphotic, Frizzles, Black Hole and
+  Tartan have no sound option and never read check1 or audio in the original.
+  Compared: every logical and mapped RGB byte and the 12 segment-state bytes (step, call, aux0,
+  aux1) of every frame, no tolerance. Control per case: one flipped bit in the mapped bus of
+  frame 2100 of the host capture is rejected at that frame. Each original capture is sealed by
+  the runner (status complete); the last eight ran from read-only per-job snapshots of runtime,
+  assets and input whose manifests were unchanged afterwards.
+
+Results (head c54b327; "before" = 92e8321, the source before this branch)
+  Colorwaves  off  4201/4201 equal, 4201 distinct frames, all lit; before: equal
+  Colorwaves  on   4201/4201 equal, 4201 distinct, all lit, 4201 audio reads each side; before: equal
+  Hiphotic    off  4201/4201 equal, 4201 distinct, all lit; before: equal
+  Hiphotic    on   4201/4201 equal, 4201 distinct, all lit, 0 audio reads; before: equal
+  Frizzles    off  4201/4201 equal, 4195 distinct, all lit; before: frame 1 pixel 70 B 225 vs 224
+  Frizzles    on   4201/4201 equal, 4195 distinct, all lit, 0 audio reads; before: same
+  Black Hole  off  4201/4201 equal, 4201 distinct, all lit; before: frame 2 pixel 90 R 195 vs 193
+  Black Hole  on   4201/4201 equal, 4201 distinct, all lit, 0 audio reads; before: same
+  Tartan      off  4201/4201 equal, 3687 distinct, all lit; before: frame 0 pixel 21 B 255 vs 254
+  Tartan      on   4201/4201 equal, 3687 distinct, all lit, 0 audio reads; before: same
+  Every one-byte control was rejected at frame 2100. With check1 set, the originals of
+  Hiphotic, Frizzles, Black Hole and Tartan are byte-identical to their check1-clear runs.
+  Original capture SHA256 (off / on):
+    Colorwaves 705f62a2bcfebf007aba4bc7b0a684e441cab0b4ab8fd1eeb69887715b88a773
+               96c6c3bd828356eaa3ed9d3396218c525bd72a94de97e5e68581d418c07e49a3
+    Hiphotic   88505717fcfcc29fd3c6174d194599e555fb2f6767ec7879beb6976de71e8e40
+               a301cbddf3d3d1bdd4d0d0e88fc9151231b8192b4bd5f2bbc61cc259eca01020
+    Frizzles   595960c0b94b418cbe30e527dedc0c6687459ec9d70a790912e11738c7ba3593
+               7efdc0e9f1a86a0e4ddb15b976aa447580914c52d0079ef851acca70f4b7ce46
+    Black Hole 5d266afb8ca8cc327c32ff853bad191fded05f2ece5ece90f5cca6537a779bb1
+               6bebe7b6d3ba63a7f181d55f68cb64d4ca02bdb945435704a541f3fc0fe532bf
+    Tartan     5f69dab3f9873f4d5fd0035c4ff62f8901fae5707868de93b7e6cac09d0cc93f
+               4b4b2692a1ef3d63b1bcb610939468c95479dc3ce68ca76c8fe82c445ec7db24
+
+Defects fixed on this branch
+  ecce15f  Black Hole, Frizzles and Tartan add through the original color_add (0x42026220) with
+           fast=0: overflow rescales as v*255/max, truncated. WLED 16's default preserveCR add
+           lands one step lower (the "before" differences above). An oracle of 2048 original
+           color_add calls (capture SHA256
+           a8e36f83415aafb3494e54cc617aedfadf9007f09719dd3c0fc257a9ae0e8259) matches the helper
+           2048/2048; WLED 16's formula matches 340. tests/test_glorb_color_add.py.
+  c54b327  Black Hole passes mcol 0 to the palette wrapper as the original does
+           (0x420431d9) and no longer reads check1. Visible only with palette 0. Palette-0 cases
+           with colour gamma off on both sides (original gammaCorrectCol written 0), 64 frames
+           with volume stepping every 8 frames (trace SHA256
+           504da34ab0b5f51012f775545546db32b6bf07cedfc13cbbec73c47abf8b2d37): check1 clear,
+           c54b327 64/64 equal, ecce15f differs at frame 0 pixel 69 B 1 vs 0; check1 set, both
+           64/64 equal. tests/test_glorb_blackhole.py.
+
+Short regression (64 frames, same short input, every case)
+  Ten cases, palettes as above: 64/64 equal on c54b327, 64 distinct lit frames each, controls
+  rejected. On 92e8321 Frizzles, Black Hole and Tartan fail at the frames listed above.
+
+Not covered
+  Palette 0 in the long runs and WLED 16 palette loading (both sides get the same expanded
+  palette); the factory colour gamma 2.8 on palette 0 (the original gamma-corrects that colour,
+  the port at gc 1.0 does not); frame cadence (both sides take the same scripted times;
+  Hiphotic, Colorwaves and Running advance per call); effect switches and transitions (both start
+  from black); 0.14 bus read-back below brightness 255; microphone PDM/AGC (processed volume is
+  the input); the compiled S3 build (fleet_glorb only proves the source compiles); whole-firmware
+  runs; physical output. No lamp was contacted or flashed. Vendor bytes and captures stay
+  untracked.
