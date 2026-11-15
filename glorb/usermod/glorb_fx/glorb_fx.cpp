@@ -153,8 +153,18 @@ static inline uint32_t glorb_getPixelColorXY(int x, int y) {
 static inline void glorb_setPixelColorXY(int x, int y, uint32_t c) {
   if (glorb_cellMapped(x, y)) SEGMENT.setPixelColorXY(x, y, c);
 }
+// Original color_add (0x42026220) with fast=0, as all three adders call it: on overflow every
+// channel becomes v*255/max, truncated. WLED 16's preserveCR add scales by ((255<<8)/max)>>8.
+static uint32_t glorb_color_add(uint32_t c1, uint32_t c2) {
+  const uint32_t r = R(c1) + R(c2), g = G(c1) + G(c2), b = B(c1) + B(c2), w = W(c1) + W(c2);
+  uint32_t top = r > g ? r : g;
+  top = top > b ? top : b;
+  top = top > w ? top : w;
+  if (top <= 255) return RGBW32(r, g, b, w);
+  return RGBW32(r * 255 / top, g * 255 / top, b * 255 / top, w * 255 / top);
+}
 static inline void glorb_addPixelColorXY(int x, int y, uint32_t c) {
-  if (glorb_cellMapped(x, y)) SEGMENT.addPixelColorXY(x, y, c);
+  if (glorb_cellMapped(x, y)) SEGMENT.setPixelColorXY(x, y, glorb_color_add(SEGMENT.getPixelColorXY(x, y), c));
 }
 
 // 0.14.4 keeps (v*(256-f))>>8, WLED 16 (v*(255-f))>>8. Delegating as fadeToBlackBy(f-1) fails at
@@ -235,7 +245,7 @@ static const char _data_FX_MODE_GLORB_HIPHOTIC[] PROGMEM = "Hiphotic@Speed,Hue v
 // sx=X scale (bpm), ix=Y scale (bpm), c1=Intensity (star count 2..5),
 // c2=Fade rate. Delta vs stock: single star loop (inner stars + white dot
 // removed), X beat range widened to [cols/2, cols*5/2-1] then wrapped %cols,
-// Y in [1, rows-2], palette index i*63, blur 32.
+// Y in [1, rows-2], palette index i*63 with mcol 0 (0x420431d9; check1 unread), blur 32.
 static void glorb_mode_blackhole(void) {
   if (!strip.isMatrix || !SEGMENT.is2D()) GLORB_FALLBACK;
   const int cols = SEG_W;
@@ -252,7 +262,7 @@ static void glorb_mode_blackhole(void) {
     const uint8_t yphase = ((i & 1) ? 192 : 64) + (uint8_t)(i * t8);
     const int x = glorb_beatsin8((SEGMENT.speed >> 5) + 1, cols / 2, (cols * 5) / 2 - 1, 0, xphase);
     const int y = glorb_beatsin8((SEGMENT.intensity >> 4) + 1, 1, rows - 2, 0, yphase);
-    const uint32_t col = glorb_color_from_palette(i * 63, false, PALETTE_SOLID_WRAP, SEGMENT.check1 ? 0 : 255);
+    const uint32_t col = glorb_color_from_palette(i * 63, false, PALETTE_SOLID_WRAP, 0);
     glorb_addPixelColorXY(x % cols, y, col);
   }
   glorb_blur2d(32);
