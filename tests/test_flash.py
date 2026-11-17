@@ -94,8 +94,14 @@ class SpareMigration(unittest.TestCase):
         expected = wledlab.cfg_migrate_015_to_16(self.before, self.info)
         self.assertEqual(expected["nw"]["linked_remote"], [""])
 
+    def test_0154_source_supported(self):
+        self.info.update(ver="0.15.4", release="ESP32")
+        expected = wledlab.cfg_migrate_015_to_16(self.before, self.info)
+        self.assertEqual(wledlab.cfg_drift(expected, self.after), [])
+
     def test_other_versions_and_hardware_refused(self):
-        for change in ({"ver": "16.0.1"}, {"ver": "0.14.4"}, {"arch": "esp32s3"}, {"release": "custom"}):
+        for change in ({"ver": "16.0.1"}, {"ver": "0.14.4"}, {"ver": "0.15.2"}, {"ver": "0.15.5"},
+                       {"arch": "esp32s3"}, {"release": "custom"}):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 wledlab.cfg_migrate_015_to_16(self.before, self.info | change)
 
@@ -144,6 +150,16 @@ class SpareMigration(unittest.TestCase):
                 patch.object(wledlab.subprocess, "run") as upload, self.assertRaises(SystemExit):
             wledlab.cmd_flash(args)
         upload.assert_not_called()
+
+    def test_preflight_refuses_unreviewed_source_version_before_upload(self):
+        args = SimpleNamespace(host="lamp", mac=None, cfg_migration="0.15-to-16.0.1")
+        for ver in ("0.15.2", "0.15.5"):
+            with self.subTest(ver=ver), \
+                    patch.object(wledlab, "get", side_effect=[self.info | {"ver": ver}, self.before]), \
+                    patch.object(wledlab, "readback", return_value=b"{}"), \
+                    patch.object(wledlab.subprocess, "run") as upload, self.assertRaises(SystemExit):
+                wledlab.cmd_flash(args)
+            upload.assert_not_called()
 
 
 if __name__ == "__main__":
