@@ -204,7 +204,7 @@ their keys, not their number) of the DOMRAEM's 0.15.1 snapshot this migration
 was reviewed on, and those of the Gledopto's 0.15.3 snapshot without `eth`. Its values differ
 from both only in leaves the migration leaves as they are, apart from `hw.led.prl` against the
 0.15.3 snapshot, which the migration drops whatever its value. It reports the same ESP-IDF
-version (`core`, `ESP.getSdkVersion()`: `v3.3.6-16-gcc5440f6a2`) as the two spares above.
+version (`core`, `ESP.getSdkVersion()`: `v3.3.6-16-gcc5440f6a2`) as those two controllers.
 
 ### Controller swap, 2026-10-07
 
@@ -247,8 +247,9 @@ are not in `bao:seed-wled-security`). No syslog line from them had reached the c
 | WLED Spare 3 | `tycledspare3`       | Gledopto GL-C-015WL `b0:3f:d3:48:5a:94` | WLED 0.15.1, vid 2507300 | [`overlays/spare3-gledopto.json`](overlays/spare3-gledopto.json) |
 
 All three run `fleet_esp32` of release `fleet-20261115-6e18eb5`: 16.0.1, vid 2611150, release
-`ESP32`, 4 MB flash, and `/json/info` lists the usermods AudioReactive and Syslog. Their outputs,
-button, relay and microphone settings are as shipped:
+`ESP32`, 4 MB flash, and `/json/info` lists the usermods AudioReactive and Syslog. The pins,
+lengths and types of their outputs, the button, the relay and the microphone are as shipped; on the
+GL-C-015WL the 0.15 migration changed how the outputs and buttons are stored (Flash, above):
 
 - DOM-WLE-A: the factory image reports `repo` `guoyanyan25/Wled_v16.0.1_firmware`, release
   `ESP32`. Outputs on GPIO 16 and GPIO 2, 30 LEDs each, both starting at LED 0, so WLED counts 30
@@ -261,9 +262,9 @@ button, relay and microphone settings are as shipped:
   AudioReactive enabled.
 
 The DOM-WLE-A's factory configuration has `ota.same-subnet: true` and no settings PIN. On Spare 1
-the first `wledlab.py flash` from another subnet was refused with "Access Denied: Client is not on
-local subnet" and changed nothing; after `wledlab.py install --cfg` with
-`{"ota": {"same-subnet": false}}` the flash ran:
+the first `wledlab.py flash` from another subnet was refused (the controller's message page:
+"Access Denied", "Client is not on local subnet.") and changed nothing. Both DOM-WLE-As then got
+`{"ota": {"same-subnet": false}}` with `wledlab.py install --cfg` before their flash, which ran:
 
 ```sh
 python3 wledlab.py flash --host <spare> --mac <mac> --firmware fleet_esp32.bin --release ESP32
@@ -278,11 +279,13 @@ release's `SHA256SUMS`:
 e31f7536052171375f17f8a89c85afb6d00c2fbe5f3a13425c2bdd156de2a695  fleet_esp32.bin (fleet-20261115-6e18eb5)
 ```
 
-Each spare's overlay holds every key changed after the flash, written with
+Each spare's overlay holds every key set on it besides the flash, written with
 `wledlab.py install --cfg` and read back key by key: `id.name`, `id.mdns` and
 `um.Syslog.hostname` as in the table, `def` `{ps: 0, on: false, bri: 16}` (it boots off at
-brightness 16) and `ota.same-subnet` false. Putting a spare into service needs its role's
-configuration, a settings PIN and OTA password, and a test of the outputs the role uses.
+brightness 16) and `ota.same-subnet` false. The DOM-WLE-As got that last key before their flash
+(above), the GL-C-015WL after it: the 0.15 migration comes up with it true. Putting a spare into
+service needs its role's configuration, a settings PIN and OTA password, and a test of the outputs
+the role uses.
 
 ## Remote
 
