@@ -1,6 +1,6 @@
 {
   "id": {
-    "name": "Led Strip Couch",
+    "name": "TycCouch",
     "mdns": "wled-couch",
     "inv": "Light"
   },
@@ -23,11 +23,11 @@
   "if": {
     "sync": {
       "recv": {
-        "bri": true,
-        "col": true,
-        "fx": true,
-        "pal": true,
-        "grp": 1,
+        "bri": false,
+        "col": false,
+        "fx": false,
+        "pal": false,
+        "grp": 0,
         "seg": false,
         "sb": false
       },
