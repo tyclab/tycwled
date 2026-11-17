@@ -4,7 +4,7 @@
     "mdns": "tycdodeca"
   },
   "def": {
-    "ps": 1,
+    "ps": 20,
     "on": true,
     "bri": 128
   },
