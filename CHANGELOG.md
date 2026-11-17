@@ -9,6 +9,15 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- `wledlab.py flash --cfg-migration 0.15-to-16.0.1` also accepts a classic ESP32 on WLED 0.15.4
+  (Gledopto's factory firmware on a GL-C-015WL reports it). The prediction is unchanged:
+  v0.15.3..v0.15.4 changes no `cfg.cpp`, `json.cpp` or `set.cpp`, and that controller's stored cfg
+  has the key paths of the reviewed 0.15.1 snapshot (`fleet/README.md`, Flash). One 0.15.4
+  controller has been flashed with it, once: on 2026-11-17 the GL-C-015WL went from its factory
+  0.15.4 image (vid 2508020) to a 16.0.1 image (release `ESP32`, an env that extends `fleet_esp32`)
+  at 3d331d6; the tool reported `cfg: matches reviewed migration | presets.json: byte-identical`,
+  and the controller came back as 16.0.1, release `ESP32`. Other 0.15 versions are still refused
+  before upload.
 - The curtain's seven remote buttons now show Breathing, Ink Burst, Deep Sea,
   Chromatophores, Water, PS Fuzzy Noise and TycStation, in that order. Eyes
   remains in slot 8; the duplicate Fuzzy Noise is removed. Companion lamps

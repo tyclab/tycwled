@@ -1348,15 +1348,17 @@ def cfg_drift(before, after):
 
 
 def cfg_migrate_015_to_16(before, info):
-    """Expected v16.0.1 serialization of our two classic ESP32 spares.
+    """Expected v16.0.1 serialization of a classic ESP32 controller on WLED 0.15.1/0.15.3/0.15.4.
 
-    Source: WLED v0.15.3/v16.0.1 cfg.cpp, const.h, network.cpp and wled.cpp.
+    Source: WLED v0.15.3/v16.0.1 cfg.cpp, const.h, network.cpp and wled.cpp. v0.15.3..v0.15.4
+    changes no cfg.cpp, json.cpp or set.cpp; its const.h/network.cpp hunks add Ethernet
+    type 13, whose board entry is the same in v16.0.1.
     This is an opt-in, version-bound migration, not a list of ignored drift paths.
     Unsupported hardware/timers fail before upload; all other settings stay exact.
     """
-    if info.get("ver") not in ("0.15.1", "0.15.3") or info.get("arch") != "esp32" or \
+    if info.get("ver") not in ("0.15.1", "0.15.3", "0.15.4") or info.get("arch") != "esp32" or \
             info.get("release") not in ("ESP32", "ESP32_Ethernet"):
-        raise ValueError("0.15-to-16.0.1 migration requires a 0.15.1/0.15.3 classic ESP32 fleet spare")
+        raise ValueError("0.15-to-16.0.1 migration requires a 0.15.1/0.15.3/0.15.4 classic ESP32 controller")
     out = json.loads(json.dumps(before))
     if out.get("timers", {}).get("ins") != []:
         raise ValueError("timer migration has not been reviewed; expected no configured timers")
@@ -1523,7 +1525,7 @@ def main():
     s.add_argument("--host", required=True); s.add_argument("--firmware", required=True, help="firmware.bin")
     s.add_argument("--release", help="release name the lamp must report afterwards")
     s.add_argument("--mac", help="refuse upload unless the controller has this Wi-Fi MAC")
-    s.add_argument("--cfg-migration", choices=["0.15-to-16.0.1"], help="verify the source-reviewed 0.15.1/0.15.3 ESP32 spare migration; all other cfg fields stay strict")
+    s.add_argument("--cfg-migration", choices=["0.15-to-16.0.1"], help="verify the source-reviewed migration of a 0.15.1/0.15.3/0.15.4 classic ESP32; all other cfg fields stay strict")
     s.add_argument("--skip-validation", action="store_true", help="send skipValidation=1 (the release name changes on purpose)")
     s.add_argument("--snapshot", help="where to keep the before-state (default captures/flash/<host>-<time>)")
     s.add_argument("--timeout", type=int, default=150, help="seconds to wait for the lamp to come back"); s.set_defaults(fn=cmd_flash)
