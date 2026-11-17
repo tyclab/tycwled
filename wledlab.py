@@ -209,6 +209,11 @@ def load_credentials(path):
     return credentials
 
 
+# The OTA switches and their fields in the security form. With OTA locked WLED 16.0.1 takes them from that form
+# alone, with the OTA password (set.cpp); a /json/cfg body is heard only with the lock off (cfg.cpp).
+OTA_SWITCHES = {"lock": "NO", "lock-wifi": "OW", "aota": "AO", "same-subnet": "SU"}
+
+
 class SettingsAccess:
     """WLED 16's PIN unlock is global; keep maintenance short and always relock."""
 
@@ -233,14 +238,13 @@ class SettingsAccess:
         fields = {"OP": self.credentials["ota_password"]}
         if pin is not None:
             fields["PIN"] = pin
-        for key, field in (("lock", "NO"), ("lock-wifi", "OW"), ("aota", "AO"), ("same-subnet", "SU")):
+        for key, field in OTA_SWITCHES.items():
             if ota.get(key, False):
                 fields[field] = "on"
         if settings_request(self.host, "/settings/sec", fields) != 200:
             raise RuntimeError("security settings request was rejected")
         actual = get(self.host, "/json/cfg")["ota"]
-        if any(actual.get(key, False) != ota.get(key, False)
-               for key in ("lock", "lock-wifi", "aota", "same-subnet")):
+        if any(actual.get(key, False) != ota.get(key, False) for key in OTA_SWITCHES):
             raise RuntimeError("security settings did not apply; check the OTA credential")
 
     def unlock_ota(self, ota):
@@ -1070,8 +1074,8 @@ def cmd_push_frame(a):
 
 def cmd_install(a):
     session = settings_access(a.host, a.credentials_file) if getattr(a, "credentials_file", None) else contextlib.nullcontext()
-    with session:
-        _cmd_install(a)
+    with session as access:
+        _cmd_install(a, access)
 
 
 # Segment fields a recalled preset or a restored look must read back as written.
@@ -1151,7 +1155,7 @@ def restore_look(host, before):
     return same
 
 
-def _cmd_install(a):
+def _cmd_install(a, access=None):
     # Presets the lamp already holds, with no file a preset shows changed, are not recalled: a recall shows on the lamp
     # (and on everything that follows it), so an install that only adds a file leaves the look alone.
     held = held_raw = None
@@ -1217,6 +1221,12 @@ def _cmd_install(a):
         else:
             post(a.host, "/json/cfg", cfg_payload(overrides, before)); time.sleep(1)
             after = get(a.host, "/json/cfg")
+            # A locked lamp does not hear its OTA switches in that body: they go through the security form.
+            switches = {k: v for k, v in overrides.get("ota", {}).items()
+                        if k in OTA_SWITCHES and after.get("ota", {}).get(k, False) != v}
+            if switches and access is not None:
+                access.write_security(after.get("ota", {}) | switches)
+                after = get(a.host, "/json/cfg")
             bad = cfg_unapplied(overrides, after)
             remotes0, remotes1 = (c.get("nw", {}).get("linked_remote") for c in (before, after))
             if remotes0 != remotes1:

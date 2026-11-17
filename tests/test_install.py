@@ -32,6 +32,7 @@ class Lamp:
         self.state = {"on": True, "bri": 100, "ps": -1, "pl": -1, "transition": 7, "seg": [segment(191)]}
         # /json/cfg as tycdodeca serves it, cut to what the tests read (cfg.cpp serializeConfig).
         self.cfg = {"nw": {"espnow": True, "linked_remote": ["704bcac8d198"]},
+                    "ota": {"lock": True, "lock-wifi": True, "aota": False, "same-subnet": True},
                     "hw": {"led": {"total": 960, "maxpwr": 0, "ins": [{"start": 0, "len": 480, "pin": [16], "maxpwr": 5000, "ledma": 55},
                                                                     {"start": 480, "len": 480, "pin": [12], "maxpwr": 5500, "ledma": 55}]}}}
 
@@ -59,7 +60,18 @@ class Lamp:
         self.palettes = max(slots) + 1 if slots else 0
 
     def settings_request(self, host, path, fields=None):
-        return 200 if path in self.files else 404
+        if path != "/settings/sec":
+            return 200 if path in self.files else 404
+        # set.cpp handleSettingsSet, security page: the PIN opens the settings; the four OTA switches are taken
+        # with the OTA password, each on when its field is sent.
+        self.calls.append(("sec", sorted(fields or {})))
+        if fields and fields.get("PIN") == PIN and "OP" not in fields:
+            self.open = True
+        if not getattr(self, "open", False):
+            return 401
+        if fields and fields.get("OP") == OTA_PASSWORD:
+            self.cfg["ota"].update({key: field in fields for key, field in wledlab.OTA_SWITCHES.items()})
+        return 200
 
     def get(self, host, path):
         if path == "/json/info":
@@ -78,6 +90,9 @@ class Lamp:
             self.cfg["nw"]["linked_remote"] = body.get("nw", {}).get("linked_remote", [])
             led = body.get("hw", {}).get("led", {})
             self.cfg["hw"]["led"].update(copy.deepcopy(led))
+            # cfg.cpp deserializeConfig: the OTA switches are heard only with the OTA lock off.
+            if not self.cfg["ota"]["lock"]:
+                self.cfg["ota"].update({k: v for k, v in body.get("ota", {}).items() if k in wledlab.OTA_SWITCHES})
         elif "rmcpal" in body:
             # json.cpp deserializeState: the file is removed if it is there, the result is not looked at, and the
             # custom palettes are loaded again. Nothing else of the state changes.
@@ -107,6 +122,9 @@ class Lamp:
         name = "/" + self.state["seg"][0].get("n", "")
         frames = 1 if self.frozen else wledlab.gif_frames(self.files.get(name, b""))
         return [(i / 10, [f"{i % max(frames, 1):06x}"]) for i in range(10)]
+
+
+PIN, OTA_PASSWORD = "4872", "0123456789abcdef0123456789abcdef"
 
 
 class Install(unittest.TestCase):
@@ -142,6 +160,23 @@ class Install(unittest.TestCase):
                                                      "nw": {"espnow": True, "linked_remote": ["704bcac8d198"]}})])
         self.assertEqual(([o["maxpwr"] for o in self.lamp.cfg["hw"]["led"]["ins"]], self.lamp.cfg["nw"]["linked_remote"]),
                          ([6000, 6000], ["704bcac8d198"]))
+
+    def test_an_ota_switch_of_a_locked_lamp_goes_through_the_security_form_and_keeps_the_locks(self):
+        # tycdodeca, 2026-11-17: the outputs' limits landed, `ota.same-subnet` did not, and the install ended red.
+        outputs = [dict(o, maxpwr=6500) for o in self.lamp.cfg["hw"]["led"]["ins"]]
+        self.cfg_file({"hw": {"led": {"maxpwr": 0, "ins": outputs}}, "ota": {"same-subnet": False}})
+        access = wledlab.SettingsAccess("lamp", {"pin": PIN, "ota_password": OTA_PASSWORD})
+        wledlab._cmd_install(self.args, access)
+        self.assertEqual(self.lamp.cfg["ota"], {"lock": True, "lock-wifi": True, "aota": False, "same-subnet": False})
+        self.assertEqual([o["maxpwr"] for o in self.lamp.cfg["hw"]["led"]["ins"]], [6500, 6500])
+        self.assertEqual([call for call in self.lamp.calls if call[0] == "sec"][-1], ("sec", ["NO", "OP", "OW"]))
+
+    def test_an_ota_switch_a_locked_lamp_keeps_fails_the_install_without_credentials(self):
+        self.cfg_file({"ota": {"same-subnet": False}})
+        with self.assertRaises(SystemExit) as stopped:
+            wledlab._cmd_install(self.args)
+        self.assertEqual(str(stopped.exception), "cfg overrides did not land as written")
+        self.assertTrue(self.lamp.cfg["ota"]["same-subnet"])
 
     def test_cfg_the_lamp_already_reads_back_is_not_written(self):
         # A write that names the outputs rebuilds them on the lamp and restarts every effect.

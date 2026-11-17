@@ -120,6 +120,10 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Fixed
 
+- `wledlab.py install --cfg` sets a locked controller's OTA switches (`ota.lock`, `lock-wifi`, `aota`,
+  `same-subnet`) through the security form with the OTA password. WLED 16.0.1 hears them in a
+  `/json/cfg` body only with the OTA lock off (`cfg.cpp`), so on a locked controller the write
+  ended with `cfg: MISMATCH` although everything else had landed.
 - GLORB effects preserve the original palette interpolation, brightness scaling
   and nonwrap index arithmetic when built against WLED 16.
 - GLORB Black Hole, Frizzles and Tartan add pixels with the original rounding:
