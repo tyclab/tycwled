@@ -1,6 +1,6 @@
 {
   "id": {
-    "name": "Curtain Bench",
+    "name": "TycCurtain",
     "mdns": "tyccurtain"
   },
   "def": {
@@ -31,7 +31,7 @@
         {
           "start": 520,
           "len": 520,
-          "pin": [12],
+          "pin": [4],
           "order": 1,
           "rev": false,
           "skip": 0,
@@ -47,7 +47,7 @@
         {
           "start": 1040,
           "len": 520,
-          "pin": [4],
+          "pin": [12],
           "order": 1,
           "rev": false,
           "skip": 0,
