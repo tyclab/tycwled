@@ -60,6 +60,11 @@ SPARES = {"fleet/overlays/spare1-domraem.json": 1, "fleet/overlays/spare2-domrae
           "fleet/overlays/spare3-gledopto.json": 3}
 CONTROLLERS = {"curtain/h70b5-gledopto.json", "fleet/overlays/couch-domraem.json",
                "fleet/overlays/exoy-gledopto.json", *SPARES}
+# Lamps whose overlay sets their name and nothing else.
+NAME_ONLY = {"fleet/overlays/moon.json": "TycMoon", "fleet/overlays/glorb-links.json": "TycGlorbLinks",
+             "fleet/overlays/glorb-rechts.json": "TycGlorbRechts"}
+NAMES = {"curtain/h70b5-gledopto.json": "TycCurtain", "fleet/overlays/couch-domraem.json": "TycCouch",
+         "fleet/overlays/exoy-gledopto.json": "TycDodeca", **NAME_ONLY}
 
 
 class Overlays(unittest.TestCase):
@@ -72,7 +77,14 @@ class Overlays(unittest.TestCase):
     def test_every_controller_overlay_is_listed(self):
         found = {os.path.relpath(p, ROOT) for p in glob.glob(os.path.join(ROOT, "fleet", "overlays", "*.json"))}
         self.assertEqual({p for p in found if not p.endswith("-presets.json")},
-                         {p for p in CONTROLLERS if p.startswith("fleet/overlays/")})
+                         {p for p in CONTROLLERS | set(NAME_ONLY) if p.startswith("fleet/overlays/")})
+
+    def test_every_lamp_in_service_has_its_tycstation_name(self):
+        self.assertEqual({path: self.load(path)["id"]["name"] for path in NAMES}, NAMES)
+
+    def test_name_only_overlays_set_nothing_but_the_name(self):
+        for path, name in NAME_ONLY.items():
+            self.assertEqual(self.load(path), {"id": {"name": name}}, path)
 
     def test_syslog_host_is_the_mdns_name_and_ota_crosses_subnets(self):
         for path in sorted(CONTROLLERS):
