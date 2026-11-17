@@ -31,7 +31,7 @@ class Lamp:
         self.palettes, self.lost, self.keeps_list = 0, 0, False
         self.state = {"on": True, "bri": 100, "ps": -1, "pl": -1, "transition": 7, "seg": [segment(191)]}
         # /json/cfg as tycdodeca serves it, cut to what the tests read (cfg.cpp serializeConfig).
-        self.cfg = {"nw": {"espnow": True, "linked_remote": ["704bcac8d198"]},
+        self.cfg = {"id": {"mdns": "tycdodeca", "name": "Exoy"}, "nw": {"espnow": True, "linked_remote": ["704bcac8d198"]},
                     "ota": {"lock": True, "lock-wifi": True, "aota": False, "same-subnet": True},
                     "hw": {"led": {"total": 960, "maxpwr": 0, "ins": [{"start": 0, "len": 480, "pin": [16], "maxpwr": 5000, "ledma": 55},
                                                                     {"start": 480, "len": 480, "pin": [12], "maxpwr": 5500, "ledma": 55}]}}}
@@ -88,6 +88,7 @@ class Lamp:
             # cfg.cpp deserializeConfig: the paired remotes are cleared before the body is looked at, and a body
             # that names the outputs replaces them all.
             self.cfg["nw"]["linked_remote"] = body.get("nw", {}).get("linked_remote", [])
+            self.cfg["id"].update(body.get("id", {}))
             led = body.get("hw", {}).get("led", {})
             self.cfg["hw"]["led"].update(copy.deepcopy(led))
             # cfg.cpp deserializeConfig: the OTA switches are heard only with the OTA lock off.
@@ -160,6 +161,15 @@ class Install(unittest.TestCase):
                                                      "nw": {"espnow": True, "linked_remote": ["704bcac8d198"]}})])
         self.assertEqual(([o["maxpwr"] for o in self.lamp.cfg["hw"]["led"]["ins"]], self.lamp.cfg["nw"]["linked_remote"]),
                          ([6000, 6000], ["704bcac8d198"]))
+
+    def test_a_name_only_overlay_writes_the_name_and_leaves_the_outputs_alone(self):
+        outputs = copy.deepcopy(self.lamp.cfg["hw"]["led"]["ins"])
+        self.cfg_file({"id": {"name": "TycMoon"}})
+        wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.calls, [("post", {"id": {"name": "TycMoon"},
+                                                     "nw": {"espnow": True, "linked_remote": ["704bcac8d198"]}})])
+        self.assertEqual((self.lamp.cfg["id"], self.lamp.cfg["hw"]["led"]["ins"]),
+                         ({"mdns": "tycdodeca", "name": "TycMoon"}, outputs))
 
     def test_an_ota_switch_of_a_locked_lamp_goes_through_the_security_form_and_keeps_the_locks(self):
         # tycdodeca, 2026-11-17: the outputs' limits landed, `ota.same-subnet` did not, and the install ended red.
