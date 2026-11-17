@@ -62,8 +62,8 @@ read from the live controller. Each output is limited to 6500 mA at 55 mA per LE
 lamps run on one 5 V 12 A supply since 2026-11-17, and 6.5 A each is the operator's setting of
 that day (6000 mA each before, for two 6 A supplies). `wledlab.py install --cfg` writes the file.
 After power-on it plays its preset 20, a playlist of ten stock looks at five minutes each
-("Exoy calm cycle"), instead of preset 1, one plain colour (operator, 2026-11-17: "plain white
-sucks as defalt"). The presets themselves are not in this repository; the controller holds them.
+("Exoy calm cycle"), instead of preset 1, one plain colour (operator, 2026-11-17). The
+presets themselves are not in this repository; the controller holds them.
 
 Pin, LED and mic settings live in each lamp's cfg.json, not in the build. OTA retains
 the filesystem, but a new WLED version can migrate its configuration schema on boot.
