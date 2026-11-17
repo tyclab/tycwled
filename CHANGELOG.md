@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The controller of the two dodecahedron lamps limits each output to 6500 mA instead of 6000 mA
+  (`fleet/overlays/exoy-gledopto.json`): both lamps run on one 5 V 12 A supply since 2026-11-17.
 - `wledlab.py flash --cfg-migration 0.15-to-16.0.1` also accepts a classic ESP32 on WLED 0.15.4
   (Gledopto's factory firmware on a GL-C-015WL reports it). The prediction is unchanged:
   v0.15.3..v0.15.4 changes no `cfg.cpp`, `json.cpp` or `set.cpp`, and that controller's stored cfg
