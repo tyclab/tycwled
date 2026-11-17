@@ -9,6 +9,14 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The lamps in service carry TycStation names as `id.name`, the name the WLED app shows: TycCouch,
+  TycMoon, TycGlorbLinks, TycGlorbRechts, TycCurtain and TycDodeca. The Moon and the GLORBs get
+  overlays that hold only the name (`fleet/overlays/moon.json`, `glorb-links.json`,
+  `glorb-rechts.json`). Hosts, mDNS names and the spares' names stay.
+- The couch overlay receives no WLED UDP sync, as the couch has since 2026-11-06, and the curtain
+  overlay puts output 2 on GPIO 4 and output 3 on GPIO 12, as the curtain runs: writing either
+  overlay changes nothing on its lamp but the name (the curtain's sync receive of brightness goes
+  off, with no receive group set).
 - The controller of the two dodecahedron lamps limits each output to 6500 mA instead of 6000 mA
   (`fleet/overlays/exoy-gledopto.json`): both lamps run on one 5 V 12 A supply since 2026-11-17.
 - That controller plays its preset 20 ("Exoy calm cycle", a playlist of stock looks) after
