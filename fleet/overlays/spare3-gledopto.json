@@ -1,0 +1,19 @@
+{
+  "id": {
+    "name": "WLED Spare 3",
+    "mdns": "tycledspare3"
+  },
+  "def": {
+    "ps": 0,
+    "on": false,
+    "bri": 16
+  },
+  "ota": {
+    "same-subnet": false
+  },
+  "um": {
+    "Syslog": {
+      "hostname": "tycledspare3"
+    }
+  }
+}

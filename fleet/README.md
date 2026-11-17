@@ -32,8 +32,9 @@ fixes: no upstream issue or PR covers it yet. Since WLED 16 (upstream `ee9ac947`
 segment's pixels, and `WS2812FX::service()` runs it before the freeze check: a `/json/state` request
 that changes the effect and sets pixels with `i` leaves the segment frozen and black, and an effect
 change blanks a frozen segment; 0.15.3 kept the pixels. The patch defers the reset until the
-segment is unfrozen and clears the pixel buffer a resize allocates. On the spare Gledopto, stock
-build 2610050 lit 0 of 120 pixels after such a request, the patched build 2611092 all 120.
+segment is unfrozen and clears the pixel buffer a resize allocates. On the black GL-C-618WL, then
+the spare, stock build 2610050 lit 0 of 120 pixels after such a request, the patched build 2611092
+all 120.
 
 - `fleet_esp32` is the stock `ESP32` release env (`esp32dev` with
   `audioreactive`) with the same release name. The Couch strip and the Moon
@@ -162,8 +163,8 @@ access. Neither GPIO changes nor lost microphone, Wi-Fi or preset settings are i
 The fleet config overlays then explicitly retain cross-subnet OTA access for updates
 from the management network, matching the existing fleet.
 
-The Gledopto and the DOMRAEM, both spares at the time, passed this migration and retained
-byte-identical presets. The Gledopto
+The black GL-C-618WL and the DOM-WLE-ADM, both spares at the time, passed this migration and
+retained byte-identical presets. The GL-C-618WL
 was verified against its saved before/after snapshots after the initial strict check
 identified the capacity/default/runtime-format differences above. Hardware preserved:
 Gledopto relay 18 and DOMRAEM relay 12, both cfg `rev: false`, which is the ticked Invert box
@@ -231,6 +232,57 @@ the 5 V model (`ledma` 55) with an 8 A global limit, the supply's rating: WLED e
 at 16.8 A and scales it to about 120/255. Operator, 2026-10-07: at this setting the far third no
 longer shows the yellow-green cast it had at full white under the WS2815 model (`ledma` 255,
 12 mA per LED, where the cap never engaged), and raising the limit brings the cast back.
+
+### Spares, 2026-11-17
+
+Three controllers are spares. Not done on them: no LEDs have been attached, none of their outputs,
+buttons, relays or microphones has been tested, and they have no settings PIN or OTA password (they
+are not in `bao:seed-wled-security`). No syslog line from them had reached the collector on
+2026-11-17.
+
+| Spare        | mDNS and syslog host | Hardware                                | Factory firmware         | Overlay                                                          |
+| ------------ | -------------------- | --------------------------------------- | ------------------------ | ---------------------------------------------------------------- |
+| WLED Spare 1 | `tycledspare1`       | DOMRAEM DOM-WLE-A `70:4b:ca:8f:9c:b4`   | WLED 16.0.1, vid 2605010 | [`overlays/spare1-domraem.json`](overlays/spare1-domraem.json)   |
+| WLED Spare 2 | `tycledspare2`       | DOMRAEM DOM-WLE-A `70:4b:ca:8f:a5:a0`   | WLED 16.0.1, vid 2605010 | [`overlays/spare2-domraem.json`](overlays/spare2-domraem.json)   |
+| WLED Spare 3 | `tycledspare3`       | Gledopto GL-C-015WL `b0:3f:d3:48:5a:94` | WLED 0.15.1, vid 2507300 | [`overlays/spare3-gledopto.json`](overlays/spare3-gledopto.json) |
+
+All three run `fleet_esp32` of release `fleet-20261115-6e18eb5`: 16.0.1, vid 2611150, release
+`ESP32`, 4 MB flash, and `/json/info` lists the usermods AudioReactive and Syslog. Their outputs,
+button, relay and microphone settings are as shipped:
+
+- DOM-WLE-A: the factory image reports `repo` `guoyanyan25/Wled_v16.0.1_firmware`, release
+  `ESP32`. Outputs on GPIO 16 and GPIO 2, 30 LEDs each, both starting at LED 0, so WLED counts 30
+  LEDs and both outputs carry the same pixels. Button GPIO 0; relay GPIO 12 with `rev: false`; a
+  PDM microphone (type 5) on 26/21 is stored with AudioReactive disabled. By the maker's listing
+  the DOM-WLE-A has no microphone; that was not checked on the boards. The two factory
+  configurations differ only in the mDNS name and the MQTT client id and topic.
+- GL-C-015WL: stock WLED 0.15.1, release `ESP32`. Outputs on GPIO 16 (LEDs 0–29) and GPIO 2
+  (LEDs 30–59); button GPIO 17; relay GPIO 18 with `rev: false`; PDM microphone on 32/15 with
+  AudioReactive enabled.
+
+The DOM-WLE-A's factory configuration has `ota.same-subnet: true` and no settings PIN. On Spare 1
+the first `wledlab.py flash` from another subnet was refused with "Access Denied: Client is not on
+local subnet" and changed nothing; after `wledlab.py install --cfg` with
+`{"ota": {"same-subnet": false}}` the flash ran:
+
+```sh
+python3 wledlab.py flash --host <spare> --mac <mac> --firmware fleet_esp32.bin --release ESP32
+```
+
+On both DOM-WLE-As it reported `cfg: unchanged (vid / new usermod block only) | presets.json:
+byte-identical`. The GL-C-015WL was flashed with `--cfg-migration 0.15-to-16.0.1` added and
+reported `cfg: matches reviewed migration | presets.json: byte-identical`. The image matched the
+release's `SHA256SUMS`:
+
+```text
+e31f7536052171375f17f8a89c85afb6d00c2fbe5f3a13425c2bdd156de2a695  fleet_esp32.bin (fleet-20261115-6e18eb5)
+```
+
+Each spare's overlay holds every key changed after the flash, written with
+`wledlab.py install --cfg` and read back key by key: `id.name`, `id.mdns` and
+`um.Syslog.hostname` as in the table, `def` `{ps: 0, on: false, bri: 16}` (it boots off at
+brightness 16) and `ota.same-subnet` false. Putting a spare into service needs its role's
+configuration, a settings PIN and OTA password, and a test of the outputs the role uses.
 
 ## Remote
 
