@@ -1,17 +1,23 @@
 # fleet — the firmware our own lamps run
 
-| Lamp            | IP          | Syslog host (Loki `host`)         | Hardware                                                                                                                                        | Env              |
-| --------------- | ----------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| Led Strip Couch | 10.27.4.58  | `wled-couch` (also its mDNS name) | DOMRAEM DOM-WLE-ADM `04:b2:47:85:c8:14`, 300 LEDs on GPIO 16 (output 1)                                                                         | `fleet_esp32`    |
-| Moon            | 10.27.4.59  | `wled-moon`                       | ESP32, 8 MB flash in the 4 MB layout, 8×8 on GPIO 18                                                                                            | `fleet_esp32`    |
-| GLORB           | 10.27.4.60  | `wled-glorb-links`                | ESP32-S3, 8 MB                                                                                                                                  | `fleet_glorb`    |
-| GLORB           | 10.27.4.61  | `wled-glorb-rechts`               | ESP32-S3, 8 MB                                                                                                                                  | `fleet_glorb`    |
-| Curtain Bench   | 10.27.4.221 | `tyccurtain`                      | Gledopto GL-C-618WL (white) `70:4b:ca:5b:bd:d0`, three 520-pixel outputs on GPIOs 16/12/4                                                       | `fleet_gledopto` |
-| Exoy            | 10.27.4.222 | `tycdodeca` (also its mDNS name)  | Gledopto GL-C-618WL (black) `70:4b:ca:48:91:c8`, both Exoy ONE lamps: 480 LEDs on GPIO 16 (window) and 480 on GPIO 12 (kitchen), a 60×16 matrix | `fleet_gledopto` |
+| Lamp           | IP          | Syslog host (Loki `host`)         | Hardware                                                                                                                                        | Env              |
+| -------------- | ----------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| TycCouch       | 10.27.4.58  | `wled-couch` (also its mDNS name) | DOMRAEM DOM-WLE-ADM `04:b2:47:85:c8:14`, 300 LEDs on GPIO 16 (output 1)                                                                         | `fleet_esp32`    |
+| TycMoon        | 10.27.4.59  | `wled-moon`                       | ESP32, 8 MB flash in the 4 MB layout, 8×8 on GPIO 18                                                                                            | `fleet_esp32`    |
+| TycGlorbLinks  | 10.27.4.60  | `wled-glorb-links`                | ESP32-S3, 8 MB                                                                                                                                  | `fleet_glorb`    |
+| TycGlorbRechts | 10.27.4.61  | `wled-glorb-rechts`               | ESP32-S3, 8 MB                                                                                                                                  | `fleet_glorb`    |
+| TycCurtain     | 10.27.4.221 | `tyccurtain`                      | Gledopto GL-C-618WL (white) `70:4b:ca:5b:bd:d0`, three 520-pixel outputs on GPIOs 16/4/12                                                       | `fleet_gledopto` |
+| TycDodeca      | 10.27.4.222 | `tycdodeca` (also its mDNS name)  | Gledopto GL-C-618WL (black) `70:4b:ca:48:91:c8`, both Exoy ONE lamps: 480 LEDs on GPIO 16 (window) and 480 on GPIO 12 (kitchen), a 60×16 matrix | `fleet_gledopto` |
 
 All envs are WLED v16.0.1 plus [`syslog_events`](../usermods/syslog_events/),
 sending to our collector at 10.27.2.41:1515, and [`tycstation_fx`](../usermods/tycstation_fx/),
 the squid patterns as effects.
+
+The Lamp column is each controller's `id.name`, the name the WLED app shows (TycStation names since
+2026-11-17). Its overlay carries it: the Moon and the GLORBs have overlays that hold only that name,
+[`overlays/moon.json`](overlays/moon.json), [`overlays/glorb-links.json`](overlays/glorb-links.json)
+and [`overlays/glorb-rechts.json`](overlays/glorb-rechts.json). Home Assistant and the lightshow reach
+the controllers by host, so a name leaves hosts, mDNS names and Home Assistant entity ids alone.
 
 The overlays below rely on #5885's partial-config fix (`patches/5885-partial-config.patch`, in every
 fleet build since 2610050), so apply them only to such a build. Lamps are not updated by rebuilding
@@ -54,7 +60,9 @@ all 120.
 The DOMRAEM DOM-WLE-ADM uses `fleet_esp32`, retaining its `ESP32` release name and
 its own microphone, relay and output configuration. As the couch controller its identity,
 output, limits, remotes and central OTA access are in
-[`overlays/couch-domraem.json`](overlays/couch-domraem.json).
+[`overlays/couch-domraem.json`](overlays/couch-domraem.json). It receives no WLED UDP sync
+(`if.sync.recv`): sync stays off where the lightshow does not need it (operator, 2026-11-06, when
+it was switched off on the lamps).
 
 The black GL-C-618WL drives both Exoy lamps. Its identity, boot preset, two outputs,
 limits and 60×16 matrix are in [`overlays/exoy-gledopto.json`](overlays/exoy-gledopto.json),
@@ -348,8 +356,8 @@ The Govee H70B5 curtain hangs as three panels of 20 vertical strings × 26 LEDs 
 GL-C-618WL. [`h70b5-gledopto.json`](../curtain/h70b5-gledopto.json) is its configuration
 overlay, [`ledmap.json`](../curtain/ledmap.json) its 2D map, generated by
 [`mkledmap.py`](../curtain/mkledmap.py); `make lint` fails when the committed map differs
-from the generator output. `id.name` stays `Curtain Bench`, the device name Home Assistant
-uses. The overlay switches Ethernet off (see Memory) and leaves relay, microphone and Wi-Fi settings alone. Apply it with
+from the generator output. `id.name` is `TycCurtain`; Home Assistant shows the device under the
+name set there, "Curtain", which `id.name` does not change. The overlay switches Ethernet off (see Memory) and leaves relay, microphone and Wi-Fi settings alone. Apply it with
 the patched fleet build, which preserves unrelated settings on a partial configuration write:
 
 ```sh
@@ -373,8 +381,12 @@ connects to the Gledopto (5–24 V input).
 | Output | GPIO | LEDs      | Panel, seen from inside the room |
 | ------ | ---- | --------- | -------------------------------- |
 | 1      | 16   | 0–519     | right                            |
-| 2      | 12   | 520–1039  | middle, over the balcony door    |
-| 3      | 4    | 1040–1559 | left                             |
+| 2      | 4    | 520–1039  | middle, over the balcony door    |
+| 3      | 12   | 1040–1559 | left                             |
+
+Until 2026-11-17 the overlay put output 2 on GPIO 12 and output 3 on GPIO 4, as on the first
+controller on 2026-10-05; the controller read GPIO 4 and 12 on 2026-11-17, and the operator
+confirmed that night that every panel shows its part of the picture.
 
 Every output is WS281x (type 22), RGB (order 1), 520 pixels. Each panel runs vertical, top
 first, non-serpentine, with string 0 on the panel's right side, so the curtain is the mirror
