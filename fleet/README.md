@@ -146,7 +146,7 @@ The updater temporarily unlocks OTA, restores its protection before checking
 configuration, and relocks settings even after a failed upload. If the device
 cannot be reached to relock it, recover that device before continuing.
 
-For the reviewed classic-ESP32 spare upgrades from 0.15.1/0.15.3 only, add
+For the reviewed classic-ESP32 upgrades from 0.15.1, 0.15.3 or 0.15.4 only, add
 `--cfg-migration 0.15-to-16.0.1`. This predicts v16's configuration from the original
 snapshot and still compares every resulting field. It checks source version, hardware,
 release and the target version; configured timers or unreviewed LED types are refused
@@ -176,6 +176,34 @@ image is the 2026-10-07 rebuild at the same stamp, flashed to the white controll
 895bbaf45f50a8912f2c607661b5157cdcc9b50a8a8e03111f2f6dc94de91616  fleet_gledopto.bin (2026-10-07 rebuild)
 be0e2a5b532bc03f44e31bc22959a15418ce409b0c59e8fcc079f6a115b3a17b  fleet_esp32.bin
 ```
+
+One 0.15.4 controller has been flashed with this migration, once: on 2026-11-17 a Gledopto
+GL-C-015WL on its factory 0.15.4 image (vid 2508020) was flashed over the air to a 16.0.1 image
+(release `ESP32`, an env that extends `fleet_esp32`) with `wledlab.py flash --cfg-migration
+0.15-to-16.0.1` at 3d331d6. The tool reported `cfg: matches reviewed migration | presets.json:
+byte-identical`, and the controller came back as 16.0.1, release `ESP32`. Before that flash, 0.15.4
+was accepted on the sources and on that controller's stored configuration.
+
+WLED v0.15.3..v0.15.4 changes no `cfg.cpp`, `json.cpp` or `set.cpp`. Its `const.h` and
+`network.cpp` hunks add Ethernet type 13 (Gledopto), whose board entry v16.0.1 carries unchanged,
+and give Ethernet builds GPIO 4 as the default LED pin, which WLED uses whenever no LED output was
+created (`FX_fcn.cpp`, `finalizeInit`); the other hunks change the Ethernet env's build defaults
+and runtime code (OTA, web UI, Wi-Fi scan, UDP sync parsing, file writes, segment fills,
+AudioReactive's PDM clock). Gledopto's published
+0.15.4 source (`GLEDOPTO/WLED` branch `gledopto-0.15.4`, one commit on v0.15.4) adds PlatformIO
+envs, compile-time defaults (LED pins, type and count, button, relay, microphone, AudioReactive
+AGC) and WiZmote buttons 5-7, and changes no `cfg.cpp` either.
+
+The controller checked is a Gledopto GL-C-015WL with Gledopto's factory 0.15.4, release `ESP32`.
+It reports the product name `GLEDOPTO`, which that source does not set (its envs set `GLED` and
+`GLED_Ethernet`), and Gledopto's `v0.15.4-gledopto` release has no GL-C-015WL image. So its
+image was built with a configuration that is not published, and whether it carries other source
+changes is not known. Its stored `/json/cfg` has exactly the key paths (list entries compared by
+their keys, not their number) of the DOMRAEM's 0.15.1 snapshot this migration
+was reviewed on, and those of the Gledopto's 0.15.3 snapshot without `eth`. Its values differ
+from both only in leaves the migration leaves as they are, apart from `hw.led.prl` against the
+0.15.3 snapshot, which the migration drops whatever its value. It reports the same ESP-IDF
+version (`core`, `ESP.getSdkVersion()`: `v3.3.6-16-gcc5440f6a2`) as the two spares above.
 
 ### Controller swap, 2026-10-07
 
