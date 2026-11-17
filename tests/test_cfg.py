@@ -5,11 +5,14 @@ WLED 16 clears every paired ESP-NOW remote on a /json/cfg write without an "nw" 
 builder carries the lamp's own espnow flag and remote list; the read-back check reports
 every override the lamp did not take.
 """
+import glob
+import json
 import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
 import wledlab  # noqa: E402
 
 OVERRIDES = {"light": {"gc": {"bri": 1.0, "col": 1.0, "val": 1.0}}, "hw": {"led": {"maxpwr": 2800, "fps": 42}},
@@ -51,6 +54,38 @@ class CfgUnapplied(unittest.TestCase):
         after = {"light": {"gc": {"bri": 1, "col": 2.8, "val": 1}}, "hw": {"led": {"fps": 42}}, "ota": {"same-subnet": False}}
         self.assertEqual(wledlab.cfg_unapplied(OVERRIDES, after),
                          ["light.gc.col: wanted 1.0, lamp has 2.8", "hw.led.maxpwr: wanted 2800, lamp has <absent>"])
+
+
+SPARES = {"fleet/overlays/spare1-domraem.json": 1, "fleet/overlays/spare2-domraem.json": 2,
+          "fleet/overlays/spare3-gledopto.json": 3}
+CONTROLLERS = {"curtain/h70b5-gledopto.json", "fleet/overlays/couch-domraem.json",
+               "fleet/overlays/exoy-gledopto.json", *SPARES}
+
+
+class Overlays(unittest.TestCase):
+    """Every controller's `install --cfg` overlay (fleet/README.md, Flash and Spares)."""
+
+    def load(self, path):
+        with open(os.path.join(ROOT, path)) as f:
+            return json.load(f)
+
+    def test_every_controller_overlay_is_listed(self):
+        found = {os.path.relpath(p, ROOT) for p in glob.glob(os.path.join(ROOT, "fleet", "overlays", "*.json"))}
+        self.assertEqual({p for p in found if not p.endswith("-presets.json")},
+                         {p for p in CONTROLLERS if p.startswith("fleet/overlays/")})
+
+    def test_syslog_host_is_the_mdns_name_and_ota_crosses_subnets(self):
+        for path in sorted(CONTROLLERS):
+            cfg = self.load(path)
+            self.assertEqual(cfg["um"]["Syslog"]["hostname"], cfg["id"]["mdns"], path)
+            self.assertIs(cfg["ota"]["same-subnet"], False, path)
+
+    def test_spares_change_only_identity_boot_state_and_ota(self):
+        for path, n in SPARES.items():
+            self.assertEqual(self.load(path), {"id": {"name": f"WLED Spare {n}", "mdns": f"tycledspare{n}"},
+                                               "def": {"ps": 0, "on": False, "bri": 16},
+                                               "ota": {"same-subnet": False},
+                                               "um": {"Syslog": {"hostname": f"tycledspare{n}"}}}, path)
 
 
 if __name__ == "__main__":
