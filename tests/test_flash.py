@@ -379,7 +379,8 @@ class FailedUpload(unittest.TestCase):
 
     def flash(self, page, info_after, restarted=None, run=None, info=None):
         """cmd_flash with the lamp answering the upload with `page` and the undo's /json/info with `info_after` (an
-        exception is raised). The clock stands at 1000 and moves in the tool's sleeps only. Returns the exit message,
+        exception is raised). The clock stands at 1000 and moves in the tool's sleeps and by two seconds in every
+        state post (a post that had to be tried again). Returns the exit message,
         stderr at the end (`said`) and as it was when the undo asked the lamp (`said_at_undo`), the state posts and
         the wait_for_restart mock."""
         answers, clock, said, at_undo = [info or self.INFO, {"ota": {}}, self.STATE, info_after], [1000.0], io.StringIO(), []
@@ -403,7 +404,7 @@ class FailedUpload(unittest.TestCase):
             answer = SimpleNamespace(returncode=0, stdout=page.decode("utf-8", "replace"), stderr="")
             with patch.object(wledlab, "get", side_effect=get), \
                     patch.object(wledlab, "readback", return_value=b"{}"), \
-                    patch.object(wledlab, "post") as post, \
+                    patch.object(wledlab, "post", side_effect=lambda *args: sleep(2)) as post, \
                     patch.object(wledlab.time, "sleep", side_effect=sleep), \
                     patch.object(wledlab.time, "time", side_effect=lambda: clock[0]), \
                     patch.object(wledlab, "wait_for_restart", return_value=restarted) as wait, \
@@ -417,7 +418,8 @@ class FailedUpload(unittest.TestCase):
     def test_a_refusal_after_the_upload_began_restarts_the_lamp_and_puts_its_look_back(self):
         result = self.flash(REFUSED_PAGE, self.INFO | {"uptime": 5004}, restarted={"uptime": 9, "vid": 2611180})
         self.assertEqual(result.posts, [self.RESTART, self.LOOK])
-        # the restart is asked three seconds after the lamp's answer, and awaited from that moment for --timeout
+        # the restart is asked three seconds after the lamp's answer, and awaited from the moment before it was asked
+        # (the post takes two seconds here), for --timeout
         result.wait.assert_called_once_with("lamp", 1003.0, 1)
         self.assertEqual(result.said, self.REFUSAL)
         self.assertEqual(result.message, "The lamp was restarted to undo the segment reset of the upload, runs vid 2611180 "
@@ -429,8 +431,9 @@ class FailedUpload(unittest.TestCase):
 
     def test_whatever_the_undo_meets_the_lamps_answer_and_a_sentence_about_the_lamp_remain(self):
         """An answer cut short is no URLError (http.client.IncompleteRead, BadStatusLine); neither is an OSError from
-        reading the answer. The tool once ended in a traceback there and the lamp's answer was lost."""
-        for error in (http.client.IncompleteRead(b"{"), http.client.BadStatusLine("\x00"), OSError("reset"),
+        reading the answer. The tool once ended in a traceback there and the lamp's answer was lost. The sentence
+        stays one line, also when the error quotes a line of the lamp's with its line end."""
+        for error in (http.client.IncompleteRead(b"{"), http.client.BadStatusLine("garbage\r\n"), OSError("reset"),
                       urllib.error.URLError("refused"), KeyError("uptime"), RuntimeError("anything")):
             with self.subTest(type(error).__name__):
                 result = self.flash(REFUSED_PAGE, error)
