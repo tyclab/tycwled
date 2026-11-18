@@ -145,6 +145,16 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Fixed
 
+- `wledlab.py flash` checks the image's release name itself, before anything is written, and tells
+  the lamp to skip its own check. WLED 16.0.1 compares the uploaded name with the bytes that follow
+  it on the stack (`bufToString` ends its copy at the buffer's end), so TycDodecaRechts refused an
+  image of its own release on 2026-11-18 (`current='ESP32', uploaded='ESP32\xe9…'`), and the tool
+  ended in a `UnicodeDecodeError` on that answer instead of reporting it. The refused upload had
+  already reset the lamp's segments, which then show no colours or palettes until a restart. Now an
+  image of another release, or one that declares none, is refused before the upload; the lamp's
+  answer is reported as text; and after an upload that ends without the new firmware the lamp is
+  restarted and gets its look back.
+
 - Both Exoy lamps run the engine at the original's pace and show every frame of it. Each scene has
   its own frame period (`um.Exoy.period_us` 0 with image vid 2611181, which carries the unchanged
   original's mean frame time per scene from the emulator: 18.4 to 19.9 ms for 67 scenes, 22.5 ms

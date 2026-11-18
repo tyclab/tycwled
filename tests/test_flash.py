@@ -12,6 +12,33 @@ import wledlab  # noqa: E402
 
 BASE = {"vid": 2606300, "id": {"mdns": "wled-moon"}, "um": {"AudioReactive": {"enabled": True}}}
 
+
+def djb2(text):
+    value = 5381
+    for c in text.encode():
+        value = (value * 33 + c) & 0xFFFFFFFF
+    return value
+
+
+def image(release="ESP32", at=288, hash_ok=True):
+    """The head of a WLED 16.0.1 image as the firmware lays it out (wled_metadata.h wled_metadata_t, packed: magic
+    "WSTS" little-endian, desc_version, wled_version[48], release_name[48], hash, safe_update_version[3]); an ESP32
+    image holds it at byte 288, after the image header, the segment header and Espressif's 256-byte description."""
+    desc = b"STSW" + (1).to_bytes(4, "little") + b"16.0.1".ljust(48, b"\0") + release.encode().ljust(48, b"\0") \
+        + (djb2(release) ^ (0 if hash_ok else 1)).to_bytes(4, "little") + bytes([0, 15, 3])
+    return b"\xe9" + bytes(at - 1) + desc + bytes(64)
+
+
+# The lamp's answer to a refused upload (wled_server.cpp serveMessage: PAGE_msg with head, "</h2>", text and the Back
+# button), as TycDodecaRechts gave it on 2026-11-18: WLED 16.0.1 quotes the uploaded name with the stack bytes after it.
+REFUSED_PAGE = (b'<!DOCTYPE html> <html lang=en> <head> <meta content="width=device-width" name=viewport> <title>WLED Message'
+                b'</title> <script> function B(){window.history.back()} </script> <style> @import url("style.css"); </style>'
+                b" </head> <body> <h2>Update failed!</h2>Firmware release name mismatch: current='ESP32', uploaded='ESP32"
+                b"\xe9\x10'. Enable 'Ignore firmware validation' to proceed anyway.<br><br><button type=\"button\" "
+                b'class="bt" onclick="B()">Back</button></body> </html>')
+DENIED_PAGE = (b"<html><body> <h2>Access Denied</h2>Please unlock OTA in security settings!<br><br><button>Back</button>"
+               b"</body> </html>")
+
 # Every key and value kind of the /json/cfg a Gledopto GL-C-015WL served with its factory WLED 0.15.4
 # (release ESP32) on 2026-11-17; names, network and identity values are neutral stand-ins.
 FACTORY_0154 = {
@@ -199,7 +226,10 @@ class SpareMigration(unittest.TestCase):
         """cmd_flash offline with every argument it reads up to the upload; returns its exit message and the upload
         mock. A refusal that lets the flash go on reaches the upload, which then stops it."""
         with tempfile.TemporaryDirectory() as snap:
-            args = SimpleNamespace(**{"host": "lamp", "firmware": "firmware.bin", "release": None, "mac": None,
+            firmware = os.path.join(snap, "firmware.bin")
+            with open(firmware, "wb") as f:
+                f.write(changed.pop("image", image(info["release"])))
+            args = SimpleNamespace(**{"host": "lamp", "firmware": firmware, "release": None, "mac": None,
                                       "cfg_migration": None, "skip_validation": False, "snapshot": snap, "timeout": 1,
                                       "credentials_file": None} | changed)
             with patch.object(wledlab, "get", side_effect=[info | {"vid": 2508020, "uptime": 60}, cfg, {"seg": []}]), \
@@ -233,6 +263,139 @@ class SpareMigration(unittest.TestCase):
                                          cfg_migration="0.15-to-16.0.1")
         upload.assert_called_once()
         self.assertEqual(message, "uploaded")
+
+    def test_preflight_refuses_an_image_of_another_release_before_upload(self):
+        message, upload = self.preflight(self.info | {"release": "ESP32"}, self.before, image=image("ESP32_Ethernet"))
+        upload.assert_not_called()
+        self.assertEqual(message, "REFUSED: the image is release 'ESP32_Ethernet', the lamp runs 'ESP32'; nothing was "
+                                  "written (--skip-validation when the release changes on purpose)")
+
+    def test_preflight_refuses_an_image_without_a_release_name_before_upload(self):
+        for name, data in (("no structure", bytes(8192)), ("wrong hash", image("ESP32", hash_ok=False))):
+            with self.subTest(name):
+                message, upload = self.preflight(self.info | {"release": "ESP32"}, self.before, image=data)
+                upload.assert_not_called()
+                self.assertEqual(message, "REFUSED: firmware.bin declares no WLED release name; nothing was written")
+
+    def test_skip_validation_lets_another_release_reach_the_upload(self):
+        message, upload = self.preflight(self.info | {"release": "ESP32"}, self.before, image=image("ESP32_Ethernet"),
+                                         skip_validation=True)
+        upload.assert_called_once()
+        self.assertEqual(message, "uploaded")
+
+    def test_the_upload_tells_the_lamp_to_skip_its_own_release_check(self):
+        """The check is release_refusal's; the lamp's own refuses equal names on some builds and resets its segments."""
+        _, upload = self.preflight(self.info | {"release": "ESP32"}, self.before)
+        command = upload.call_args.args[0]
+        self.assertEqual(command[:4], ["curl", "-s", "-m", "300"])
+        self.assertEqual(command[-1], "http://lamp/update")
+        fields = [command[i + 1] for i in range(len(command) - 1) if command[i] == "-F"]
+        self.assertEqual(fields[0], "skipValidation=1")
+        self.assertRegex(fields[1], r"^update=@.*firmware\.bin$")
+        self.assertEqual(len(fields), 2)
+
+
+class ImageRelease(unittest.TestCase):
+    def write(self, data):
+        handle, path = tempfile.mkstemp(suffix=".bin")
+        self.addCleanup(os.remove, path)
+        with os.fdopen(handle, "wb") as f:
+            f.write(data)
+        return path
+
+    def test_reads_the_name_where_the_firmware_finds_it(self):
+        self.assertEqual(wledlab.image_release(self.write(image("ESP32"))), "ESP32")
+        self.assertEqual(wledlab.image_release(self.write(image("ESP32-S3_8MB_qspi"))), "ESP32-S3_8MB_qspi")
+        self.assertEqual(wledlab.image_release(self.write(image("ESP8266", at=4096))), "ESP8266")
+
+    def test_the_hash_is_the_one_a_real_image_carries(self):
+        # exoy_domraem.bin 393bc20d... (vid 2611181), bytes 392..395, its release name "ESP32" at 344.
+        data = image("ESP32")
+        self.assertEqual(data[344:349], b"ESP32")
+        self.assertEqual(int.from_bytes(data[392:396], "little"), 0x0D0E7972)
+
+    def test_a_structure_with_a_wrong_hash_is_passed_over(self):
+        self.assertIsNone(wledlab.image_release(self.write(image("ESP32", hash_ok=False))))
+        both = image("ESP32", hash_ok=False) + image("ESP32_Ethernet")[1:]
+        self.assertEqual(wledlab.image_release(self.write(both)), "ESP32_Ethernet")
+
+    def test_no_name_in_an_image_without_the_structure_or_with_an_empty_name(self):
+        self.assertIsNone(wledlab.image_release(self.write(bytes(8192))))
+        self.assertIsNone(wledlab.image_release(self.write(image(""))))
+        self.assertIsNone(wledlab.image_release(self.write(b"\xe9" + bytes(287) + b"STSW" + bytes(20))))
+
+    def test_the_rule_is_the_firmwares(self):
+        path = self.write(image("ESP32"))
+        self.assertIsNone(wledlab.release_refusal(path, "ESP32"))
+        self.assertIsNone(wledlab.release_refusal(path, "ESP32_V4"))
+        self.assertIsNone(wledlab.release_refusal(self.write(image("ESP32_V4")), "ESP32"))
+        self.assertIn("the image is release 'ESP32', the lamp runs 'ESP32_Ethernet'", wledlab.release_refusal(path, "ESP32_Ethernet"))
+        self.assertIn("the lamp runs None", wledlab.release_refusal(path, None))
+
+
+class FailedUpload(unittest.TestCase):
+    """An upload that ends without the new firmware: what the tool says and how it leaves the lamp."""
+
+    INFO = {"ver": "16.0.1", "vid": 2611180, "release": "ESP32", "mac": "001122334455", "uptime": 5000}
+    STATE = {"on": False, "bri": 129, "ps": -1, "pl": -1, "mainseg": 0, "seg": [{"id": 0, "fx": 251, "sx": 0}]}
+
+    def flash(self, page, info_after, restarted=None, run=None):
+        """cmd_flash with the lamp answering the upload with `page`; returns the exit message and the state posts."""
+        with tempfile.TemporaryDirectory() as snap:
+            firmware = os.path.join(snap, "firmware.bin")
+            with open(firmware, "wb") as f:
+                f.write(image("ESP32"))
+            args = SimpleNamespace(host="lamp", firmware=firmware, release="ESP32", mac=None, cfg_migration=None,
+                                   skip_validation=False, snapshot=snap, timeout=1, credentials_file=None)
+            answer = SimpleNamespace(returncode=0, stdout=page.decode("utf-8", "replace"), stderr="")
+            with patch.object(wledlab, "get", side_effect=[self.INFO, {"ota": {}}, self.STATE, info_after]), \
+                    patch.object(wledlab, "readback", return_value=b"{}"), \
+                    patch.object(wledlab, "post") as post, \
+                    patch.object(wledlab.time, "sleep"), \
+                    patch.object(wledlab, "wait_for_restart", return_value=restarted) as wait, \
+                    patch.object(wledlab.subprocess, "run", **({"side_effect": run} if run else {"return_value": answer})), \
+                    self.assertRaises(SystemExit) as stop:
+                wledlab.cmd_flash(args)
+        return str(stop.exception), [call.args for call in post.call_args_list], wait
+
+    def test_a_refusal_after_the_upload_began_restarts_the_lamp_and_puts_its_look_back(self):
+        message, posts, wait = self.flash(REFUSED_PAGE, self.INFO | {"uptime": 5004}, restarted={"uptime": 9, "vid": 2611180})
+        self.assertEqual(posts, [("lamp", "/json/state", {"rb": True}),
+                                 ("lamp", "/json/state", wledlab.look_request(self.STATE))])
+        wait.assert_called_once()
+        self.assertEqual(message, "OTA refused or failed (curl 0): Update failed! Firmware release name mismatch: "
+                                  "current='ESP32', uploaded='ESP32??'. Enable 'Ignore firmware validation' to proceed anyway. "
+                                  "Back; the lamp was restarted to undo the segment reset of the upload, runs vid 2611180 "
+                                  "and got its look back")
+
+    def test_a_lamp_that_does_not_come_back_from_that_restart_is_named(self):
+        message, posts, _ = self.flash(REFUSED_PAGE, self.INFO | {"uptime": 5004}, restarted=None)
+        self.assertEqual(posts, [("lamp", "/json/state", {"rb": True})])
+        self.assertTrue(message.endswith("the lamp did not come back from the restart that undoes the upload's segment "
+                                         "reset: check it"), message)
+
+    def test_a_lamp_that_restarted_by_itself_only_gets_its_look_back(self):
+        message, posts, wait = self.flash(REFUSED_PAGE, self.INFO | {"uptime": 4, "vid": 2611181})
+        self.assertEqual(posts, [("lamp", "/json/state", wledlab.look_request(self.STATE))])
+        wait.assert_not_called()
+        self.assertTrue(message.endswith("the lamp restarted by itself, runs vid 2611181 and got its look back"), message)
+
+    def test_a_refusal_for_access_leaves_the_lamp_alone(self):
+        message, posts, wait = self.flash(DENIED_PAGE, self.INFO)
+        self.assertEqual(posts, [])
+        wait.assert_not_called()
+        self.assertEqual(message, "OTA refused or failed (curl 0): Access Denied Please unlock OTA in security settings! "
+                                  "Back; the lamp refused access before the upload began and is as it was")
+
+    def test_an_answer_with_bytes_that_are_no_text_is_read(self):
+        """The lamp's page through a real process, decoded as cmd_flash asks for it: TycDodecaRechts's refusal held
+        0xe9 after the name, and the tool ended in a UnicodeDecodeError instead of the lamp's words."""
+        real_run = wledlab.subprocess.run
+
+        def run(command, **kwargs):
+            return real_run([sys.executable, "-c", f"import sys; sys.stdout.buffer.write({REFUSED_PAGE!r})"], **kwargs)
+        message, _, _ = self.flash(REFUSED_PAGE, self.INFO | {"uptime": 5004}, restarted={"uptime": 9, "vid": 2611180}, run=run)
+        self.assertIn("uploaded='ESP32??'. Enable 'Ignore firmware validation'", message)
 
 
 if __name__ == "__main__":
