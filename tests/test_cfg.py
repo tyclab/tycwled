@@ -109,6 +109,14 @@ class Overlays(unittest.TestCase):
             self.assertEqual(led["matrix"], {"mpc": 1, "panels": [{"b": False, "r": False, "v": True, "s": False,
                                                                    "x": 0, "y": 0, "h": 16, "w": 30}]}, path)
 
+    def test_every_overlay_that_writes_nw_pairs_the_three_remotes_with_espnow_on(self):
+        remotes = ["704bcac8d198", "704bcac9aa6c", "704bcaca4b78"]
+        paths = [path for path in sorted(CONTROLLERS) if "nw" in self.load(path)]
+        self.assertEqual(paths, ["fleet/overlays/couch-domraem.json", "fleet/overlays/exoy-links-domraem.json",
+                                 "fleet/overlays/exoy-rechts-domraem.json"])
+        for path in paths:
+            self.assertEqual(self.load(path)["nw"], {"espnow": True, "linked_remote": remotes}, path)
+
 
 if __name__ == "__main__":
     unittest.main()
