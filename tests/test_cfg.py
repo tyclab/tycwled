@@ -56,15 +56,16 @@ class CfgUnapplied(unittest.TestCase):
                          ["light.gc.col: wanted 1.0, lamp has 2.8", "hw.led.maxpwr: wanted 2800, lamp has <absent>"])
 
 
-SPARES = {"fleet/overlays/spare1-domraem.json": 1, "fleet/overlays/spare2-domraem.json": 2,
-          "fleet/overlays/spare3-gledopto.json": 3}
-CONTROLLERS = {"curtain/h70b5-gledopto.json", "fleet/overlays/couch-domraem.json",
-               "fleet/overlays/exoy-gledopto.json", *SPARES}
+SPARES = {"fleet/overlays/spare3-gledopto.json": 3, "fleet/overlays/spare4-gledopto.json": 4}
+# One Exoy ONE lamp per controller since 2026-11-18.
+DODECA = {"fleet/overlays/exoy-links-domraem.json": "TycDodecaLinks",
+          "fleet/overlays/exoy-rechts-domraem.json": "TycDodecaRechts"}
+CONTROLLERS = {"curtain/h70b5-gledopto.json", "fleet/overlays/couch-domraem.json", *DODECA, *SPARES}
 # Lamps whose overlay sets their name and nothing else.
 NAME_ONLY = {"fleet/overlays/moon.json": "TycMoon", "fleet/overlays/glorb-links.json": "TycGlorbLinks",
              "fleet/overlays/glorb-rechts.json": "TycGlorbRechts"}
 NAMES = {"curtain/h70b5-gledopto.json": "TycCurtain", "fleet/overlays/couch-domraem.json": "TycCouch",
-         "fleet/overlays/exoy-gledopto.json": "TycDodeca", **NAME_ONLY}
+         **DODECA, **NAME_ONLY}
 
 
 class Overlays(unittest.TestCase):
@@ -94,10 +95,19 @@ class Overlays(unittest.TestCase):
 
     def test_spares_change_only_identity_boot_state_and_ota(self):
         for path, n in SPARES.items():
-            self.assertEqual(self.load(path), {"id": {"name": f"WLED Spare {n}", "mdns": f"tycledspare{n}"},
+            self.assertEqual(self.load(path), {"id": {"name": f"TycLedSpare{n}", "mdns": f"tycledspare{n}"},
                                                "def": {"ps": 0, "on": False, "bri": 16},
                                                "ota": {"same-subnet": False},
                                                "um": {"Syslog": {"hostname": f"tycledspare{n}"}}}, path)
+
+    def test_each_dodeca_lamp_is_one_30x16_matrix_on_gpio16_at_6000_ma(self):
+        for path in DODECA:
+            led = self.load(path)["hw"]["led"]
+            self.assertEqual(led["total"], 480, path)
+            self.assertEqual([(o["start"], o["len"], o["pin"], o["maxpwr"], o["ledma"]) for o in led["ins"]],
+                             [(0, 480, [16], 6000, 55)], path)
+            self.assertEqual(led["matrix"], {"mpc": 1, "panels": [{"b": False, "r": False, "v": True, "s": False,
+                                                                   "x": 0, "y": 0, "h": 16, "w": 30}]}, path)
 
 
 if __name__ == "__main__":
