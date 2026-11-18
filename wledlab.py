@@ -63,6 +63,7 @@ import argparse
 import base64
 import colorsys
 import contextlib
+import http.client
 import json
 import math
 import os
@@ -88,7 +89,7 @@ def _retry(fn, attempts=4):
     for i in range(attempts):
         try:
             return fn()
-        except (urllib.error.URLError, TimeoutError, ConnectionError):
+        except (OSError, http.client.HTTPException):  # no connection, a timeout, an answer cut short
             if i == attempts - 1:
                 raise
             time.sleep(2)
@@ -1415,10 +1416,10 @@ WLED_DESC_MAGIC = b"STSW"  # WLED_CUSTOM_DESC_MAGIC 0x57535453 as it lies in an 
 
 
 def image_release(path):
-    """The release name a WLED 16 image declares, found as the firmware finds it (wled_metadata.cpp findWledMetadata):
-    the first wled_metadata_t (packed: magic, desc_version, wled_version[48], release_name[48], hash, ...) whose hash
-    is the DJB2 hash of its release name. An ESP32 image holds it at byte 288, an ESP8266 image at 4096. None when the
-    first 8 KiB hold none (the firmware's own search ends earlier)."""
+    """(release name, description version) a WLED 16 image declares, found as the firmware finds it (wled_metadata.cpp
+    findWledMetadata): the first wled_metadata_t (packed: magic, desc_version, wled_version[48], release_name[48], hash,
+    ...) whose hash is the DJB2 hash of its release name. An ESP32 image holds it at byte 288, an ESP8266 image at 4096.
+    None when the first 8 KiB hold none (the firmware's own search ends earlier)."""
     with open(path, "rb") as f:
         head = f.read(8192)
     at = head.find(WLED_DESC_MAGIC)
@@ -1429,7 +1430,7 @@ def image_release(path):
             for c in name:
                 want = (want * 33 + c) & 0xFFFFFFFF
             if name and int.from_bytes(head[at + 104:at + 108], "little") == want:
-                return name.decode("ascii", "replace")
+                return name.decode("ascii", "replace"), int.from_bytes(head[at + 4:at + 8], "little")
         at = head.find(WLED_DESC_MAGIC, at + 1)
     return None
 
@@ -1439,12 +1440,19 @@ def release_refusal(image, lamp_release):
     shouldAllowOTA: equal release names, a trailing "_V4" ignored), applied here to the image file. WLED 16.0.1's own
     check compares the uploaded name with the bytes that follow it on the stack (bufToString ends the copy at the
     buffer's end, not the name's), so it refuses equal names on some builds, and a refused upload has already reset
-    the lamp's segments. cmd_flash therefore checks here, before anything is written, and tells the lamp to skip."""
+    the lamp's segments. cmd_flash therefore checks here, before anything is written, and tells the lamp to skip.
+    The lamp then skips all of its check, so an image whose description is newer than version 1 is refused here: from
+    version 2 on the firmware also checks which version an update may come from, and no image to read that from
+    exists yet (16.0.1 writes version 1)."""
     def norm(name):
         return name[:-3] if name.endswith("_V4") else name
-    name = image_release(image)
-    if name is None:
+    found = image_release(image)
+    if found is None:
         return f"{os.path.basename(image)} declares no WLED release name; nothing was written"
+    name, version = found
+    if version > 1:
+        return (f"the image's description has version {version}, and this tool knows the check of version 1 only; "
+                "nothing was written (--skip-validation flashes it unchecked)")
     if lamp_release is None or norm(name) != norm(lamp_release):
         return (f"the image is release {name!r}, the lamp runs {lamp_release!r}; nothing was written "
                 "(--skip-validation when the release changes on purpose)")
@@ -1467,8 +1475,8 @@ def wait_for_restart(host, started, timeout):
             info = json.load(urllib.request.urlopen(f"http://{host}/json/info", timeout=4))
             if info["uptime"] < time.time() - started + 5:
                 return info
-        except (urllib.error.URLError, TimeoutError, ConnectionError, ValueError):
-            pass
+        except (OSError, http.client.HTTPException, ValueError, KeyError, TypeError):
+            pass  # down, starting, or an answer cut short: not back yet
         time.sleep(3)
     return None
 
@@ -1479,7 +1487,7 @@ def undo_failed_upload(a, info0, state0, answer):
     capabilities, so no colours and no palette, until the lamp restarts or the segment's bounds change (FX_fcn.cpp
     resetSegments, setGeometry). A refusal for access comes before that and leaves the lamp as it was."""
     if "access denied" in answer.lower():
-        return "the lamp refused access before the upload began and is as it was"
+        return "The lamp refused access before the upload began and is as it was"
     try:
         time.sleep(3)
         info = get(a.host, "/json/info")
@@ -1490,16 +1498,18 @@ def undo_failed_upload(a, info0, state0, answer):
             time.sleep(8)
             info = wait_for_restart(a.host, started, a.timeout)
             if info is None:
-                return "the lamp did not come back from the restart that undoes the upload's segment reset: check it"
+                return "The lamp did not come back from the restart that undoes the upload's segment reset: check it"
         time.sleep(5)
         post(a.host, "/json/state", look_request(state0))
-        return (f"the lamp {'restarted by itself' if alone else 'was restarted to undo the segment reset of the upload'}, "
+        return (f"The lamp {'restarted by itself' if alone else 'was restarted to undo the segment reset of the upload'}, "
                 f"runs vid {info.get('vid')} and got its look back")
-    except (urllib.error.URLError, TimeoutError, ConnectionError, ValueError, KeyError) as e:
-        return f"the lamp could not be restarted and given its look back ({type(e).__name__}): check it"
+    except Exception as e:  # whatever the lamp answers on the way, the report ends in a sentence about the lamp
+        return f"The lamp could not be put back as it was ({type(e).__name__}: {e}): check it"
 
 
 def cmd_flash(a):
+    if not os.path.isfile(a.firmware):
+        sys.exit(f"REFUSED: no firmware file at {a.firmware}; the lamp was not asked anything")
     session = settings_access(a.host, a.credentials_file) if getattr(a, "credentials_file", None) else contextlib.nullcontext()
     with session as access:
         _cmd_flash(a, access)
@@ -1539,8 +1549,9 @@ def _cmd_flash(a, access):
     r = subprocess.run(cmd, capture_output=True, text=True, errors="replace")
     if r.returncode != 0 or "success" not in r.stdout.lower():
         answer = page_text(r.stdout)
-        sys.exit(f"OTA refused or failed (curl {r.returncode}): {answer} {r.stderr.strip()}".rstrip()
-                 + "; " + undo_failed_upload(a, info0, state0, answer))
+        # The lamp's answer goes out before the undo begins: nothing the undo meets can lose it.
+        print(f"OTA refused or failed (curl {r.returncode}): {answer} {r.stderr.strip()}".rstrip(), file=sys.stderr, flush=True)
+        sys.exit(undo_failed_upload(a, info0, state0, answer))
     t0 = time.time()
     time.sleep(8)
     info1 = wait_for_restart(a.host, t0, a.timeout)
@@ -1624,7 +1635,8 @@ def main():
     s.add_argument("--mac", help="refuse upload unless the controller has this Wi-Fi MAC")
     s.add_argument("--cfg-migration", choices=["0.15-to-16.0.1"], help="verify the source-reviewed migration of a 0.15.1/0.15.3/0.15.4 classic ESP32; all other cfg fields stay strict")
     s.add_argument("--skip-validation", action="store_true",
-                   help="accept an image of another release than the lamp's (the release name changes on purpose)")
+                   help="flash without the tool's check of the image: another release than the lamp's on purpose, or a "
+                        "description newer than version 1")
     s.add_argument("--snapshot", help="where to keep the before-state (default captures/flash/<host>-<time>)")
     s.add_argument("--timeout", type=int, default=150, help="seconds to wait for the lamp to come back"); s.set_defaults(fn=cmd_flash)
     s.add_argument("--credentials-file", help="private JSON containing pin and ota_password; OTA lock restored before drift checks")

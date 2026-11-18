@@ -151,9 +151,12 @@ The format is based on [Keep a Changelog], and this project adheres to
   image of its own release on 2026-11-18 (`current='ESP32', uploaded='ESP32\xe9…'`), and the tool
   ended in a `UnicodeDecodeError` on that answer instead of reporting it. The refused upload had
   already reset the lamp's segments, which then show no colours or palettes until a restart. Now an
-  image of another release, or one that declares none, is refused before the upload; the lamp's
-  answer is reported as text; and after an upload that ends without the new firmware the lamp is
-  restarted and gets its look back.
+  image of another release, one that declares none, one whose description is newer than version 1
+  (the lamp skips its whole check, and from version 2 on that check covers more than the name) or a
+  missing file is refused before the upload; the lamp's answer is reported as text, before the undo
+  begins; and after an upload that ends without the new firmware the lamp is restarted and gets its
+  look back, whatever it answers on the way. A request whose answer was cut short is tried again
+  like one that timed out.
 
 - Both Exoy lamps run the engine at the original's pace and show every frame of it. Each scene has
   its own frame period (`um.Exoy.period_us` 0 with image vid 2611181, which carries the unchanged
