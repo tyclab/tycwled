@@ -145,12 +145,14 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Fixed
 
-- Both Exoy lamps run the engine at the original's pace and show every frame of it: the engine's
-  frame period is 18.5 ms (`um.Exoy.period_us`; the image's default of 16 ms was never measured, the
-  unchanged original sends a frame every 18.56 ms in the emulator, median over the 70 scenes), and
-  WLED runs at 55 FPS. At WLED's default 42 FPS an effect is called every 23 ms, so a third of the
-  engine's frames never reached the LEDs; at 16 ms a frame, frame-driven motion ran about 16 % faster
-  than the original's.
+- Both Exoy lamps run the engine at the original's pace and show every frame of it. Each scene has
+  its own frame period (`um.Exoy.period_us` 0 with image vid 2611181, which carries the unchanged
+  original's mean frame time per scene from the emulator: 18.4 to 19.9 ms for 67 scenes, 22.5 ms
+  for Rhythm Run and Gloze); the image's single 16 ms was never measured and ran frame-driven motion
+  about 16 % faster than the original's, 40 % in those two scenes. WLED runs at 55 FPS: at its
+  default 42 FPS an effect is called every 23 ms, so a third of the engine's frames never reached
+  the LEDs. Measured on TycDodecaRechts with one period of 18.5 ms, the step before: 54.1 engine
+  frames a second against 55 shown, before 62.5 against 43.
 
 - `wledlab.py install --cfg` accepts a remote list the overlay names: it checks it like every other key
   instead of reporting the change as dropped remotes (TycDodecaLinks, 2026-11-18: a new controller got
