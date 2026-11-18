@@ -17,6 +17,9 @@
       "add-palettes": true,
       "dynamics": {
         "limiter": false
+      },
+      "sync": {
+        "mode": 1
       }
     }
   },
