@@ -1,7 +1,7 @@
 {
   "id": {
-    "name": "TycDodeca",
-    "mdns": "tycdodeca"
+    "name": "TycDodecaRechts",
+    "mdns": "tycdodecarechts"
   },
   "def": {
     "ps": 20,
@@ -10,7 +10,7 @@
   },
   "hw": {
     "led": {
-      "total": 960,
+      "total": 480,
       "maxpwr": 0,
       "ins": [
         {
@@ -24,30 +24,14 @@
           "ref": false,
           "rgbwm": 0,
           "freq": 0,
-          "maxpwr": 6500,
-          "ledma": 55,
-          "drv": 0,
-          "text": ""
-        },
-        {
-          "start": 480,
-          "len": 480,
-          "pin": [12],
-          "order": 0,
-          "rev": false,
-          "skip": 0,
-          "type": 22,
-          "ref": false,
-          "rgbwm": 0,
-          "freq": 0,
-          "maxpwr": 6500,
+          "maxpwr": 6000,
           "ledma": 55,
           "drv": 0,
           "text": ""
         }
       ],
       "matrix": {
-        "mpc": 2,
+        "mpc": 1,
         "panels": [
           {
             "b": false,
@@ -58,19 +42,20 @@
             "y": 0,
             "h": 16,
             "w": 30
-          },
-          {
-            "b": false,
-            "r": false,
-            "v": true,
-            "s": false,
-            "x": 30,
-            "y": 0,
-            "h": 16,
-            "w": 30
           }
         ]
       }
+    }
+  },
+  "light": {
+    "gc": {
+      "col": 2.8,
+      "val": 2.8
+    }
+  },
+  "if": {
+    "live": {
+      "maxbri": true
     }
   },
   "ota": {
@@ -78,7 +63,13 @@
   },
   "um": {
     "Syslog": {
-      "hostname": "tycdodeca"
+      "hostname": "tycdodecarechts"
+    },
+    "AudioReactive": {
+      "enabled": true,
+      "config": {
+        "squelch": 4
+      }
     }
   }
 }

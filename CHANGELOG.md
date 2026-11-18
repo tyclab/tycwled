@@ -9,6 +9,14 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- Each Exoy ONE lamp has its own controller (operator, 2026-11-18): TycDodecaLinks (left lamp,
+  kitchen end) and TycDodecaRechts (right lamp, window end), the DOMRAEM DOM-WLE-As that were
+  Spares 1 and 2. Their overlays `fleet/overlays/exoy-links-domraem.json` and
+  `exoy-rechts-domraem.json` hold one output of 480 LEDs on GPIO 16 limited to 6000 mA, a 30×16
+  matrix, gamma 2.8, AudioReactive on and boot preset 20. The black GL-C-618WL that drove both
+  lamps (TycDodeca) becomes Spare 4, `fleet/overlays/spare4-gledopto.json`; Spare 3 is named
+  TycLedSpare3. `exoy-gledopto.json`, `spare1-domraem.json` and `spare2-domraem.json` are removed.
+
 - The lamps in service carry TycStation names as `id.name`, the name the WLED app shows: TycCouch,
   TycMoon, TycGlorbLinks, TycGlorbRechts, TycCurtain and TycDodeca. The Moon and the GLORBs get
   overlays that hold only the name (`fleet/overlays/moon.json`, `glorb-links.json`,
