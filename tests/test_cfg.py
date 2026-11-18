@@ -109,10 +109,11 @@ class Overlays(unittest.TestCase):
             self.assertEqual(led["matrix"], {"mpc": 1, "panels": [{"b": False, "r": False, "v": True, "s": False,
                                                                    "x": 0, "y": 0, "h": 16, "w": 30}]}, path)
 
-    def test_the_right_dodeca_lamp_reads_an_i2s_microphone_and_the_left_keeps_its_stored_one(self):
-        mic = {path: self.load(path)["um"]["AudioReactive"].get("digitalmic") for path in DODECA}
-        self.assertEqual(mic, {"fleet/overlays/exoy-links-domraem.json": None,
-                               "fleet/overlays/exoy-rechts-domraem.json": {"type": 1, "pin": [26, 5, 21, -1]}})
+    def test_the_couch_sends_its_sound_and_both_dodeca_lamps_receive_it(self):
+        # AudioReactive's UDP sound sync: bit 0 sends, bit 1 receives (audio_reactive.cpp, audioSyncEnabled).
+        self.assertEqual(self.load("fleet/overlays/couch-domraem.json")["um"]["AudioReactive"]["sync"], {"mode": 1})
+        for path in DODECA:
+            self.assertEqual(self.load(path)["um"]["AudioReactive"], {"enabled": True, "sync": {"mode": 2}}, path)
 
     def test_every_overlay_that_writes_nw_pairs_the_three_remotes_with_espnow_on(self):
         remotes = ["704bcac8d198", "704bcac9aa6c", "704bcaca4b78"]
