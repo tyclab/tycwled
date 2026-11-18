@@ -109,16 +109,18 @@ class Overlays(unittest.TestCase):
             self.assertEqual(led["matrix"], {"mpc": 1, "panels": [{"b": False, "r": False, "v": True, "s": False,
                                                                    "x": 0, "y": 0, "h": 16, "w": 30}]}, path)
 
-    def test_each_dodeca_lamp_runs_the_engine_at_the_originals_pace_and_wled_calls_it_at_least_as_often(self):
-        # The unchanged original sends a frame every 18.56 ms in the emulator (median of the 70 scenes' mean
-        # frame times; tycExoyWled lane exoy-whole-compare-20261118). WLED calls an effect once per frame time,
-        # 1000 // fps in ms (FX_fcn.cpp, service() and setTargetFps()); a frame time above the engine's period
-        # leaves engine frames unshown.
+    def test_each_dodeca_lamp_runs_every_scene_at_its_own_period_and_wled_calls_it_at_least_as_often(self):
+        # um.Exoy.period_us 0: each scene's own frame period, the unchanged original's in the emulator
+        # (tycExoyWled wled/scene-periods.tsv: 18,379 to 22,480 us, the static Custom Hue 16,000). Images
+        # before vid 2611181 clamp 0 to 11,000 us, so the overlay is for vid 2611181 and later only.
+        # WLED calls an effect once per frame time, 1000 // fps in ms (FX_fcn.cpp, service() and
+        # setTargetFps()); a frame time above a scene's period leaves engine frames unshown.
+        shortest_moving_period_us = 18379
         for path in DODECA:
             cfg = self.load(path)
-            self.assertEqual(cfg["um"]["Exoy"], {"period_us": 18500}, path)
+            self.assertEqual(cfg["um"]["Exoy"], {"period_us": 0}, path)
             self.assertEqual(cfg["hw"]["led"]["fps"], 55, path)
-            self.assertLessEqual((1000 // cfg["hw"]["led"]["fps"]) * 1000, cfg["um"]["Exoy"]["period_us"], path)
+            self.assertLessEqual((1000 // cfg["hw"]["led"]["fps"]) * 1000, shortest_moving_period_us, path)
 
     def test_the_couch_sends_its_sound_and_both_dodeca_lamps_receive_it(self):
         # AudioReactive's UDP sound sync: bit 0 sends, bit 1 receives (audio_reactive.cpp, audioSyncEnabled).
