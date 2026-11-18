@@ -1228,8 +1228,10 @@ def _cmd_install(a, access=None):
                 access.write_security(after.get("ota", {}) | switches)
                 after = get(a.host, "/json/cfg")
             bad = cfg_unapplied(overrides, after)
+            # The body carries the lamp's own remotes (cfg_payload), so a list that changed was dropped by the write;
+            # an overlay that names the list is checked against it by cfg_unapplied instead.
             remotes0, remotes1 = (c.get("nw", {}).get("linked_remote") for c in (before, after))
-            if remotes0 != remotes1:
+            if remotes0 != remotes1 and "linked_remote" not in overrides.get("nw", {}):
                 bad.append(f"nw.linked_remote: {json.dumps(remotes0)} -> {json.dumps(remotes1)}")
             print("cfg:", "applied" if not bad else "MISMATCH")
             for b in bad:
