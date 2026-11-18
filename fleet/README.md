@@ -184,7 +184,7 @@ Pass `--skip-validation` only when the release name changes on purpose. After an
 upload that ends without the new firmware the tool prints the lamp's answer, then
 restarts the lamp, which undoes that reset, and puts its look back; a refusal for
 access (OTA lock, PIN, subnet) comes before the reset and leaves the lamp as it
-was. The last line says how the lamp was left.
+was. A line after the lamp's answer says how the lamp was left.
 
 The fleet's settings PIN and OTA password are stored per device in OpenBao's
 `secret/hatyc/creds` by tycpve's `bao:seed-wled-security` job. The private JSON

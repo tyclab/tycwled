@@ -1504,7 +1504,7 @@ def undo_failed_upload(a, info0, state0, answer):
         return (f"The lamp {'restarted by itself' if alone else 'was restarted to undo the segment reset of the upload'}, "
                 f"runs vid {info.get('vid')} and got its look back")
     except Exception as e:  # whatever the lamp answers on the way, the report ends in a sentence about the lamp
-        return f"The lamp could not be put back as it was ({type(e).__name__}: {e}): check it"
+        return f"The lamp could not be put back as it was ({type(e).__name__}: {' '.join(str(e).split())}): check it"
 
 
 def cmd_flash(a):
