@@ -179,7 +179,8 @@ class Host(unittest.TestCase):
 
     def test_arms_follow_the_committed_gifs(self):
         # The 20x6 file holds wire values (the GLORBs run gamma 1.0), so its gamma-off render is compared as it is.
-        for path, w, h in (("squid-arms-300x1.gif", 300, 1), ("squid-arms-8x8.gif", 8, 8), ("squid-arms-20x6.gif", 20, 6)):
+        for path, w, h in (("squid-arms-300x1.gif", 300, 1), ("squid-arms-8x8.gif", 8, 8), ("squid-arms-20x6.gif", 20, 6),
+                           ("squid-arms-30x16.gif", 30, 16)):
             with self.subTest(path=path), open(os.path.join(ROOT, "fleet", "squid", path), "rb") as f:
                 want, glorb = gif_decode(f.read()), w == 20
                 self.assertFramesAlign(self.render("arms", w, h, 0, 0.05, len(want), gamma=not glorb), want, encoded=glorb)

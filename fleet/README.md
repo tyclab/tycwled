@@ -99,12 +99,14 @@ the filesystem, but a new WLED version can migrate its configuration schema on b
 
 `squid/` holds the TycStation squid's arm waves as animated GIFs for the Image effect, one
 per lamp shape: `squid-arms-300x1.gif` (the couch strip as one 300-LED segment),
-`squid-arms-20x6.gif` (a GLORB's raster) and `squid-arms-8x8.gif` (the Moon). Each matches
-its segment's size, so WLED plays it unscaled. `curtain/squid/mkgifs.py` draws them together
+`squid-arms-20x6.gif` (a GLORB's raster), `squid-arms-8x8.gif` (the Moon) and
+`squid-arms-30x16.gif` (an Exoy lamp's 30×16 matrix: X is the edge, so every edge shows one colour
+along its 16 LEDs and the waves run through the edges in wire order). Each matches its segment's
+size, so WLED plays it unscaled. `curtain/squid/mkgifs.py` draws them together
 with the curtain's loops. The Image effect plays on one segment per controller.
 
 The files are drawn for a lamp that applies WLED's output gamma of 2.8, as the curtain, the
-couch and the Moon do. The GLORBs run gamma 1.0 (`glorb/wled16-port/cfg-overrides.json`), so
+couch, the Moon and the Exoy lamps do. The GLORBs run gamma 1.0 (`glorb/wled16-port/cfg-overrides.json`), so
 `squid-arms-20x6.gif` holds the values that table gives the other lamps: every lamp then puts
 the same values on the wire. A lamp whose gamma setting changes needs its file regenerated.
 
@@ -373,9 +375,13 @@ Presets 1 to 7 are the remote's looks on every lamp. The curtain uses this order
 | 7      | TycStation                                      |
 
 Squid Eyes stays available as preset 8 in WLED and Home Assistant. The old curtain presets 2
-and 3 were identical; their single remaining copy is 6. On the couch, Moon and GLORBs, slots
-1–5 and 8 play the squid's arm waves with matching names; 6 and 7 show their own looks.
-The Exoys keep their distinct looks on all seven buttons.
+and 3 were identical; their single remaining copy is 6. On the couch, the Moon, the GLORBs and
+the Exoys, slots 1–5 and 8 play the squid's arm waves with matching names; 6 and 7 show their
+own looks (on the Exoys Edge Twinklefox and Edge Colorwaves). The Exoys follow the rule since
+2026-11-18 (operator: "fully integrate both into house modes etc. also on remotes"): the looks
+that stood on their squid slots keep their names and fields in 23 to 28 (Exoy both from 1, Edge
+Flow from 2, Edge Aurora from 3, Edge Pacifica from 4, Edge Plasma from 5, Edge Comets from 8),
+and the boot playlist 20 plays the same ten looks in the same order.
 
 The GLORBs' installed presets are [`overlays/glorb-presets.json`](overlays/glorb-presets.json).
 Every port look (`glorb/wled16-port/presets.json`, the factory's field for field) is preserved:
@@ -391,8 +397,10 @@ same button stayed apart (the GLORBs at 6 and 255 after one of them rebooted). T
 [`overlays/couch-presets.json`](overlays/couch-presets.json),
 [`overlays/moon-presets.json`](overlays/moon-presets.json) and
 [`overlays/exoy-presets.json`](overlays/exoy-presets.json) (read from tycdodeca on
-2026-11-11, whose looks stood at 128; it has no squid look, so all seven buttons keep its own); `tests/test_presets.py` holds the
-value, and tycpve's `wled:install` puts them on the lamps.
+2026-11-11, whose looks stood at 128; tyclab/tycExoyWled's `wled/mkpresets.py` makes each Exoy
+lamp's presets from it, keeping the parts on X 0–29, the window lamp's columns, where its squid
+looks have their one segment); `tests/test_presets.py` holds the value, and tycpve's `wled:install`
+puts them on the lamps.
 
 ## Curtain
 
