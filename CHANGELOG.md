@@ -9,6 +9,16 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The Exoy lamps follow the remote's button rule like the couch, the Moon and the GLORBs (operator,
+  2026-11-18: "fully integrate both into house modes etc. also on remotes"): presets 1 to 5 and 8 of
+  `fleet/overlays/exoy-presets.json` play the squid's arm waves under the curtain's look names, from
+  the new `fleet/squid/squid-arms-30x16.gif` (an Exoy lamp's 30×16 matrix, gamma 2.8) on one segment
+  over the window lamp's columns X 0–29, at brightness 45. Presets 6 and 7 keep Edge Twinklefox and
+  Edge Colorwaves. The looks that stood on 1 to 5 and 8 keep their names and fields in 23 to 28, and
+  the boot playlist 20 ("Exoy calm cycle") plays the same ten looks in the same order.
+  `tests/test_presets.py` holds the Exoys to the rule and checks that every playlist step names a
+  preset. The other squid GIFs render byte-identical.
+
 - Both Exoy lamps take their sound from the couch (operator, 2026-11-18: "they don't have mic use
   sound sharing"): the couch's overlay sends AudioReactive's UDP sound sync and both lamps' overlays
   receive it. The DOM-WLE-A has no microphone; with the PDM setting on 26/21 that both came with,
