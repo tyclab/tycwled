@@ -177,11 +177,14 @@ bytes that follow it on the stack (`bufToString` in `wled_metadata.cpp` ends its
 copy at the buffer's end, not the name's), so some builds refuse an image of their
 own release (TycDodecaRechts, 2026-11-18: `current='ESP32', uploaded='ESP32\xe9…'`).
 By then WLED has reset the lamp's segments, and a segment made that way has no
-colours or palettes until the lamp restarts. Pass `--skip-validation` only when the
-release name changes on purpose. After an upload that ends without the new firmware
-the tool restarts the lamp, which undoes that reset, and puts its look back; a
-refusal for access (OTA lock, PIN, subnet) comes before the reset and leaves the
-lamp as it was.
+colours or palettes until the lamp restarts. The lamp skips its whole check, so an
+image whose description is newer than version 1 is refused too: from version 2 on
+WLED also checks which version an update may come from, and the tool does not.
+Pass `--skip-validation` only when the release name changes on purpose. After an
+upload that ends without the new firmware the tool prints the lamp's answer, then
+restarts the lamp, which undoes that reset, and puts its look back; a refusal for
+access (OTA lock, PIN, subnet) comes before the reset and leaves the lamp as it
+was. The last line says how the lamp was left.
 
 The fleet's settings PIN and OTA password are stored per device in OpenBao's
 `secret/hatyc/creds` by tycpve's `bao:seed-wled-security` job. The private JSON
