@@ -7,13 +7,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import wledlab  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# file -> (width, height, frames): the curtain's ledmap, the couch strip, a GLORB's raster, the Moon's matrix
+# file -> (width, height, frames): the curtain's ledmap, the couch strip, a GLORB's raster, the Moon's matrix,
+# an Exoy lamp's matrix (30 edges of 16 LEDs)
 GIFS = {
     "curtain/squid-breathing.gif": (68, 42, 200), "curtain/squid-ink.gif": (68, 42, 120),
     "curtain/squid-deepsea.gif": (68, 42, 200), "curtain/squid-eyes.gif": (68, 42, 200),
     "curtain/squid-skin.gif": (68, 42, 120), "curtain/squid-skin-water.gif": (68, 42, 128),
     "fleet/squid/squid-arms-300x1.gif": (300, 1, 40),
     "fleet/squid/squid-arms-20x6.gif": (20, 6, 40), "fleet/squid/squid-arms-8x8.gif": (8, 8, 40),
+    "fleet/squid/squid-arms-30x16.gif": (30, 16, 40),
 }
 
 
@@ -31,7 +33,7 @@ class SquidGifs(unittest.TestCase):
         # The GLORBs run output gamma 1.0, the other lamps 2.8. The row's blue end is the mark's (90, 162, 255) at some
         # level: drawn, its red is about a third of its blue; after WLED's 2.8 table it is about a twentieth.
         for path, low in (("fleet/squid/squid-arms-20x6.gif", True), ("fleet/squid/squid-arms-8x8.gif", False),
-                          ("fleet/squid/squid-arms-300x1.gif", False)):
+                          ("fleet/squid/squid-arms-300x1.gif", False), ("fleet/squid/squid-arms-30x16.gif", False)):
             with self.subTest(path=path), open(os.path.join(ROOT, path), "rb") as f:
                 raw = f.read()
                 table = raw[13:13 + 3 * (2 << (raw[10] & 7))]

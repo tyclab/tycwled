@@ -21,16 +21,15 @@
         "bri": 255,
         "cct": 127,
         "set": 0,
-        "lc": 1,
-        "n": "Exoy window",
+        "n": "squid-arms-30x16.gif",
         "col": [
-          [255, 160, 0],
+          [0, 0, 0],
           [0, 0, 0],
           [0, 0, 0]
         ],
-        "fx": 0,
+        "fx": 53,
         "sx": 128,
-        "ix": 128,
+        "ix": 0,
         "pal": 0,
         "c1": 128,
         "c2": 128,
@@ -45,49 +44,11 @@
         "o2": false,
         "o3": false,
         "si": 0,
-        "m12": 1,
+        "m12": 0,
         "bm": 0
       },
       {
-        "id": 1,
-        "start": 30,
-        "stop": 60,
-        "startY": 0,
-        "stopY": 16,
-        "grp": 1,
-        "spc": 0,
-        "of": 0,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
-        "n": "Exoy kitchen",
-        "col": [
-          [255, 160, 0],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 0,
-        "sx": 128,
-        "ix": 128,
-        "pal": 0,
-        "c1": 128,
-        "c2": 128,
-        "c3": 16,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": false,
-        "si": 0,
-        "m12": 1,
-        "bm": 0
+        "stop": 0
       },
       {
         "stop": 0
@@ -180,7 +141,7 @@
         "stop": 0
       }
     ],
-    "n": "Exoy both"
+    "n": "Squid Breathing"
   },
   "2": {
     "on": true,
@@ -203,17 +164,16 @@
         "bri": 255,
         "cct": 127,
         "set": 0,
-        "lc": 1,
-        "n": "Exoy window",
+        "n": "squid-arms-30x16.gif",
         "col": [
-          [255, 160, 0],
+          [0, 0, 0],
           [0, 0, 0],
           [0, 0, 0]
         ],
-        "fx": 110,
-        "sx": 60,
-        "ix": 128,
-        "pal": 50,
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
         "c1": 128,
         "c2": 128,
         "c3": 16,
@@ -227,49 +187,11 @@
         "o2": false,
         "o3": false,
         "si": 0,
-        "m12": 1,
+        "m12": 0,
         "bm": 0
       },
       {
-        "id": 1,
-        "start": 30,
-        "stop": 60,
-        "startY": 0,
-        "stopY": 16,
-        "grp": 1,
-        "spc": 0,
-        "of": 0,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
-        "n": "Exoy kitchen",
-        "col": [
-          [255, 160, 0],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 110,
-        "sx": 60,
-        "ix": 128,
-        "pal": 50,
-        "c1": 128,
-        "c2": 128,
-        "c3": 16,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": false,
-        "si": 0,
-        "m12": 1,
-        "bm": 0
+        "stop": 0
       },
       {
         "stop": 0
@@ -362,7 +284,7 @@
         "stop": 0
       }
     ],
-    "n": "Edge Flow"
+    "n": "Squid Ink Burst"
   },
   "3": {
     "on": true,
@@ -385,17 +307,16 @@
         "bri": 255,
         "cct": 127,
         "set": 0,
-        "lc": 1,
-        "n": "Exoy window",
+        "n": "squid-arms-30x16.gif",
         "col": [
-          [255, 160, 0],
+          [0, 0, 0],
           [0, 0, 0],
           [0, 0, 0]
         ],
-        "fx": 38,
-        "sx": 40,
-        "ix": 128,
-        "pal": 50,
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
         "c1": 128,
         "c2": 128,
         "c3": 16,
@@ -409,49 +330,11 @@
         "o2": false,
         "o3": false,
         "si": 0,
-        "m12": 1,
+        "m12": 0,
         "bm": 0
       },
       {
-        "id": 1,
-        "start": 30,
-        "stop": 60,
-        "startY": 0,
-        "stopY": 16,
-        "grp": 1,
-        "spc": 0,
-        "of": 0,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
-        "n": "Exoy kitchen",
-        "col": [
-          [255, 160, 0],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 38,
-        "sx": 40,
-        "ix": 128,
-        "pal": 50,
-        "c1": 128,
-        "c2": 128,
-        "c3": 16,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": false,
-        "si": 0,
-        "m12": 1,
-        "bm": 0
+        "stop": 0
       },
       {
         "stop": 0
@@ -544,7 +427,7 @@
         "stop": 0
       }
     ],
-    "n": "Edge Aurora"
+    "n": "Squid Deep Sea"
   },
   "4": {
     "on": true,
@@ -567,16 +450,15 @@
         "bri": 255,
         "cct": 127,
         "set": 0,
-        "lc": 1,
-        "n": "Exoy window",
+        "n": "squid-arms-30x16.gif",
         "col": [
-          [255, 160, 0],
+          [0, 0, 0],
           [0, 0, 0],
           [0, 0, 0]
         ],
-        "fx": 101,
-        "sx": 80,
-        "ix": 128,
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
         "pal": 0,
         "c1": 128,
         "c2": 128,
@@ -591,49 +473,11 @@
         "o2": false,
         "o3": false,
         "si": 0,
-        "m12": 1,
+        "m12": 0,
         "bm": 0
       },
       {
-        "id": 1,
-        "start": 30,
-        "stop": 60,
-        "startY": 0,
-        "stopY": 16,
-        "grp": 1,
-        "spc": 0,
-        "of": 0,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
-        "n": "Exoy kitchen",
-        "col": [
-          [255, 160, 0],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 101,
-        "sx": 80,
-        "ix": 128,
-        "pal": 0,
-        "c1": 128,
-        "c2": 128,
-        "c3": 16,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": false,
-        "si": 0,
-        "m12": 1,
-        "bm": 0
+        "stop": 0
       },
       {
         "stop": 0
@@ -726,7 +570,7 @@
         "stop": 0
       }
     ],
-    "n": "Edge Pacifica"
+    "n": "Squid Chromatophores"
   },
   "5": {
     "on": true,
@@ -749,17 +593,16 @@
         "bri": 255,
         "cct": 127,
         "set": 0,
-        "lc": 1,
-        "n": "Exoy window",
+        "n": "squid-arms-30x16.gif",
         "col": [
-          [255, 160, 0],
+          [0, 0, 0],
           [0, 0, 0],
           [0, 0, 0]
         ],
-        "fx": 97,
-        "sx": 50,
-        "ix": 128,
-        "pal": 45,
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
         "c1": 128,
         "c2": 128,
         "c3": 16,
@@ -773,49 +616,11 @@
         "o2": false,
         "o3": false,
         "si": 0,
-        "m12": 1,
+        "m12": 0,
         "bm": 0
       },
       {
-        "id": 1,
-        "start": 30,
-        "stop": 60,
-        "startY": 0,
-        "stopY": 16,
-        "grp": 1,
-        "spc": 0,
-        "of": 0,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
-        "n": "Exoy kitchen",
-        "col": [
-          [255, 160, 0],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 97,
-        "sx": 50,
-        "ix": 128,
-        "pal": 45,
-        "c1": 128,
-        "c2": 128,
-        "c3": 16,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": false,
-        "si": 0,
-        "m12": 1,
-        "bm": 0
+        "stop": 0
       },
       {
         "stop": 0
@@ -908,7 +713,7 @@
         "stop": 0
       }
     ],
-    "n": "Edge Plasma"
+    "n": "Squid Water"
   },
   "6": {
     "on": true,
@@ -1295,17 +1100,16 @@
         "bri": 255,
         "cct": 127,
         "set": 0,
-        "lc": 1,
-        "n": "Exoy window",
+        "n": "squid-arms-30x16.gif",
         "col": [
-          [255, 160, 0],
+          [0, 0, 0],
           [0, 0, 0],
           [0, 0, 0]
         ],
-        "fx": 59,
-        "sx": 100,
-        "ix": 128,
-        "pal": 20,
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
         "c1": 128,
         "c2": 128,
         "c3": 16,
@@ -1319,49 +1123,11 @@
         "o2": false,
         "o3": false,
         "si": 0,
-        "m12": 1,
+        "m12": 0,
         "bm": 0
       },
       {
-        "id": 1,
-        "start": 30,
-        "stop": 60,
-        "startY": 0,
-        "stopY": 16,
-        "grp": 1,
-        "spc": 0,
-        "of": 0,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
-        "n": "Exoy kitchen",
-        "col": [
-          [255, 160, 0],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 59,
-        "sx": 100,
-        "ix": 128,
-        "pal": 20,
-        "c1": 128,
-        "c2": 128,
-        "c3": 16,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": false,
-        "si": 0,
-        "m12": 1,
-        "bm": 0
+        "stop": 0
       },
       {
         "stop": 0
@@ -1454,7 +1220,7 @@
         "stop": 0
       }
     ],
-    "n": "Edge Comets"
+    "n": "Squid Eyes"
   },
   "9": {
     "on": true,
@@ -3096,7 +2862,7 @@
   },
   "20": {
     "playlist": {
-      "ps": [2, 3, 4, 5, 6, 7, 8, 9, 13, 14],
+      "ps": [24, 25, 26, 27, 6, 7, 28, 9, 13, 14],
       "dur": [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000],
       "transition": [20, 20, 20, 20, 20, 20, 20, 20, 20, 20],
       "repeat": 0,
@@ -3129,6 +2895,1098 @@
     },
     "on": true,
     "n": "Exoy old five"
+  },
+  "23": {
+    "on": true,
+    "bri": 45,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 30,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy window",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "id": 1,
+        "start": 30,
+        "stop": 60,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy kitchen",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Exoy both"
+  },
+  "24": {
+    "on": true,
+    "bri": 45,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 30,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy window",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 110,
+        "sx": 60,
+        "ix": 128,
+        "pal": 50,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "id": 1,
+        "start": 30,
+        "stop": 60,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy kitchen",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 110,
+        "sx": 60,
+        "ix": 128,
+        "pal": 50,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Edge Flow"
+  },
+  "25": {
+    "on": true,
+    "bri": 45,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 30,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy window",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 38,
+        "sx": 40,
+        "ix": 128,
+        "pal": 50,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "id": 1,
+        "start": 30,
+        "stop": 60,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy kitchen",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 38,
+        "sx": 40,
+        "ix": 128,
+        "pal": 50,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Edge Aurora"
+  },
+  "26": {
+    "on": true,
+    "bri": 45,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 30,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy window",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 101,
+        "sx": 80,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "id": 1,
+        "start": 30,
+        "stop": 60,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy kitchen",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 101,
+        "sx": 80,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Edge Pacifica"
+  },
+  "27": {
+    "on": true,
+    "bri": 45,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 30,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy window",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 97,
+        "sx": 50,
+        "ix": 128,
+        "pal": 45,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "id": 1,
+        "start": 30,
+        "stop": 60,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy kitchen",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 97,
+        "sx": 50,
+        "ix": 128,
+        "pal": 45,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Edge Plasma"
+  },
+  "28": {
+    "on": true,
+    "bri": 45,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 30,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy window",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 59,
+        "sx": 100,
+        "ix": 128,
+        "pal": 20,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "id": 1,
+        "start": 30,
+        "stop": 60,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy kitchen",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 59,
+        "sx": 100,
+        "ix": 128,
+        "pal": 20,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Edge Comets"
   },
   "30": {
     "on": true,
