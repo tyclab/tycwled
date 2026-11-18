@@ -12,6 +12,7 @@
     "led": {
       "total": 480,
       "maxpwr": 0,
+      "fps": 55,
       "ins": [
         {
           "start": 0,
@@ -74,6 +75,9 @@
       "sync": {
         "mode": 2
       }
+    },
+    "Exoy": {
+      "period_us": 18500
     }
   }
 }
