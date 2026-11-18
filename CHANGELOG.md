@@ -9,6 +9,11 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- TycDodecaRechts' overlay sets its microphone to generic I2S on SD 26, WS 5, SCK 21, the setting
+  DOMRAEM documents for its boards with a microphone and the couch runs. With the PDM setting on
+  26/21 that both Exoy lamps' controllers came with, AudioReactive read no sound (2026-11-18).
+  TycDodecaLinks keeps that setting until the new one is measured on TycDodecaRechts.
+
 - The couch and both Exoy lamps pair three ESP-NOW remotes: `704bcaca4b78` is the operator's third
   remote again (unpaired on 2026-11-11 as an unknown address). The two Exoy lamps' overlays turn
   ESP-NOW on; their controllers came with it off and heard no remote.

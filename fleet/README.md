@@ -69,9 +69,14 @@ Each Exoy lamp has its own DOMRAEM DOM-WLE-A since 2026-11-18 (operator: one con
 dodecahedron): TycDodecaLinks drives the left lamp at the kitchen end, TycDodecaRechts the right
 lamp at the window end; the data wire is on GPIO 16. Their identity, boot preset, the one output,
 its limit, the 30×16 matrix (one vertical panel, top start, not serpentine: row y is LED y of an
-edge), gamma 2.8, forced full brightness for a live stream and the PDM microphone are in
+edge), gamma 2.8, forced full brightness for a live stream and AudioReactive are in
 [`overlays/exoy-links-domraem.json`](overlays/exoy-links-domraem.json) and
-[`overlays/exoy-rechts-domraem.json`](overlays/exoy-rechts-domraem.json). The output is limited to
+[`overlays/exoy-rechts-domraem.json`](overlays/exoy-rechts-domraem.json). With the microphone
+setting both came with (PDM, type 5, on 26/21) AudioReactive read no sound on either (2026-11-18:
+raw volume 0 in 1,440 of 1,440 effect calls on TycDodecaRechts while the couch's microphone read
+peaks). As a test TycDodecaRechts' overlay sets the one DOMRAEM documents for its boards with a
+microphone and the couch runs: generic I2S (type 1), SD 26, WS 5, SCK 21; it applies at the next
+boot. TycDodecaLinks keeps the stored setting until that is measured. The output is limited to
 6000 mA at 55 mA per LED (operator, 2026-11-18: "set limit back to 6A"; 6500 mA each while one
 black GL-C-618WL drove both lamps from one 5 V 12 A supply). After power-on each plays its preset
 20, a playlist of ten stock looks at five minutes each ("Exoy calm cycle"), not one plain colour

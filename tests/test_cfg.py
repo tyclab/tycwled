@@ -109,6 +109,11 @@ class Overlays(unittest.TestCase):
             self.assertEqual(led["matrix"], {"mpc": 1, "panels": [{"b": False, "r": False, "v": True, "s": False,
                                                                    "x": 0, "y": 0, "h": 16, "w": 30}]}, path)
 
+    def test_the_right_dodeca_lamp_reads_an_i2s_microphone_and_the_left_keeps_its_stored_one(self):
+        mic = {path: self.load(path)["um"]["AudioReactive"].get("digitalmic") for path in DODECA}
+        self.assertEqual(mic, {"fleet/overlays/exoy-links-domraem.json": None,
+                               "fleet/overlays/exoy-rechts-domraem.json": {"type": 1, "pin": [26, 5, 21, -1]}})
+
     def test_every_overlay_that_writes_nw_pairs_the_three_remotes_with_espnow_on(self):
         remotes = ["704bcac8d198", "704bcac9aa6c", "704bcaca4b78"]
         paths = [path for path in sorted(CONTROLLERS) if "nw" in self.load(path)]
