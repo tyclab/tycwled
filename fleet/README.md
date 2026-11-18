@@ -164,11 +164,27 @@ python3 wledlab.py flash --host 10.27.4.60 --firmware fleet/out/fleet_glorb.bin 
 ```
 
 `flash` snapshots `/json/info`, `/json/cfg` and `presets.json` under
-`captures/flash/`, uploads to `/update`, waits for the reboot, then fails unless
-cfg is unchanged apart from `vid` and a new usermod block, and presets are
-byte-identical. Pass `--skip-validation` only when the release name changes on
-purpose. On a GLORB, also run `install --effects glorb/wled16-port/effects.json`
-afterwards with the same `--credentials-file`: the port presets need the glorb_fx IDs.
+`captures/flash/`, checks that the image declares the lamp's release name, uploads
+to `/update`, waits for the reboot, then fails unless cfg is unchanged apart from
+`vid` and a new usermod block, and presets are byte-identical. On a GLORB, also run
+`install --effects glorb/wled16-port/effects.json` afterwards with the same
+`--credentials-file`: the port presets need the glorb_fx IDs.
+
+The release check is the tool's: on the image file, before anything is written, by
+the firmware's rule (equal names, a trailing `_V4` ignored); the upload tells the
+lamp to skip its own. WLED 16.0.1's own check compares the uploaded name with the
+bytes that follow it on the stack (`bufToString` in `wled_metadata.cpp` ends its
+copy at the buffer's end, not the name's), so some builds refuse an image of their
+own release (TycDodecaRechts, 2026-11-18: `current='ESP32', uploaded='ESP32\xe9…'`).
+By then WLED has reset the lamp's segments, and a segment made that way has no
+colours or palettes until the lamp restarts. The lamp skips its whole check, so an
+image whose description is newer than version 1 is refused too: from version 2 on
+WLED also checks which version an update may come from, and the tool does not.
+Pass `--skip-validation` only when the release name changes on purpose. After an
+upload that ends without the new firmware the tool prints the lamp's answer, then
+restarts the lamp, which undoes that reset, and puts its look back; a refusal for
+access (OTA lock, PIN, subnet) comes before the reset and leaves the lamp as it
+was. A line after the lamp's answer says how the lamp was left.
 
 The fleet's settings PIN and OTA password are stored per device in OpenBao's
 `secret/hatyc/creds` by tycpve's `bao:seed-wled-security` job. The private JSON
