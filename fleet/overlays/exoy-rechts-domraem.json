@@ -71,6 +71,10 @@
     },
     "AudioReactive": {
       "enabled": true,
+      "digitalmic": {
+        "type": 1,
+        "pin": [26, 5, 21, -1]
+      },
       "config": {
         "squelch": 4
       }
