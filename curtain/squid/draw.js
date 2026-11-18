@@ -247,4 +247,5 @@ function armWaves(w, h, lampGamma = 2.8) {
     }
   } };
 }
-const ROWS = { 'squid-arms-300x1': armWaves(300, 1), 'squid-arms-20x6': armWaves(20, 6, 1), 'squid-arms-8x8': armWaves(8, 8) };
+const ROWS = { 'squid-arms-300x1': armWaves(300, 1), 'squid-arms-20x6': armWaves(20, 6, 1), 'squid-arms-8x8': armWaves(8, 8),
+  'squid-arms-30x16': armWaves(30, 16) };
