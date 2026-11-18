@@ -71,8 +71,8 @@
     },
     "AudioReactive": {
       "enabled": true,
-      "config": {
-        "squelch": 4
+      "sync": {
+        "mode": 2
       }
     }
   }
