@@ -9,10 +9,10 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
-- TycDodecaRechts' overlay sets its microphone to generic I2S on SD 26, WS 5, SCK 21, the setting
-  DOMRAEM documents for its boards with a microphone and the couch runs. With the PDM setting on
-  26/21 that both Exoy lamps' controllers came with, AudioReactive read no sound (2026-11-18).
-  TycDodecaLinks keeps that setting until the new one is measured on TycDodecaRechts.
+- Both Exoy lamps take their sound from the couch (operator, 2026-11-18: "they don't have mic use
+  sound sharing"): the couch's overlay sends AudioReactive's UDP sound sync and both lamps' overlays
+  receive it. The DOM-WLE-A has no microphone; with the PDM setting on 26/21 that both came with,
+  AudioReactive read no sound. The lamps' overlays no longer set a squelch or microphone pins.
 
 - The couch and both Exoy lamps pair three ESP-NOW remotes: `704bcaca4b78` is the operator's third
   remote again (unpaired on 2026-11-11 as an unknown address). The two Exoy lamps' overlays turn

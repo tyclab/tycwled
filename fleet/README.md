@@ -63,7 +63,8 @@ its own microphone, relay and output configuration. As the couch controller its 
 output, limits, remotes and central OTA access are in
 [`overlays/couch-domraem.json`](overlays/couch-domraem.json). It receives no WLED UDP sync
 (`if.sync.recv`): sync stays off where the lightshow does not need it (operator, 2026-11-06, when
-it was switched off on the lamps).
+it was switched off on the lamps). Its microphone is the Exoy lamps' sound source: the overlay
+sends AudioReactive's sound sync (operator, 2026-11-18: "use sound sharing").
 
 Each Exoy lamp has its own DOMRAEM DOM-WLE-A since 2026-11-18 (operator: one controller per
 dodecahedron): TycDodecaLinks drives the left lamp at the kitchen end, TycDodecaRechts the right
@@ -71,12 +72,12 @@ lamp at the window end; the data wire is on GPIO 16. Their identity, boot preset
 its limit, the 30×16 matrix (one vertical panel, top start, not serpentine: row y is LED y of an
 edge), gamma 2.8, forced full brightness for a live stream and AudioReactive are in
 [`overlays/exoy-links-domraem.json`](overlays/exoy-links-domraem.json) and
-[`overlays/exoy-rechts-domraem.json`](overlays/exoy-rechts-domraem.json). With the microphone
-setting both came with (PDM, type 5, on 26/21) AudioReactive read no sound on either (2026-11-18:
-raw volume 0 in 1,440 of 1,440 effect calls on TycDodecaRechts while the couch's microphone read
-peaks). As a test TycDodecaRechts' overlay sets the one DOMRAEM documents for its boards with a
-microphone and the couch runs: generic I2S (type 1), SD 26, WS 5, SCK 21; it applies at the next
-boot. TycDodecaLinks keeps the stored setting until that is measured. The output is limited to
+[`overlays/exoy-rechts-domraem.json`](overlays/exoy-rechts-domraem.json). The DOM-WLE-A has no
+microphone (operator, 2026-11-18; with the PDM setting on 26/21 that both came with, AudioReactive's
+raw volume was 0 in 1,440 of 1,440 effect calls on TycDodecaRechts while the couch's microphone read
+peaks). Both lamps take their sound from the couch: its overlay sends AudioReactive's UDP sound sync
+(`sync.mode` 1, port 11988) and theirs receive it (`sync.mode` 2), so both get the same level. A
+sender keeps processing sound while a live stream drives its own LEDs. The output is limited to
 6000 mA at 55 mA per LED (operator, 2026-11-18: "set limit back to 6A"; 6500 mA each while one
 black GL-C-618WL drove both lamps from one 5 V 12 A supply). After power-on each plays its preset
 20, a playlist of ten stock looks at five minutes each ("Exoy calm cycle"), not one plain colour
@@ -282,7 +283,8 @@ GL-C-015WL the 0.15 migration changed how the outputs and buttons are stored (Fl
   `ESP32`. Outputs on GPIO 16 and GPIO 2, 30 LEDs each, both starting at LED 0, so WLED counts 30
   LEDs and both outputs carry the same pixels. Button GPIO 0; relay GPIO 12 with `rev: false`; a
   PDM microphone (type 5) on 26/21 is stored with AudioReactive disabled. By the maker's listing
-  the DOM-WLE-A has no microphone; that was not checked on the boards. The two factory
+  the DOM-WLE-A has no microphone, and with that setting AudioReactive read no sound on either board
+  (2026-11-18). The two factory
   configurations differ only in the mDNS name and the MQTT client id and topic.
 - GL-C-015WL: stock WLED 0.15.1, release `ESP32`. Outputs on GPIO 16 (LEDs 0–29) and GPIO 2
   (LEDs 30–59); button GPIO 17; relay GPIO 18 with `rev: false`; PDM microphone on 32/15 with
