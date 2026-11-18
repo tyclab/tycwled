@@ -79,12 +79,15 @@ peaks). Both lamps take their sound from the couch: its overlay sends AudioReact
 (`sync.mode` 1, port 11988) and theirs receive it (`sync.mode` 2), so both get the same level. A
 sender keeps processing sound while a live stream drives its own LEDs. The output is limited to
 6000 mA at 55 mA per LED (operator, 2026-11-18: "set limit back to 6A"; 6500 mA each while one
-black GL-C-618WL drove both lamps from one 5 V 12 A supply). The Exoy engine renders a frame every
-18.5 ms (`um.Exoy.period_us`): the unchanged original firmware sends a frame every 18.56 ms in the
-emulator (median over the 70 scenes of each scene's mean frame time; two scenes take 22.5 ms, the
-image's default of 16 ms was never measured). WLED calls an effect once per frame time, 1000 / FPS in
-whole ms: at its default 42 FPS that is every 23 ms and a third of the engine's frames is never
-shown, so both lamps run at 55 FPS (18 ms). After power-on each plays its preset
+black GL-C-618WL drove both lamps from one 5 V 12 A supply). The Exoy engine renders each scene
+at its own frame period (`um.Exoy.period_us` 0, for image vid 2611181 and later; an older image
+reads 0 as 11 ms): the unchanged original firmware's mean frame time in that scene in the emulator,
+18.4 to 19.9 ms for 67 scenes, 22.5 ms for Rhythm Run and Gloze and 16.0 ms for the static Custom
+Hue (tyclab/tycExoyWled `wled/scene-periods.tsv`; the emulator's CPU speed is not calibrated against
+the chip, and the image's earlier single 16 ms was never measured). WLED calls an effect once per
+frame time, 1000 / FPS in whole ms: at its default 42 FPS that is every 23 ms and a third of the
+engine's frames is never shown, so both lamps run at 55 FPS (18 ms, below every moving scene's
+period). After power-on each plays its preset
 20, a playlist of ten stock looks at five minutes each ("Exoy calm cycle"), not one plain colour
 (operator, 2026-11-17). Their image `exoy_domraem` (`fleet_esp32` plus the 70 Exoy effects) and
 their presets come from tyclab/tycExoyWled, not from this repository.
