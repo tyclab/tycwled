@@ -171,6 +171,24 @@ class Install(unittest.TestCase):
         self.assertEqual((self.lamp.cfg["id"], self.lamp.cfg["hw"]["led"]["ins"]),
                          ({"mdns": "tycdodeca", "name": "TycMoon"}, outputs))
 
+    def test_an_overlay_that_names_the_remotes_pairs_them_and_reads_them_back(self):
+        # TycDodecaLinks, 2026-11-18: a new controller with no remote got its list from the overlay, and the install
+        # ended red on the change it was asked to make.
+        remotes = ["704bcac8d198", "704bcac9aa6c", "704bcaca4b78"]
+        self.cfg_file({"nw": {"espnow": True, "linked_remote": remotes}})
+        wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.calls, [("post", {"nw": {"espnow": True, "linked_remote": remotes}})])
+        self.assertEqual(self.lamp.cfg["nw"]["linked_remote"], remotes)
+
+    def test_a_remote_list_the_write_dropped_fails_the_install(self):
+        # A body without the lamp's remotes makes WLED 16 clear them; the read-back must catch that.
+        self.cfg_file({"id": {"name": "TycMoon"}})
+        with patch.object(wledlab, "cfg_payload", lambda overrides, lamp: copy.deepcopy(overrides)), \
+                self.assertRaises(SystemExit) as stopped:
+            wledlab._cmd_install(self.args)
+        self.assertEqual(str(stopped.exception), "cfg overrides did not land as written")
+        self.assertEqual(self.lamp.cfg["nw"]["linked_remote"], [])
+
     def test_an_ota_switch_of_a_locked_lamp_goes_through_the_security_form_and_keeps_the_locks(self):
         # tycdodeca, 2026-11-17: the outputs' limits landed, `ota.same-subnet` did not, and the install ended red.
         outputs = [dict(o, maxpwr=6500) for o in self.lamp.cfg["hw"]["led"]["ins"]]

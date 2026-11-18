@@ -140,6 +140,10 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Fixed
 
+- `wledlab.py install --cfg` accepts a remote list the overlay names: it checks it like every other key
+  instead of reporting the change as dropped remotes (TycDodecaLinks, 2026-11-18: a new controller got
+  its three remotes from its overlay and the install ended red). A list the write dropped still fails it.
+
 - `wledlab.py install --cfg` sets a locked controller's OTA switches (`ota.lock`, `lock-wifi`, `aota`,
   `same-subnet`) through the security form with the OTA password. WLED 16.0.1 hears them in a
   `/json/cfg` body only with the OTA lock off (`cfg.cpp`), so on a locked controller the write
