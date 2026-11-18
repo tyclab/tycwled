@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The couch and both Exoy lamps pair three ESP-NOW remotes: `704bcaca4b78` is the operator's third
+  remote again (unpaired on 2026-11-11 as an unknown address). The two Exoy lamps' overlays turn
+  ESP-NOW on; their controllers came with it off and heard no remote.
+
 - Each Exoy ONE lamp has its own controller (operator, 2026-11-18): TycDodecaLinks (left lamp,
   kitchen end) and TycDodecaRechts (right lamp, window end), the DOMRAEM DOM-WLE-As that were
   Spares 1 and 2. Their overlays `fleet/overlays/exoy-links-domraem.json` and
