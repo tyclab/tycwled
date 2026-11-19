@@ -109,18 +109,19 @@ class Overlays(unittest.TestCase):
             self.assertEqual(led["matrix"], {"mpc": 1, "panels": [{"b": False, "r": False, "v": True, "s": False,
                                                                    "x": 0, "y": 0, "h": 16, "w": 30}]}, path)
 
-    def test_each_dodeca_lamp_runs_every_scene_at_its_own_period_and_wled_calls_it_at_least_as_often(self):
+    def test_each_dodeca_lamp_runs_every_scene_at_its_own_period_and_wleds_own_timer_never_comes_first(self):
         # um.Exoy.period_us 0: each scene's own frame period, the unchanged original's in the emulator
-        # (tycExoyWled wled/scene-periods.tsv: 18,379 to 22,480 us, the static Custom Hue 16,000). Images
-        # before vid 2611181 clamp 0 to 11,000 us, so the overlay is for vid 2611181 and later only.
-        # WLED calls an effect once per frame time, 1000 // fps in ms (FX_fcn.cpp, service() and
-        # setTargetFps()); a frame time above a scene's period leaves engine frames unshown.
-        shortest_moving_period_us = 18379
+        # (tycExoyWled wled/scene-periods.tsv: 18,379 to 22,480 us, the static Custom Hue 16,000).
+        # From vid 2611190 the usermod asks WLED for a frame when the lamp's next one is due, as long as WLED's
+        # own frame time, 1000 // fps in ms (FX_fcn.cpp setTargetFps()), is no shorter than the scene's period:
+        # WLED's timer then never shows a frame in between. An earlier image is called by that timer alone and
+        # would show 40 frames a second of the engine's 44 to 62, so the overlay is for vid 2611190 and later.
+        longest_period_us = 22480
         for path in DODECA:
             cfg = self.load(path)
             self.assertEqual(cfg["um"]["Exoy"], {"period_us": 0}, path)
-            self.assertEqual(cfg["hw"]["led"]["fps"], 55, path)
-            self.assertLessEqual((1000 // cfg["hw"]["led"]["fps"]) * 1000, shortest_moving_period_us, path)
+            self.assertEqual(cfg["hw"]["led"]["fps"], 40, path)
+            self.assertGreaterEqual((1000 // cfg["hw"]["led"]["fps"]) * 1000, longest_period_us, path)
 
     def test_the_couch_sends_its_sound_and_both_dodeca_lamps_receive_it(self):
         # AudioReactive's UDP sound sync: bit 0 sends, bit 1 receives (audio_reactive.cpp, audioSyncEnabled).
