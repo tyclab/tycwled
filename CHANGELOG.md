@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The Exoy lamps boot off (operator, 2026-11-19: "if we have power outage this happens and this an
+  antipatern"): `def.on` is false in both overlays and the boot preset is the new 250, the calm
+  cycle's playlist without power. A lamp stays dark after power comes back and shows the cycle's
+  first look when someone switches it on. Until now both came up lit on playlist 20.
 - The Exoy lamps' brightness is free across 1 to 255 (operator, 2026-11-19: "exoy brightness is
   artefact of stupid agent in the beginning. give full brightness range free."): no preset in
   `fleet/overlays/exoy-presets.json` sets `bri` any more (every look set 45 since 2026-11-11, the

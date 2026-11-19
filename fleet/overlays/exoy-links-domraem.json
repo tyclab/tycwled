@@ -4,8 +4,8 @@
     "mdns": "tycdodecalinks"
   },
   "def": {
-    "ps": 20,
-    "on": true,
+    "ps": 250,
+    "on": false,
     "bri": 128
   },
   "hw": {
