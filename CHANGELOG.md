@@ -102,6 +102,14 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
+- `wledlab.py flash --usermods AudioReactive,Syslog`: the usermod settings blocks (`/json/cfg`
+  `um`) the image carries. The lamp must then have exactly these after the flash; a block from
+  before that is not among them may go with its usermod, and the tool names it. A declared block
+  that is missing, or a block present that is not declared, is drift; inside a block that stays
+  every value is compared as before. Without the option nothing changes: a block that goes is
+  drift. For a controller whose image drops a usermod, such as Spare 4 going from the Exoy image
+  `exoy_eth` (AudioReactive, Exoy, Syslog) back to `fleet_gledopto`, whose flash otherwise ends
+  as "flash changed more than the firmware" on `um.Exoy` alone.
 - `usermods/tycstation_fx/`: the squid patterns as WLED 16 effects for every fleet build. Squid
   Arms (the arm waves), Squid Skin (the chromatophore cells) and Squid Plankton (the deep-sea
   water) run on 1D and 2D segments of any size, follow AudioReactive's volume through a Sound

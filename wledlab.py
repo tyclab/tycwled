@@ -1340,13 +1340,30 @@ def cfg_unapplied(overrides, after):
     return out
 
 
-def cfg_drift(before, after):
+def usermod_blocks(cfg):
+    """The names of the usermod settings blocks in a /json/cfg."""
+    um = cfg.get("um") if isinstance(cfg, dict) else None
+    return set(um) if isinstance(um, dict) else set()
+
+
+def usermods_gone(before, after, usermods):
+    """The usermod blocks that went in a flash to an image that declares `usermods` and does not carry them."""
+    return [] if usermods is None else sorted(usermod_blocks(before) - usermod_blocks(after) - set(usermods))
+
+
+def cfg_drift(before, after, usermods=None):
     """cfg paths that changed across a flash. Two changes are the flash itself and pass:
     the top-level "vid" build stamp, and a usermod block that did not exist before (a
-    new usermod writes its defaults on first boot)."""
+    new usermod writes its defaults on first boot).
+    With `usermods`, the usermod blocks the image carries, the blocks after the flash must be
+    exactly these: a block from before that is not among them may go with its usermod
+    (usermods_gone names it). Inside a block that stays every value is compared as without."""
     out, missing = [], object()
+    declared = None if usermods is None else set(usermods)
 
     def walk(path, x, y):
+        if declared is not None and len(path) == 2 and path[0] == "um" and (path[1] not in declared or y is missing):
+            return  # whether the block may be there is decided by its name below
         if isinstance(x, dict) and isinstance(y, dict):
             for k in sorted(set(x) | set(y)):
                 walk(path + [k], x.get(k, missing), y.get(k, missing))
@@ -1357,6 +1374,10 @@ def cfg_drift(before, after):
                        f"{'<absent>' if y is missing else json.dumps(y)}")
 
     walk([], before, after)
+    if declared is not None:
+        blocks = usermod_blocks(after)
+        out += [f"um.{k}: absent after the flash, though the image declares it" for k in sorted(declared - blocks)]
+        out += [f"um.{k}: present after the flash, though the image does not declare it" for k in sorted(blocks - declared)]
     return out
 
 
@@ -1574,10 +1595,15 @@ def _cmd_flash(a, access):
     print("  state:", "restored" if same else "DIFFERS from before the flash")
     print(f"{a.host} after:  {info1['ver']} vid {info1['vid']} rel {info1.get('release')} up {info1['uptime']}s "
           f"usermods {sorted(info1.get('u', {}))}")
-    drift = cfg_drift(expected_cfg, cfg1)
+    usermods = getattr(a, "usermods", None)
+    drift, gone = cfg_drift(expected_cfg, cfg1, usermods), usermods_gone(expected_cfg, cfg1, usermods)
     for d in drift:
         print("  cfg drift:", d)
-    clean = "matches reviewed migration" if a.cfg_migration else "unchanged (vid / new usermod block only)"
+    if gone:
+        print("  usermod blocks gone with the old image, which the new one does not carry:", ", ".join(gone))
+    clean = "matches reviewed migration" if a.cfg_migration else \
+        "unchanged (vid / usermod blocks as the image declares)" if usermods is not None else \
+        "unchanged (vid / new usermod block only)"
     print("  cfg:", clean if not drift else "CHANGED",
           "| presets.json:", "byte-identical" if pre1 == pre0 else "CHANGED")
     if a.release and info1.get("release") != a.release:
@@ -1637,6 +1663,10 @@ def main():
     s.add_argument("--skip-validation", action="store_true",
                    help="flash without the tool's check of the image: another release than the lamp's on purpose, or a "
                         "description newer than version 1")
+    s.add_argument("--usermods", type=lambda names: [n for n in names.split(",") if n], metavar="NAME,...",
+                   help="the usermod settings blocks (/json/cfg \"um\") the image carries: afterwards the lamp must have "
+                        "exactly these, and a block from before that is not among them may go; without it only a new "
+                        "block may appear")
     s.add_argument("--snapshot", help="where to keep the before-state (default captures/flash/<host>-<time>)")
     s.add_argument("--timeout", type=int, default=150, help="seconds to wait for the lamp to come back"); s.set_defaults(fn=cmd_flash)
     s.add_argument("--credentials-file", help="private JSON containing pin and ota_password; OTA lock restored before drift checks")

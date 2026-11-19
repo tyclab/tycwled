@@ -176,6 +176,13 @@ to `/update`, waits for the reboot, then fails unless cfg is unchanged apart fro
 `install --effects glorb/wled16-port/effects.json` afterwards with the same
 `--credentials-file`: the port presets need the glorb_fx IDs.
 
+An image without a usermod the lamp had takes that usermod's block in `/json/cfg` `um` with it.
+`--usermods AudioReactive,Syslog` names the blocks the image carries (`fleet_*`: AudioReactive
+and Syslog; `tycstation_fx` writes none): after the flash the lamp must have exactly these, a block
+from before that is not among them may go and the tool names it, and inside a block that stays
+every value is compared as without the option. tycpve passes an image's list when its
+`wled_flash_images` entry declares one. Without `--usermods` a block that goes is drift.
+
 The release check is the tool's: on the image file, before anything is written, by
 the firmware's rule (equal names, a trailing `_V4` ignored); the upload tells the
 lamp to skip its own. WLED 16.0.1's own check compares the uploaded name with the
