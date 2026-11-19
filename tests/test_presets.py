@@ -33,7 +33,8 @@ FLEET = {"fleet/overlays/glorb-presets.json": (45, ()), "curtain/presets.json": 
          # The Exoys' looks turn the lamp on and keep its brightness (operator, 2026-11-19: "exoy brightness is
          # artefact of stupid agent in the beginning. give full brightness range free."); 20-22 are playlists,
          # 30 and 31 test patterns.
-         EXOY: (None, ("20", "21", "22", "30", "31"))}
+         # 250 is the boot preset: the calm cycle without power, for a lamp that boots off (test_cfg.py).
+         EXOY: (None, ("20", "21", "22", "30", "31", "250"))}
 
 
 def effect_segments(preset):
@@ -80,7 +81,8 @@ class Power(unittest.TestCase):
         # remote button or a playlist step keeps what the remote, the app or Home Assistant set, 1 to 255. Without
         # "bri", "on": true is what switches an off lamp on: every look, test pattern and playlist carries it.
         presets = json.load(open(os.path.join(HERE, "..", EXOY)))
-        self.assertEqual([f"{k} ({p.get('n')})" for k, p in presets.items() if p and p.get("on") is not True], [])
+        self.assertEqual([f"{k} ({p.get('n')})" for k, p in presets.items()
+                          if p and k != "250" and p.get("on") is not True], [])
         self.assertEqual([f"{k} ({p.get('n')})" for k, p in presets.items() if "bri" in p], [])
         # Nor does a segment dim its part of the lamp: every segment that is not deleted shows at full opacity.
         self.assertEqual([f"{k} segment {s.get('id')}" for k, p in presets.items() for s in effect_segments(p)

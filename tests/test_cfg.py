@@ -115,6 +115,20 @@ class Overlays(unittest.TestCase):
         for path in DODECA:
             self.assertEqual(self.load(path)["if"]["sync"], {"recv": {"bri": False}}, path)
 
+    def test_no_lamp_switches_itself_on_when_power_comes_back(self):
+        # Operator, 2026-11-19, on a lamp lit after a power cut: "if we have power outage this happens and this an
+        # antipatern". Every controller boots off, and a boot preset carries no power of its own: the couch's 250 says
+        # off, the Exoys' 250 is their calm cycle without "on", which stays dark until someone switches the lamp on
+        # (playlist.cpp handlePlaylist returns while bri is 0) and then shows its first look, not one plain colour.
+        boot_presets = {"fleet/overlays/couch-domraem.json": "fleet/overlays/couch-presets.json",
+                        **{path: "fleet/overlays/exoy-presets.json" for path in DODECA}}
+        for path in sorted(CONTROLLERS):
+            start = self.load(path)["def"]
+            self.assertIs(start["on"], False, path)
+            if start["ps"]:
+                preset = json.load(open(os.path.join(ROOT, boot_presets[path])))[str(start["ps"])]
+                self.assertIsNot(preset.get("on"), True, f"{path} boot preset {start['ps']}")
+
     def test_each_dodeca_lamp_runs_every_scene_at_its_own_period_and_wleds_own_timer_never_comes_first(self):
         # um.Exoy.period_us 0: each scene's own frame period, the unchanged original's in the emulator
         # (tycExoyWled wled/scene-periods.tsv: 18,379 to 22,480 us, the static Custom Hue 16,000).
