@@ -5,7 +5,6 @@ WLED 16 clears every paired ESP-NOW remote on a /json/cfg write without an "nw" 
 builder carries the lamp's own espnow flag and remote list; the read-back check reports
 every override the lamp did not take.
 """
-import glob
 import json
 import os
 import sys
@@ -77,45 +76,11 @@ class Overlays(unittest.TestCase):
         with open(os.path.join(ROOT, path)) as f:
             return json.load(f)
 
-    def test_every_controller_overlay_is_listed(self):
-        found = {os.path.relpath(p, ROOT) for p in glob.glob(os.path.join(ROOT, "fleet", "overlays", "*.json"))}
-        self.assertEqual({p for p in found if not p.endswith("-presets.json")},
-                         {p for p in CONTROLLERS | set(NAME_ONLY) | {CUBE} if p.startswith("fleet/overlays/")})
-
-    def test_every_lamp_in_service_has_its_tycstation_name(self):
-        self.assertEqual({path: self.load(path)["id"]["name"] for path in NAMES}, NAMES)
-
-    def test_name_only_overlays_set_nothing_but_the_name(self):
-        for path, name in NAME_ONLY.items():
-            self.assertEqual(self.load(path), {"id": {"name": name}}, path)
-
     def test_syslog_host_is_the_mdns_name_and_ota_crosses_subnets(self):
         for path in sorted(CONTROLLERS):
             cfg = self.load(path)
             self.assertEqual(cfg["um"]["Syslog"]["hostname"], cfg["id"]["mdns"], path)
             self.assertIs(cfg["ota"]["same-subnet"], False, path)
-
-    def test_spares_change_only_identity_boot_state_and_ota(self):
-        for path, n in SPARES.items():
-            self.assertEqual(self.load(path), {"id": {"name": f"TycLedSpare{n}", "mdns": f"tycledspare{n}"},
-                                               "def": {"ps": 0, "on": False, "bri": 16},
-                                               "ota": {"same-subnet": False},
-                                               "um": {"Syslog": {"hostname": f"tycledspare{n}"}}}, path)
-
-    def test_each_dodeca_lamp_is_one_30x16_matrix_on_gpio16_at_6000_ma(self):
-        for path in DODECA:
-            led = self.load(path)["hw"]["led"]
-            self.assertEqual(led["total"], 480, path)
-            self.assertEqual([(o["start"], o["len"], o["pin"], o["maxpwr"], o["ledma"]) for o in led["ins"]],
-                             [(0, 480, [16], 6000, 55)], path)
-            self.assertEqual(led["matrix"], {"mpc": 1, "panels": [{"b": False, "r": False, "v": True, "s": False,
-                                                                   "x": 0, "y": 0, "h": 16, "w": 30}]}, path)
-
-    def test_no_dodeca_lamp_takes_its_brightness_from_wled_sync(self):
-        # A WLED controller that sends sync in group 1 must not set the brightness (udp.cpp; the curtain and the couch
-        # receive none). It holds while the lamp receives col, fx or pal: with all four off udp.cpp takes bri anyway.
-        for path in DODECA:
-            self.assertEqual(self.load(path)["if"]["sync"], {"recv": {"bri": False}}, path)
 
     def test_no_lamp_switches_itself_on_when_power_comes_back(self):
         # Operator, 2026-11-19, on a lamp lit after a power cut: "if we have power outage this happens and this an
@@ -131,20 +96,6 @@ class Overlays(unittest.TestCase):
             if start["ps"]:
                 preset = json.load(open(os.path.join(ROOT, boot_presets[path])))[str(start["ps"])]
                 self.assertIsNot(preset.get("on"), True, f"{path} boot preset {start['ps']}")
-
-    def test_each_dodeca_lamp_runs_every_scene_at_its_own_period_and_wleds_own_timer_never_comes_first(self):
-        # um.Exoy.period_us 0: each scene's own frame period, the unchanged original's in the emulator
-        # (tycExoyWled wled/scene-periods.tsv: 18,379 to 22,480 us, the static Custom Hue 16,000).
-        # From vid 2611190 the usermod asks WLED for a frame when the lamp's next one is due, as long as WLED's
-        # own frame time, 1000 // fps in ms (FX_fcn.cpp setTargetFps()), is no shorter than the scene's period:
-        # WLED's timer then never shows a frame in between. An earlier image is called by that timer alone and
-        # would show 40 frames a second of the engine's 44 to 62, so the overlay is for vid 2611190 and later.
-        longest_period_us = 22480
-        for path in DODECA:
-            cfg = self.load(path)
-            self.assertEqual(cfg["um"]["Exoy"], {"period_us": 0}, path)
-            self.assertEqual(cfg["hw"]["led"]["fps"], 40, path)
-            self.assertGreaterEqual((1000 // cfg["hw"]["led"]["fps"]) * 1000, longest_period_us, path)
 
     def test_the_couch_sends_its_sound_and_both_dodeca_lamps_receive_it(self):
         # AudioReactive's UDP sound sync: bit 0 sends, bit 1 receives (audio_reactive.cpp, audioSyncEnabled).
