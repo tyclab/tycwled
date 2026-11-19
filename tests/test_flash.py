@@ -165,6 +165,15 @@ class DeclaredUsermods(unittest.TestCase):
         after = self.after(Exoy=None, AudioReactive={"enabled": True, "gain": 60})
         self.assertEqual(wledlab.cfg_drift(self.BEFORE, after, self.FLEET), ["um.AudioReactive.gain: <absent> -> 60"])
 
+    def test_a_key_lost_inside_a_declared_block_that_stays_is_drift(self):
+        """Only a whole block may go: a declared block that stays keeps every key it had."""
+        before = copy.deepcopy(self.BEFORE)
+        before["um"]["Syslog"] = {"enabled": True, "port": 1515}
+        after = self.after(Exoy=None, Syslog={"enabled": True})
+        self.assertEqual(wledlab.cfg_drift(before, after, self.FLEET), ["um.Syslog.port: 1515 -> <absent>"])
+        self.assertEqual(wledlab.cfg_drift(self.BEFORE, self.after(Exoy=None, Syslog={}), self.FLEET),
+                         ["um.Syslog.port: 1515 -> <absent>"])
+
     def test_an_empty_list_declares_an_image_without_usermod_blocks(self):
         self.assertEqual(wledlab.cfg_drift(self.BEFORE, {"vid": 2611150, "id": {"mdns": "spare"}, "um": {}}, []), [])
         self.assertEqual(wledlab.cfg_drift({"um": {}}, {"um": {"Syslog": {}}}, []),
@@ -181,9 +190,9 @@ class DeclaredUsermods(unittest.TestCase):
         self.assertEqual(self.parse("--usermods", "AudioReactive,Syslog"), ["AudioReactive", "Syslog"])
         self.assertEqual(self.parse("--usermods", ""), [])
 
-    def flash(self, after_um, usermods):
-        """cmd_flash through a successful upload: the lamp comes back with `after_um` as its usermod blocks, the rest of
-        its cfg and its presets as before. Returns the exit message (None when it passed) and what it printed."""
+    def flash(self, after_um, usermods, release="ESP32_Ethernet", presets=b"{}"):
+        """cmd_flash through a successful upload: the lamp comes back with `after_um` as its usermod blocks, `release`
+        and `presets`, the rest of its cfg as before. Returns the exit message (None when it passed) and what it printed."""
         cfg0 = copy.deepcopy(self.BEFORE)
         cfg1 = copy.deepcopy(self.BEFORE) | {"vid": 2611150, "um": after_um}
         state = {"on": False, "bri": 16, "seg": [{"id": 0, "fx": 0}]}
@@ -196,9 +205,10 @@ class DeclaredUsermods(unittest.TestCase):
             args = SimpleNamespace(host="lamp", firmware=firmware, release="ESP32_Ethernet", mac=None, cfg_migration=None,
                                    skip_validation=False, snapshot=snap, timeout=1, credentials_file=None, usermods=usermods)
             with patch.object(wledlab, "get", side_effect=[info, cfg0, state, cfg1, state]), \
-                    patch.object(wledlab, "readback", return_value=b"{}"), patch.object(wledlab, "post"), \
+                    patch.object(wledlab, "readback", side_effect=[b"{}", presets]), patch.object(wledlab, "post"), \
                     patch.object(wledlab.time, "sleep"), \
-                    patch.object(wledlab, "wait_for_restart", return_value=info | {"vid": 2611150, "uptime": 9}), \
+                    patch.object(wledlab, "wait_for_restart",
+                                 return_value=info | {"vid": 2611150, "uptime": 9, "release": release}), \
                     patch.object(wledlab.subprocess, "run",
                                  return_value=SimpleNamespace(returncode=0, stdout="Update successful", stderr="")), \
                     contextlib.redirect_stdout(printed):
@@ -225,6 +235,17 @@ class DeclaredUsermods(unittest.TestCase):
         self.assertIn('  cfg drift: um.Exoy: {"period_us": 22500} -> <absent>\n', printed)
         self.assertIn("  cfg: CHANGED", printed)
         self.assertNotIn("usermod blocks gone", printed)
+
+    def test_with_the_option_another_release_after_the_flash_still_fails(self):
+        message, printed = self.flash({"AudioReactive": {"enabled": True}, "Syslog": {"port": 1515}}, self.FLEET,
+                                      release="ESP32")
+        self.assertEqual(message, "release is 'ESP32', expected 'ESP32_Ethernet'", printed)
+
+    def test_with_the_option_changed_presets_still_fail_the_flash(self):
+        message, printed = self.flash({"AudioReactive": {"enabled": True}, "Syslog": {"port": 1515}}, self.FLEET,
+                                      presets=b'{"1": {"n": "another look"}}')
+        self.assertEqual(message, "flash changed more than the firmware; restore from the snapshot", printed)
+        self.assertIn("  cfg: unchanged (vid / usermod blocks as the image declares) | presets.json: CHANGED\n", printed)
 
 
 class SpareMigration(unittest.TestCase):
