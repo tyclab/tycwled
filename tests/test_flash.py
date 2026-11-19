@@ -109,6 +109,124 @@ class CfgDrift(unittest.TestCase):
         self.assertEqual(wledlab.cfg_drift(BASE, after), ['um.AudioReactive: {"enabled": true} -> <absent>'])
 
 
+class DeclaredUsermods(unittest.TestCase):
+    """--usermods: the usermod settings blocks the image carries. A block from before that the image does not carry may
+    go with its usermod; the blocks after the flash must be exactly the declared ones."""
+
+    # A GL-C-618WL on an Exoy image, flashed to the fleet image (AudioReactive and Syslog, no Exoy).
+    BEFORE = {"vid": 2611140, "id": {"mdns": "spare"},
+              "um": {"AudioReactive": {"enabled": True}, "Exoy": {"period_us": 22500}, "Syslog": {"port": 1515}}}
+    FLEET = ["AudioReactive", "Syslog"]
+
+    def after(self, **um):
+        blocks = {k: v for k, v in (self.BEFORE["um"] | um).items() if v is not None}
+        return {"vid": 2611150, "id": {"mdns": "spare"}, "um": blocks}
+
+    def test_a_block_the_image_does_not_carry_may_go_and_is_named(self):
+        after = self.after(Exoy=None)
+        self.assertEqual(wledlab.cfg_drift(self.BEFORE, after, self.FLEET), [])
+        self.assertEqual(wledlab.usermods_gone(self.BEFORE, after, self.FLEET), ["Exoy"])
+
+    def test_without_the_option_the_same_flash_is_drift_as_before(self):
+        after = self.after(Exoy=None)
+        self.assertEqual(wledlab.cfg_drift(self.BEFORE, after), ['um.Exoy: {"period_us": 22500} -> <absent>'])
+        self.assertEqual(wledlab.usermods_gone(self.BEFORE, after, None), [])
+
+    def test_an_undeclared_block_still_there_is_drift(self):
+        """The image is not the declared one: it still carries the usermod the list leaves out."""
+        self.assertEqual(wledlab.cfg_drift(self.BEFORE, self.after(), self.FLEET),
+                         ["um.Exoy: present after the flash, though the image does not declare it"])
+        self.assertEqual(wledlab.usermods_gone(self.BEFORE, self.after(), self.FLEET), [])
+
+    def test_an_undeclared_new_block_is_drift(self):
+        after = self.after(Exoy=None, Other={"enabled": True})
+        self.assertEqual(wledlab.cfg_drift(self.BEFORE, after, self.FLEET),
+                         ["um.Other: present after the flash, though the image does not declare it"])
+
+    def test_a_declared_block_missing_after_the_flash_is_drift(self):
+        """Also one that was missing before: the image declares it, so it must be there."""
+        after = self.after(Exoy=None, Syslog=None)
+        self.assertEqual(wledlab.cfg_drift(self.BEFORE, after, self.FLEET),
+                         ["um.Syslog: absent after the flash, though the image declares it"])
+        self.assertEqual(wledlab.usermods_gone(self.BEFORE, after, self.FLEET), ["Exoy"])
+        self.assertEqual(wledlab.cfg_drift({"um": {}}, {"um": {}}, ["Syslog"]),
+                         ["um.Syslog: absent after the flash, though the image declares it"])
+
+    def test_a_new_declared_block_passes(self):
+        before = {"vid": 2611140, "um": {"AudioReactive": {"enabled": True}}}
+        after = {"vid": 2611150, "um": {"AudioReactive": {"enabled": True}, "Syslog": {"port": 1515}}}
+        self.assertEqual(wledlab.cfg_drift(before, after, self.FLEET), [])
+
+    def test_inside_a_block_that_stays_and_outside_um_everything_is_compared(self):
+        after = self.after(Exoy=None, Syslog={"port": 514})
+        after["id"]["mdns"] = "other"
+        self.assertEqual(wledlab.cfg_drift(self.BEFORE, after, self.FLEET),
+                         ['id.mdns: "spare" -> "other"', "um.Syslog.port: 1515 -> 514"])
+        after = self.after(Exoy=None, AudioReactive={"enabled": True, "gain": 60})
+        self.assertEqual(wledlab.cfg_drift(self.BEFORE, after, self.FLEET), ["um.AudioReactive.gain: <absent> -> 60"])
+
+    def test_an_empty_list_declares_an_image_without_usermod_blocks(self):
+        self.assertEqual(wledlab.cfg_drift(self.BEFORE, {"vid": 2611150, "id": {"mdns": "spare"}, "um": {}}, []), [])
+        self.assertEqual(wledlab.cfg_drift({"um": {}}, {"um": {"Syslog": {}}}, []),
+                         ["um.Syslog: present after the flash, though the image does not declare it"])
+
+    def parse(self, *options):
+        with patch.object(sys, "argv", ["wledlab.py", "flash", "--host", "lamp", "--firmware", "f.bin", *options]), \
+                patch.object(wledlab, "cmd_flash") as flash:
+            wledlab.main()
+        return flash.call_args.args[0].usermods
+
+    def test_the_option_is_a_comma_separated_list_and_absent_by_default(self):
+        self.assertIsNone(self.parse())
+        self.assertEqual(self.parse("--usermods", "AudioReactive,Syslog"), ["AudioReactive", "Syslog"])
+        self.assertEqual(self.parse("--usermods", ""), [])
+
+    def flash(self, after_um, usermods):
+        """cmd_flash through a successful upload: the lamp comes back with `after_um` as its usermod blocks, the rest of
+        its cfg and its presets as before. Returns the exit message (None when it passed) and what it printed."""
+        cfg0 = copy.deepcopy(self.BEFORE)
+        cfg1 = copy.deepcopy(self.BEFORE) | {"vid": 2611150, "um": after_um}
+        state = {"on": False, "bri": 16, "seg": [{"id": 0, "fx": 0}]}
+        info = {"ver": "16.0.1", "vid": 2611140, "release": "ESP32_Ethernet", "mac": "001122334455", "uptime": 5000}
+        printed = io.StringIO()
+        with tempfile.TemporaryDirectory() as snap:
+            firmware = os.path.join(snap, "firmware.bin")
+            with open(firmware, "wb") as f:
+                f.write(image("ESP32_Ethernet"))
+            args = SimpleNamespace(host="lamp", firmware=firmware, release="ESP32_Ethernet", mac=None, cfg_migration=None,
+                                   skip_validation=False, snapshot=snap, timeout=1, credentials_file=None, usermods=usermods)
+            with patch.object(wledlab, "get", side_effect=[info, cfg0, state, cfg1, state]), \
+                    patch.object(wledlab, "readback", return_value=b"{}"), patch.object(wledlab, "post"), \
+                    patch.object(wledlab.time, "sleep"), \
+                    patch.object(wledlab, "wait_for_restart", return_value=info | {"vid": 2611150, "uptime": 9}), \
+                    patch.object(wledlab.subprocess, "run",
+                                 return_value=SimpleNamespace(returncode=0, stdout="Update successful", stderr="")), \
+                    contextlib.redirect_stdout(printed):
+                try:
+                    wledlab.cmd_flash(args)
+                    message = None
+                except SystemExit as stop:
+                    message = str(stop)
+        return message, printed.getvalue()
+
+    def test_the_flash_names_the_blocks_that_went_and_passes(self):
+        message, printed = self.flash({"AudioReactive": {"enabled": True}, "Syslog": {"port": 1515}}, self.FLEET)
+        self.assertIsNone(message, printed)
+        self.assertIn("  usermod blocks gone with the old image, which the new one does not carry: Exoy\n", printed)
+        self.assertIn("  cfg: unchanged (vid / usermod blocks as the image declares)", printed)
+
+    def test_the_flash_fails_on_an_undeclared_block_and_without_the_option(self):
+        message, printed = self.flash(copy.deepcopy(self.BEFORE["um"]), self.FLEET)
+        self.assertEqual(message, "flash changed more than the firmware; restore from the snapshot")
+        self.assertIn("  cfg drift: um.Exoy: present after the flash, though the image does not declare it\n", printed)
+        self.assertNotIn("usermod blocks gone", printed)
+        message, printed = self.flash({"AudioReactive": {"enabled": True}, "Syslog": {"port": 1515}}, None)
+        self.assertEqual(message, "flash changed more than the firmware; restore from the snapshot")
+        self.assertIn('  cfg drift: um.Exoy: {"period_us": 22500} -> <absent>\n', printed)
+        self.assertIn("  cfg: CHANGED", printed)
+        self.assertNotIn("usermod blocks gone", printed)
+
+
 class SpareMigration(unittest.TestCase):
     def setUp(self):
         self.info = {"ver": "0.15.3", "arch": "esp32", "release": "ESP32_Ethernet", "mac": "001122334455", "ip": "192.0.2.20"}
