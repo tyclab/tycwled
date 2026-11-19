@@ -66,6 +66,8 @@ NAME_ONLY = {"fleet/overlays/moon.json": "TycMoon", "fleet/overlays/glorb-links.
              "fleet/overlays/glorb-rechts.json": "TycGlorbRechts"}
 NAMES = {"curtain/h70b5-gledopto.json": "TycCurtain", "fleet/overlays/couch-domraem.json": "TycCouch",
          **DODECA, **NAME_ONLY}
+# The HyperCube: its boot state only.
+CUBE = "fleet/overlays/cube-gl015.json"
 
 
 class Overlays(unittest.TestCase):
@@ -78,7 +80,7 @@ class Overlays(unittest.TestCase):
     def test_every_controller_overlay_is_listed(self):
         found = {os.path.relpath(p, ROOT) for p in glob.glob(os.path.join(ROOT, "fleet", "overlays", "*.json"))}
         self.assertEqual({p for p in found if not p.endswith("-presets.json")},
-                         {p for p in CONTROLLERS | set(NAME_ONLY) if p.startswith("fleet/overlays/")})
+                         {p for p in CONTROLLERS | set(NAME_ONLY) | {CUBE} if p.startswith("fleet/overlays/")})
 
     def test_every_lamp_in_service_has_its_tycstation_name(self):
         self.assertEqual({path: self.load(path)["id"]["name"] for path in NAMES}, NAMES)
@@ -122,7 +124,8 @@ class Overlays(unittest.TestCase):
         # (playlist.cpp handlePlaylist returns while bri is 0) and then shows its first look, not one plain colour.
         boot_presets = {"fleet/overlays/couch-domraem.json": "fleet/overlays/couch-presets.json",
                         **{path: "fleet/overlays/exoy-presets.json" for path in DODECA}}
-        for path in sorted(CONTROLLERS):
+        # The cube's overlay holds its boot state only; outputs and presets come from tyclab/tycHyperWled.
+        for path in sorted(CONTROLLERS | {CUBE}):
             start = self.load(path)["def"]
             self.assertIs(start["on"], False, path)
             if start["ps"]:
