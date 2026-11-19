@@ -9,6 +9,15 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The Exoy lamps' brightness is free across 1 to 255 (operator, 2026-11-19: "exoy brightness is
+  artefact of stupid agent in the beginning. give full brightness range free."): no preset in
+  `fleet/overlays/exoy-presets.json` sets `bri` any more (the looks, the squid buttons 1 to 5 and 8
+  and the boot playlist's looks set 45 since 2026-11-11, the test patterns 30 and 31 set 60), so a
+  recall, a remote button or a playlist step keeps the brightness the remote, the app or Home
+  Assistant set. Both overlays boot at `def.bri` 45 (was 128), the brightness the lamps showed after
+  power-on until now. The couch, the Moon, the GLORBs and the curtain keep their looks' 45 and 200.
+  `tests/test_presets.py` and `tests/test_cfg.py` hold both rules.
+
 - Both Exoy lamps run at 40 FPS (`hw.led.fps` in both overlays, was 55), for image vid 2611190 and
   later (tyclab/tycExoyWled `293fde7`): that image asks WLED for a frame when the lamp's next one
   is due, as long as WLED's frame time (25 ms at 40 FPS) is no shorter than the scene's period

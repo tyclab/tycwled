@@ -6,7 +6,7 @@
   "def": {
     "ps": 20,
     "on": true,
-    "bri": 128
+    "bri": 45
   },
   "hw": {
     "led": {
