@@ -21,9 +21,9 @@ PORT = json.load(open(os.path.join(HERE, "..", "glorb", "wled16-port", "presets.
 
 # the only two fields a segment may differ in, and why
 TRANSLATED = {"fx", "pal"}
-# The fleet adds power and brightness to every look. The factory presets carry neither, so a recall
-# left both as they were and two lamps on the same button stayed apart (the GLORBs at 6 and 255 on
-# 2026-11-10). The operator set the values that evening: 45, and 200 for the Moon.
+# The fleet adds power and brightness to every look but the Exoys' (power only, below). The factory presets carry
+# neither, so a recall left both as they were and two lamps on the same button stayed apart (the GLORBs at 6 and
+# 255 on 2026-11-10). The operator set the values that evening: 45, and 200 for the Moon.
 POWER = {"on": True, "bri": 45}
 EXOY = "fleet/overlays/exoy-presets.json"
 # Every preset file the fleet installs: its brightness (None: it sets none) and the presets that are not looks.
@@ -74,11 +74,13 @@ class Power(unittest.TestCase):
             for k, p in looks.items():
                 self.assertEqual((p.get("on"), p.get("bri")), (True, brightness), f"{path} preset {k} ({p.get('n')})")
 
-    def test_no_exoy_preset_sets_a_brightness(self):
+    def test_every_exoy_preset_turns_the_lamp_on_and_sets_no_brightness(self):
         # A preset without "bri" leaves the lamp's brightness as it is, and "on": true on a lamp that is off turns it
         # on at the brightness it had (WLED 16.0.1 json.cpp deserializeState, led.cpp toggleOnOff): a recall, a
-        # remote button or a playlist step keeps what the remote, the app or Home Assistant set, 1 to 255.
+        # remote button or a playlist step keeps what the remote, the app or Home Assistant set, 1 to 255. Without
+        # "bri", "on": true is what switches an off lamp on: every look, test pattern and playlist carries it.
         presets = json.load(open(os.path.join(HERE, "..", EXOY)))
+        self.assertEqual([f"{k} ({p.get('n')})" for k, p in presets.items() if p and p.get("on") is not True], [])
         self.assertEqual([f"{k} ({p.get('n')})" for k, p in presets.items() if "bri" in p], [])
         # Nor does a segment dim its part of the lamp: every segment that is not deleted shows at full opacity.
         self.assertEqual([f"{k} segment {s.get('id')}" for k, p in presets.items() for s in effect_segments(p)

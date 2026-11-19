@@ -6,7 +6,7 @@
   "def": {
     "ps": 20,
     "on": true,
-    "bri": 45
+    "bri": 128
   },
   "hw": {
     "led": {
@@ -55,6 +55,11 @@
     }
   },
   "if": {
+    "sync": {
+      "recv": {
+        "bri": false
+      }
+    },
     "live": {
       "maxbri": true
     }
