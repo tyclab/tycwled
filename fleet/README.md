@@ -68,9 +68,10 @@ sends AudioReactive's sound sync (operator, 2026-11-18: "use sound sharing").
 
 Each Exoy lamp has its own DOMRAEM DOM-WLE-A since 2026-11-18 (operator: one controller per
 dodecahedron): TycDodecaLinks drives the left lamp at the kitchen end, TycDodecaRechts the right
-lamp at the window end; the data wire is on GPIO 16. Their identity, boot preset and power-on brightness, the one output,
+lamp at the window end; the data wire is on GPIO 16. Their identity, boot preset, the one output,
 its limit, the 30×16 matrix (one vertical panel, top start, not serpentine: row y is LED y of an
-edge), gamma 2.8, forced full brightness for a live stream and AudioReactive are in
+edge), gamma 2.8, forced full brightness for a live stream, no brightness from WLED sync
+(`if.sync.recv.bri` false, see Remote) and AudioReactive are in
 [`overlays/exoy-links-domraem.json`](overlays/exoy-links-domraem.json) and
 [`overlays/exoy-rechts-domraem.json`](overlays/exoy-rechts-domraem.json). The DOM-WLE-A has no
 microphone (operator, 2026-11-18; with the PDM setting on 26/21 that both came with, AudioReactive's
@@ -93,8 +94,8 @@ above the longest period, 22.5 ms). The overlay is for vid 2611190 and later: an
 2026-11-19 both ran at 55 FPS (18 ms, below every moving scene's period), where WLED showed 54 to
 55 frames a second whatever the scene's own rate. After power-on each plays its preset
 20, a playlist of ten stock looks at five minutes each ("Exoy calm cycle"), not one plain colour
-(operator, 2026-11-17), at brightness 45 (`def.bri`: WLED sets it at power-on, and neither the
-playlist nor its looks set one; see Remote). Their image `exoy_domraem` (`fleet_esp32` plus the 70 Exoy effects) and
+(operator, 2026-11-17). No preset sets a brightness (see Remote), so after power-on the lamp shows
+its `def.bri` (128) until someone sets another. Their image `exoy_domraem` (`fleet_esp32` plus the 70 Exoy effects) and
 their presets come from tyclab/tycExoyWled, not from this repository.
 
 Pin, LED and mic settings live in each lamp's cfg.json, not in the build. OTA retains
@@ -411,10 +412,16 @@ squid looks have their one segment), carry power and no brightness since 2026-11
 from 2026-11-11 every look set 45). A recall, a remote button or a playlist step keeps the lamp's
 brightness, and one that turns the lamp on brings back the brightness it had before it was switched
 off (WLED 16.0.1 `json.cpp` `deserializeState`, `led.cpp` `toggleOnOff`), so the remote's brightness
-buttons (6 to 255), the app and Home Assistant set it across the whole range. After power-on an Exoy
-lamp shows its `def.bri`, 45, the brightness its boot playlist's looks used to set.
+buttons (6 to 255), the app and Home Assistant set it across the whole range. Every Exoy preset
+carries `"on": true`, the look as much as the playlist and the test pattern: without a brightness it
+is what switches a lamp that is off back on. A WLED controller that sends sync in group 1 does not
+set their brightness: both overlays set `if.sync.recv.bri` false (the curtain and the couch receive
+no sync at all). This holds while the lamp receives colour, effect or palette by sync: with all four
+off WLED takes the sender's brightness anyway (`udp.cpp`, `someSel`).
 
-`tests/test_presets.py` holds these rules, and tycpve's `wled:install` puts the files on the lamps.
+`tests/test_presets.py` holds the presets' rules (power and brightness on every look of the other
+lamps; `"on": true` and no brightness on every Exoy preset), `tests/test_cfg.py` the Exoy overlays'
+sync setting, and tycpve's `wled:install` puts the files on the lamps.
 
 ## Curtain
 
