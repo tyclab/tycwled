@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The HyperCube boots off: new overlay `fleet/overlays/cube-gl015.json` with `def` `{ps: 0, on: false,
+bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 when power returned.
 - The Exoy lamps boot off (operator, 2026-11-19: "if we have power outage this happens and this an
   antipatern"): `def.on` is false in both overlays and the boot preset is the new 250, the calm
   cycle's playlist without power. A lamp stays dark after power comes back and shows the cycle's
