@@ -109,6 +109,12 @@ class Overlays(unittest.TestCase):
             self.assertEqual(led["matrix"], {"mpc": 1, "panels": [{"b": False, "r": False, "v": True, "s": False,
                                                                    "x": 0, "y": 0, "h": 16, "w": 30}]}, path)
 
+    def test_no_dodeca_lamp_takes_its_brightness_from_wled_sync(self):
+        # A WLED controller that sends sync in group 1 must not set the brightness (udp.cpp; the curtain and the couch
+        # receive none). It holds while the lamp receives col, fx or pal: with all four off udp.cpp takes bri anyway.
+        for path in DODECA:
+            self.assertEqual(self.load(path)["if"]["sync"], {"recv": {"bri": False}}, path)
+
     def test_each_dodeca_lamp_runs_every_scene_at_its_own_period_and_wleds_own_timer_never_comes_first(self):
         # um.Exoy.period_us 0: each scene's own frame period, the unchanged original's in the emulator
         # (tycExoyWled wled/scene-periods.tsv: 18,379 to 22,480 us, the static Custom Hue 16,000).
