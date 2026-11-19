@@ -5,6 +5,7 @@
 // setup; no clock survives a reset, so a boot reports each as its distance to the newest count (README).
 #pragma once
 
+#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -150,9 +151,12 @@ struct Out {
   Out(char *out, size_t size) : p(out), len(size), n(0) {
     if (len) p[0] = 0;
   }
-  template <typename... A> void add(const char *fmt, A... a) {
+  __attribute__((format(printf, 2, 3))) void add(const char *fmt, ...) {
     if (n >= len) return;
-    const int k = snprintf(p + n, len - n, fmt, a...);
+    va_list ap;
+    va_start(ap, fmt);
+    const int k = vsnprintf(p + n, len - n, fmt, ap);
+    va_end(ap);
     if (k > 0) n = n + size_t(k) < len ? n + size_t(k) : len;
   }
 };

@@ -29,7 +29,7 @@ class Scenarios(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = tempfile.mkdtemp()
         cls.exe = os.path.join(cls.tmp, "syslog_rtc_host")
-        subprocess.run([CXX, "-std=gnu++11", "-O1", "-Wall", "-Wextra", "-Werror", "-o", cls.exe, HOST], check=True)
+        subprocess.run([CXX, "-std=gnu++11", "-O1", "-Wall", "-Wextra", "-Wformat=2", "-Werror", "-o", cls.exe, HOST], check=True)
 
     @classmethod
     def tearDownClass(cls):
