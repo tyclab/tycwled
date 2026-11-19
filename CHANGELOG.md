@@ -9,6 +9,13 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- Both Exoy lamps run at 40 FPS (`hw.led.fps` in both overlays, was 55), for image vid 2611190 and
+  later (tyclab/tycExoyWled `293fde7`): that image asks WLED for a frame when the lamp's next one
+  is due, as long as WLED's frame time (25 ms at 40 FPS) is no shorter than the scene's period
+  (16.0 to 22.5 ms), so each scene is shown at its own rate. At 55 FPS WLED's own timer showed 54
+  to 55 frames a second in every scene, with engine frames repeated or dropped. An older image
+  must keep 55: at 40 it shows 40 of the engine's 44 to 62 frames a second.
+
 - The Exoy lamps follow the remote's button rule like the couch, the Moon and the GLORBs (operator,
   2026-11-18: "fully integrate both into house modes etc. also on remotes"): presets 1 to 5 and 8 of
   `fleet/overlays/exoy-presets.json` play the squid's arm waves under the curtain's look names, from

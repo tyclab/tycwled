@@ -12,7 +12,7 @@
     "led": {
       "total": 480,
       "maxpwr": 0,
-      "fps": 55,
+      "fps": 40,
       "ins": [
         {
           "start": 0,
