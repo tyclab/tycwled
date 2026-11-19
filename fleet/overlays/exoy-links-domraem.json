@@ -55,6 +55,11 @@
     }
   },
   "if": {
+    "sync": {
+      "recv": {
+        "bri": false
+      }
+    },
     "live": {
       "maxbri": true
     }
