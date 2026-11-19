@@ -23,6 +23,9 @@
 #include <esp_attr.h>
 #include <rom/rtc.h>
 #include <soc/soc_caps.h>
+#include <esp_freertos_hooks.h>
+
+#include "rtc_record.h"
 
 #ifndef SYSLOG_EVENTS_HOST
   #define SYSLOG_EVENTS_HOST ""          // empty = disabled until set in the usermod settings
@@ -43,23 +46,34 @@
 
 namespace {
 
-// RTC slow memory survives panics, watchdog and software resets (not power loss), so the
-// next boot can report what the previous run looked like. Each part carries its own magic
-// because they are written at different times; bump the magics if the layout changes.
-constexpr uint32_t CRASH_MAGIC = 0x53594331;  // "SYC1"
-constexpr uint32_t CRUMB_MAGIC = 0x53594231;  // "SYB1"
-constexpr uint32_t OTA_MAGIC   = 0x53594F31;  // "SYO1"
-constexpr uint8_t  BT_DEPTH    = 8;
+// The previous runs as the next boot reports them (rtc_record.h); bump syslogrtc::kMagic if the layout changes.
+RTC_NOINIT_ATTR syslogrtc::Record rtcRec;
+static_assert(ESP_RST_POWERON == 1 && ESP_RST_SW == 3 && ESP_RST_TASK_WDT == 6 && ESP_RST_SDIO == 10,
+              "syslogrtc::resetName indexes esp_reset_reason_t");
 
-struct RtcRecord {
-  uint32_t crashMagic, core, exception, exccause, excvaddr, btLen;
-  uint32_t bt[BT_DEPTH];
-  char     reason[40];
-  uint32_t crumbMagic, upSec, freeHeap, maxBlock, minHeap;
-  int32_t  rssi, wifiUp;
-  uint32_t otaMagic, otaFromVid;
-};
-RTC_NOINIT_ATTR RtcRecord rtcRec;
+// Heartbeats (rtc_record.h): each core's tick interrupt, core 0's idle task, the task watchdog's interrupt.
+void IRAM_ATTR tickCpu0() { syslogrtc::tick(rtcRec, 0); }
+#if SOC_CPU_CORES_NUM > 1
+void IRAM_ATTR tickCpu1() { syslogrtc::tick(rtcRec, 1); }
+#endif
+bool idleCpu0() {
+  syslogrtc::idle0(rtcRec);
+  return true;
+}
+
+int rtcReason1() {
+#if SOC_CPU_CORES_NUM > 1
+  return (int)rtc_get_reset_reason(1);
+#else
+  return -1;
+#endif
+}
+
+// A global constructor, so the run that ended is in the ring before any code of this run (a panic too) writes.
+struct RtcBoot {
+  bool kept;
+  RtcBoot() : kept(syslogrtc::boot(rtcRec, (uint8_t)rtc_get_reset_reason(0), (uint8_t)rtcReason1())) {}
+} rtcBoot;
 
 // Set from other tasks (Wi-Fi event task, async web server); word-sized, read in loop().
 volatile uint32_t wifiLostAt = 0, wifiDrops = 0, wifiReason = 0;
@@ -73,22 +87,6 @@ volatile uint32_t lorReqAt = 0;
 
 // Same caps as WLED's getFreeHeapSize(); ESP.getMinFreeHeap() counts more and reads above it.
 inline size_t minFreeHeap() { return heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT); }
-
-const char *resetName(esp_reset_reason_t r) {
-  switch (r) {
-    case ESP_RST_POWERON:   return "POWERON";
-    case ESP_RST_EXT:       return "EXT";
-    case ESP_RST_SW:        return "SW";
-    case ESP_RST_PANIC:     return "PANIC";
-    case ESP_RST_INT_WDT:   return "INT_WDT";
-    case ESP_RST_TASK_WDT:  return "TASK_WDT";
-    case ESP_RST_WDT:       return "WDT";
-    case ESP_RST_DEEPSLEEP: return "DEEPSLEEP";
-    case ESP_RST_BROWNOUT:  return "BROWNOUT";
-    case ESP_RST_SDIO:      return "SDIO";
-    default:                return "UNKNOWN";
-  }
-}
 
 const char *errName(uint8_t e) {
   switch (e) {
@@ -150,43 +148,51 @@ static inline uint32_t IRAM_ATTR stackPc(uint32_t pc) {
 }
 
 extern "C" void IRAM_ATTR __wrap_esp_panic_handler(panic_info_t *info) {
-  rtcRec.core = info->core;
-  rtcRec.exception = info->exception;
-  rtcRec.exccause = rtcRec.excvaddr = 0;
-  rtcRec.btLen = 0;
-  rtcRec.reason[0] = 0;
+  syslogrtc::Crash &c = rtcRec.run.crash;
+  c.core = info->core;
+  c.exception = info->exception;
+  c.exccause = c.excvaddr = 0;
+  c.btLen = 0;
+  c.reason[0] = 0;
 #if CONFIG_IDF_TARGET_ARCH_XTENSA
   const XtExcFrame *f = (const XtExcFrame *)info->frame;
   if (f) {
-    rtcRec.exccause = f->exccause;
-    rtcRec.excvaddr = f->excvaddr;
-    rtcRec.bt[rtcRec.btLen++] = f->pc;
+    c.exccause = f->exccause;
+    c.excvaddr = f->excvaddr;
+    c.bt[c.btLen++] = f->pc;
     esp_backtrace_frame_t fr = {(uint32_t)f->pc, (uint32_t)f->a1, (uint32_t)f->a0, f};
     // Walking from an insane SP would fault inside the panic handler; IDF checks the same.
     if (esp_stack_ptr_is_sane(fr.sp)) {
-      while (rtcRec.btLen < BT_DEPTH && fr.next_pc) {
+      while (c.btLen < syslogrtc::kBt && fr.next_pc) {
         bool ok = esp_backtrace_get_next_frame(&fr);
-        rtcRec.bt[rtcRec.btLen++] = stackPc(fr.pc);
+        c.bt[c.btLen++] = stackPc(fr.pc);
         if (!ok) break;
       }
     }
   }
 #else
-  rtcRec.bt[rtcRec.btLen++] = (uint32_t)info->addr;
+  c.bt[c.btLen++] = (uint32_t)info->addr;
 #endif
   if (info->reason && spi_flash_cache_enabled()) {  // the string lives in flash
     size_t i = 0;
-    for (; i < sizeof(rtcRec.reason) - 1 && info->reason[i]; i++) rtcRec.reason[i] = info->reason[i];
-    rtcRec.reason[i] = 0;
+    for (; i < sizeof(c.reason) - 1 && info->reason[i]; i++) c.reason[i] = info->reason[i];
+    c.reason[i] = 0;
   }
-  rtcRec.crashMagic = CRASH_MAGIC;
+  rtcRec.run.flags |= syslogrtc::kHasCrash;
   __real_esp_panic_handler(info);
 }
 #endif
 
+// Called by ESP-IDF's task watchdog interrupt (weak there) before it aborts or, with panic off, carries on.
+extern "C" void esp_task_wdt_isr_user_handler(void) {
+  const char *t[2] = {nullptr, nullptr};
+  for (int c = 0; c < portNUM_PROCESSORS && c < 2; c++) t[c] = pcTaskGetTaskName(xTaskGetCurrentTaskHandleForCPU(c));
+  syslogrtc::twdtBeat(rtcRec, t[0], t[1]);
+}
+
 class SyslogEvents : public Usermod {
   static constexpr uint8_t  QLEN = 8;
-  static constexpr uint16_t LINE = 232;
+  static constexpr uint16_t LINE = syslogrtc::kLine;
   static constexpr uint8_t  BUCKET = 10;          // burst
   static constexpr uint32_t REFILL_MS = 6000;     // then 10 lines/min sustained
   static constexpr uint32_t SAMPLE_MS = 5000;
@@ -201,6 +207,7 @@ class SyslogEvents : public Usermod {
   uint8_t tokens = BUCKET;
   uint32_t lastRefill = 0, lastSend = 0, lastSample = 0, lastBeat = 0, connectedAt = 0;
   bool firstConnect = true, reportConnect = false, heapLow = false, initDone = false;
+  uint8_t bootLines = 0;  // boot report lines not sent yet; the ring is kept until they are
   uint8_t lastErr = ERR_NONE, lastLor = REALTIME_OVERRIDE_NONE;
   size_t freeHeap = 0, maxBlock = 0;
   int32_t lastRssi = 0;
@@ -241,51 +248,31 @@ class SyslogEvents : public Usermod {
   }
 
   void reportBoot() {
-    esp_reset_reason_t r = esp_reset_reason();
-    bool unplanned = r != ESP_RST_POWERON && r != ESP_RST_SW && r != ESP_RST_DEEPSLEEP;
-    char ota[40] = "";
-    if (rtcRec.otaMagic == OTA_MAGIC && r == ESP_RST_SW) snprintf(ota, sizeof(ota), " after OTA from vid %u", rtcRec.otaFromVid);
-    post(unplanned ? 4 : 5, "boot: reset=%s rtc=%d/%d fw=%s vid=%d rel=%s name=\"%s\"%s",
-         resetName(r), (int)rtc_get_reset_reason(0),
-#if SOC_CPU_CORES_NUM > 1
-         (int)rtc_get_reset_reason(1),
-#else
-         -1,
-#endif
-         versionString, VERSION, releaseString, serverDescription, ota);
-    // RTC is undefined after power-on; anything else kept the previous run's last breadcrumb.
-    if (r != ESP_RST_POWERON && rtcRec.crumbMagic == CRUMB_MAGIC)
-      post(unplanned ? 4 : 6, "boot: previous run up=%us heap=%u blk=%u minheap=%u rssi=%d wifi=%s",
-           rtcRec.upSec, rtcRec.freeHeap, rtcRec.maxBlock, rtcRec.minHeap, rtcRec.rssi, rtcRec.wifiUp ? "up" : "down");
-    if (r != ESP_RST_POWERON && rtcRec.crashMagic == CRASH_MAGIC) {
-      static const char *const exc[] = {"DEBUG", "IWDT", "TWDT", "ABORT", "FAULT"};
-      char bt[BT_DEPTH * 11 + 1] = "";
-      size_t o = 0;
-      for (uint32_t i = 0; i < rtcRec.btLen && i < BT_DEPTH; i++) o += snprintf(bt + o, sizeof(bt) - o, " 0x%08x", rtcRec.bt[i]);
-      rtcRec.reason[sizeof(rtcRec.reason) - 1] = 0;
-      post(3, "crash: core=%u exception=%s cause=%u vaddr=0x%08x reason=\"%s\" bt=%s",
-           rtcRec.core, rtcRec.exception < 5 ? exc[rtcRec.exception] : "?", rtcRec.exccause, rtcRec.excvaddr,
-           rtcRec.reason, o ? bt + 1 : "-");
-    }
-    rtcRec.crashMagic = rtcRec.crumbMagic = rtcRec.otaMagic = 0;
+    const esp_reset_reason_t r = esp_reset_reason();  // not yet set when rtcBoot was constructed
+    const bool unplanned = r != ESP_RST_POWERON && r != ESP_RST_SW && r != ESP_RST_DEEPSLEEP;
+    char tail[80];
+    syslogrtc::bootTail(rtcRec, rtcBoot.kept, (uint8_t)r, tail, sizeof(tail));
+    const uint8_t queued = qCount;
+    post(unplanned ? 4 : 5, "boot: reset=%s rtc=%d/%d fw=%s vid=%d rel=%s name=\"%s\"%s", syslogrtc::resetName(r),
+         (int)rtc_get_reset_reason(0), rtcReason1(), versionString, VERSION, releaseString, serverDescription, tail);
+    syslogrtc::reportLines(rtcRec, [&](int kind, const char *line) {
+      post(kind == 1 ? 3 : kind == 2 || unplanned ? 4 : 6, "%s", line);
+    });
+    bootLines = qCount - queued;
+    syslogrtc::startRun(rtcRec);
   }
 
   void sample(uint32_t now) {
     freeHeap = getFreeHeapSize();
     maxBlock = getContiguousFreeHeap();
     if (WLED_CONNECTED && !wifiLostAt) lastRssi = WiFi.RSSI();  // frozen while a loss is unreported
-    rtcRec.upSec = now / 1000;
-    rtcRec.freeHeap = freeHeap;
-    rtcRec.maxBlock = maxBlock;
-    rtcRec.minHeap = minFreeHeap();
-    rtcRec.rssi = lastRssi;
-    rtcRec.wifiUp = WLED_CONNECTED;
-    rtcRec.crumbMagic = CRUMB_MAGIC;
+    const syslogrtc::Crumb c = {now / 1000, freeHeap, maxBlock, minFreeHeap(), lastRssi, WLED_CONNECTED};
+    syslogrtc::crumb(rtcRec, c);
 
     const size_t low = (size_t)heapLowKB * 1024;
     if (!heapLow && maxBlock < low) {
       heapLow = true;
-      post(4, "heap: low, largest block %u < %u, free %u, min ever %u", maxBlock, low, freeHeap, rtcRec.minHeap);
+      post(4, "heap: low, largest block %u < %u, free %u, min ever %u", maxBlock, low, freeHeap, c.minHeap);
     } else if (heapLow && maxBlock > low + 4096) {  // hysteresis: one line per crossing, not per sample
       heapLow = false;
       post(5, "heap: recovered, largest block %u, free %u", maxBlock, freeHeap);
@@ -361,11 +348,17 @@ class SyslogEvents : public Usermod {
     qCount--;
     tokens--;
     sent++;
+    if (bootLines && !--bootLines) syslogrtc::reported(rtcRec);  // a boot that dies before this is reported next time
     if (dropped && qCount < QLEN) { post(4, "syslog: dropped %u lines (queue full)", dropped); dropped = 0; }
   }
 
  public:
   void setup() override {
+    esp_register_freertos_tick_hook_for_cpu(tickCpu0, 0);
+#if SOC_CPU_CORES_NUM > 1
+    esp_register_freertos_tick_hook_for_cpu(tickCpu1, 1);
+#endif
+    esp_register_freertos_idle_hook_for_cpu(idleCpu0, 0);
     WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) {
       if (!wifiLostAt) wifiLostAt = millis() | 1;
       wifiReason = info.wifi_sta_disconnected.reason;
@@ -380,10 +373,13 @@ class SyslogEvents : public Usermod {
   void connected() override {
     connectedAt = millis();
     reportConnect = true;
+    syslogrtc::connected(rtcRec);
   }
 
   void loop() override {
-    if (!enabled || !initDone) return;
+    if (!initDone) return;
+    syslogrtc::loopBeat(rtcRec, xPortGetCoreID());
+    if (!enabled) return;
     uint32_t now = millis();
     if (now - lastSample >= SAMPLE_MS && !strip.isUpdating()) { lastSample = now; sample(now); }
     pollEvents(now);
@@ -391,8 +387,8 @@ class SyslogEvents : public Usermod {
   }
 
   void onUpdateBegin(bool init) override {
-    if (init) { rtcRec.otaFromVid = VERSION; rtcRec.otaMagic = OTA_MAGIC; otaEvent = 1; }
-    else      { rtcRec.otaMagic = 0; otaEvent = 2; }
+    rtcRec.otaFromVid = init ? VERSION : 0;
+    otaEvent = init ? 1 : 2;
   }
 
   void readFromJsonState(JsonObject &root) override {

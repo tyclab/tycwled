@@ -5,18 +5,19 @@ WLED 16 has no syslog. Its only remote log is the compile-time `WLED_DEBUG` +
 frame rate. This usermod sends the events worth keeping from a normal build as
 RFC3164 lines over UDP:
 
-| Line                                                                                                | Severity                     | When                                                                |
-| --------------------------------------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------- |
-| `boot: reset=<REASON> rtc=<core0>/<core1> fw=… vid=… rel=… name="…" [after OTA from vid N]`         | notice, warning if unplanned | every boot                                                          |
-| `boot: previous run up=… heap=… blk=… minheap=… rssi=… wifi=…`                                      | info, warning if unplanned   | any boot but power-on: the last 5 s breadcrumb before the reset     |
-| `crash: core=… exception=… cause=… vaddr=… reason="…" bt=…`                                         | err                          | after a panic, abort or watchdog, with the panic hook built in      |
-| `wifi: connected …` / `wifi: reconnected after Ns offline, drops=… last reason=… rssi before/now …` | info / warning               | first connect / every reconnect                                     |
-| `heap: low …` / `heap: recovered …`                                                                 | warning / notice             | largest free block crosses `heap-low-kb` (4 KB hysteresis)          |
-| `ota: upload started …` / `ota: update failed or aborted …`                                         | notice / warning             | web `/update`                                                       |
-| `error: code=N (…) [requested ps=N]`                                                                | err                          | WLED `errorFlag` (missing preset, FS, JSON, RAM, heap-guard resets) |
-| `live override: <old> -> <new> (<mode>) <path>`                                                     | warning, notice when cleared | every change of WLED's live override (`lor`)                        |
-| `status: up=… heap=… blk=… minheap=… rssi=… fps=… on=… bri=… ps=… sent=… dropped=… lor=…`           | info                         | every `heartbeat-min` (60)                                          |
-| `syslog: dropped N lines`                                                                           | warning                      | after the queue overflowed                                          |
+| Line                                                                                                                                 | Severity                     | When                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | -------------------------------------------------------------------- |
+| `boot: reset=<REASON> rtc=<core0>/<core1> fw=… vid=… rel=… name="…" [after OTA from vid N] rtcmem=kept\|lost boots=N [unreported=K]` | notice, warning if unplanned | every boot                                                           |
+| `boot: previous run up=… heap=… blk=… minheap=… rssi=… wifi=… stage=… ago_ms cpu0=… cpu1=… loop=… idle0=… [twdt=… tasks="…"/"…"]`    | info, warning if unplanned   | when the record was kept: the last 5 s breadcrumb and the heartbeats |
+| `crash: core=… exception=… cause=… vaddr=… reason="…" bt=…`                                                                          | err                          | after a panic, abort or watchdog, with the panic hook built in       |
+| `boot: earlier boot i/N reset=… rtc=…, run before: up=… wifi=… stage=… ago_ms … [crash=… pc=…]`                                      | warning                      | per boot whose own lines never went out (it died before Wi-Fi)       |
+| `wifi: connected …` / `wifi: reconnected after Ns offline, drops=… last reason=… rssi before/now …`                                  | info / warning               | first connect / every reconnect                                      |
+| `heap: low …` / `heap: recovered …`                                                                                                  | warning / notice             | largest free block crosses `heap-low-kb` (4 KB hysteresis)           |
+| `ota: upload started …` / `ota: update failed or aborted …`                                                                          | notice / warning             | web `/update`                                                        |
+| `error: code=N (…) [requested ps=N]`                                                                                                 | err                          | WLED `errorFlag` (missing preset, FS, JSON, RAM, heap-guard resets)  |
+| `live override: <old> -> <new> (<mode>) <path>`                                                                                      | warning, notice when cleared | every change of WLED's live override (`lor`)                         |
+| `status: up=… heap=… blk=… minheap=… rssi=… fps=… on=… bri=… ps=… sent=… dropped=… lor=…`                                            | info                         | every `heartbeat-min` (60)                                           |
+| `syslog: dropped N lines`                                                                                                            | warning                      | after the queue overflowed                                           |
 
 The HOSTNAME is the mDNS name unless `hostname` is set: server names are free
 text and two lamps may share one, while a log collector keys streams on this
@@ -43,6 +44,25 @@ it. Decode the `bt=` addresses with the ELF of that exact build:
 
 RTC memory survives panics, watchdogs, software resets and usually brownouts. It
 does not survive power loss. After a power-on, only the reset reason is reported.
+
+## Record in RTC memory (`rtc_record.h`)
+
+- `rtcmem=lost`: the record's magic was not there, so power was lost (or the chip
+  held in reset) since the last boot, whatever `reset=` says: a `TASK_WDT rtc=7`
+  with `rtcmem=lost` is the boot ROM's flash-boot watchdog after a power cut, not
+  the task watchdog of a running image. `rtcmem=kept` with `POWERON` is a dip
+  short enough to keep RTC memory.
+- `boots=N` counts boots since the record was new. A boot keeps its lines in the
+  record until they were sent; one that dies before Wi-Fi is reported by the next
+  boot as `boot: earlier boot …` and counted in `unreported=` (the record holds
+  four; older ones are only counted).
+- `stage=` is how far the run got: `setup`, `loop` (main loop ran), `wifi`.
+- Heartbeats count FreeRTOS ticks from setup: `cpu0`/`cpu1` each core's tick
+  interrupt, `loop` the main loop, `idle0` core 0's idle task (what the task
+  watchdog watches), `twdt` its interrupt, with the tasks running on each core
+  then. `ago_ms` gives each as ms before the newest tick: `cpu0=0 idle0=10000`
+  is core 0's idle task starved for its last 10 s; all near 0 is a stop of the
+  whole chip.
 
 ## Settings (`um.Syslog` in cfg.json, or the Usermods page)
 
