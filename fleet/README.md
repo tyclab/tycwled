@@ -92,10 +92,12 @@ the scene's period, so that timer never shows a frame in between: both lamps run
 above the longest period, 22.5 ms). The overlay is for vid 2611190 and later: an older image at
 40 FPS is called by the timer alone and shows 40 of the engine's 44 to 62 frames a second. Until
 2026-11-19 both ran at 55 FPS (18 ms, below every moving scene's period), where WLED showed 54 to
-55 frames a second whatever the scene's own rate. After power-on each plays its preset
-20, a playlist of ten stock looks at five minutes each ("Exoy calm cycle"), not one plain colour
-(operator, 2026-11-17). No preset sets a brightness (see Remote), so after power-on the lamp shows
-its `def.bri` (128) until someone sets another. Their image `exoy_domraem` (`fleet_esp32` plus the 70 Exoy effects) and
+55 frames a second whatever the scene's own rate. Each boots off (operator, 2026-11-19, on a
+lamp lit after a power cut: "if we have power outage this happens and this an antipatern") with
+its preset 250 loaded: the ten stock looks of "Exoy calm cycle" (20) at five minutes each, without
+power. It stays dark until someone switches it on and then shows the first of them, not one plain
+colour (operator, 2026-11-17). No preset sets a brightness (see Remote), so a lamp switched on
+after power-on shows its `def.bri` (128) until someone sets another. Their image `exoy_domraem` (`fleet_esp32` plus the 70 Exoy effects) and
 their presets come from tyclab/tycExoyWled, not from this repository.
 
 Pin, LED and mic settings live in each lamp's cfg.json, not in the build. OTA retains
