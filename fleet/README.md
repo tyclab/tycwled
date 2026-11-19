@@ -84,10 +84,14 @@ at its own frame period (`um.Exoy.period_us` 0, for image vid 2611181 and later;
 reads 0 as 11 ms): the unchanged original firmware's mean frame time in that scene in the emulator,
 18.4 to 19.9 ms for 67 scenes, 22.5 ms for Rhythm Run and Gloze and 16.0 ms for the static Custom
 Hue (tyclab/tycExoyWled `wled/scene-periods.tsv`; the emulator's CPU speed is not calibrated against
-the chip, and the image's earlier single 16 ms was never measured). WLED calls an effect once per
-frame time, 1000 / FPS in whole ms: at its default 42 FPS that is every 23 ms and a third of the
-engine's frames is never shown, so both lamps run at 55 FPS (18 ms, below every moving scene's
-period). After power-on each plays its preset
+the chip, and the image's earlier single 16 ms was never measured). WLED shows a frame once per
+frame time, 1000 / FPS in whole ms, on its own timer. From image vid 2611190 the Exoy usermod asks
+WLED for a frame when the lamp's next one is due, as long as WLED's frame time is no shorter than
+the scene's period, so that timer never shows a frame in between: both lamps run at 40 FPS (25 ms,
+above the longest period, 22.5 ms). The overlay is for vid 2611190 and later: an older image at
+40 FPS is called by the timer alone and shows 40 of the engine's 44 to 62 frames a second. Until
+2026-11-19 both ran at 55 FPS (18 ms, below every moving scene's period), where WLED showed 54 to
+55 frames a second whatever the scene's own rate. After power-on each plays its preset
 20, a playlist of ten stock looks at five minutes each ("Exoy calm cycle"), not one plain colour
 (operator, 2026-11-17). Their image `exoy_domraem` (`fleet_esp32` plus the 70 Exoy effects) and
 their presets come from tyclab/tycExoyWled, not from this repository.
