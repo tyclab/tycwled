@@ -77,8 +77,12 @@
     },
     "AudioReactive": {
       "enabled": true,
+      "digitalmic": {
+        "type": 1,
+        "pin": [26, 5, 21, -1]
+      },
       "sync": {
-        "mode": 2
+        "mode": 0
       }
     },
     "Exoy": {
