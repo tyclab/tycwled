@@ -12,23 +12,44 @@ import subprocess
 import tempfile
 
 
-def filter_source(database):
+def configured_source(database):
     entries = json.loads(database.read_text())
     entry, = [row for row in entries if Path(row["file"]).name == "audio_reactive.cpp"]
     command = shlex.split(entry["command"])
     output = command.index("-o")
     del command[output:output + 2]
     command[command.index("-c")] = "-E"
-    source = subprocess.check_output([*command, "-P"], cwd=entry["directory"], text=True)
-    signature = re.search(r"static void runMicFilter\([^;{}]*\)\s*\{", source)
-    if not signature or "using FFTsampleType = float;" not in source:
-        raise ValueError("Expected an active floating-point AudioReactive microphone filter")
+    return subprocess.check_output([*command, "-P"], cwd=entry["directory"], text=True)
+
+
+def function(source, signature):
+    match = re.search(signature + r"\([^;{}]*\)\s*\{", source)
+    if not match:
+        raise ValueError(f"Configured GLORB microphone function missing: {signature}")
     depth = 1
-    for end in range(signature.end(), len(source)):
+    for end in range(match.end(), len(source)):
         depth += (source[end] == "{") - (source[end] == "}")
         if depth == 0:
-            return source[signature.start():end + 1]
-    raise ValueError("Incomplete microphone filter")
+            return source[match.start():end + 1]
+    raise ValueError(f"Incomplete microphone function: {signature}")
+
+
+def reader_and_filter(source):
+    _, found, reader = source.partition("class I2SSource : public AudioSource {")
+    constructor = reader.partition("virtual void initialize(")[0]
+    if not (found and ".bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT," in constructor
+            and ".bits_per_chan = I2S_BITS_PER_CHAN_16BIT," in constructor):
+        raise ValueError("GLORB PDM must request 16-bit I2S samples and channels")
+    if "using FFTsampleType = float;" not in source:
+        raise ValueError("Expected an active floating-point AudioReactive microphone filter")
+    pdm = re.search(r"case 5:[^:{}]*?new I2SSource\(SAMPLE_RATE, BLOCK_SIZE, ([^,)]+)\)", source)
+    if not pdm:
+        raise ValueError("Configured PDM microphone source missing")
+    # Execute the selected firmware reader with its real PDM constructor scale.
+    return (f"constexpr float _sampleScale = {pdm.group(1)};\n"
+            + function(source, r"int(?:16|32)_t postProcessSample") + "\n"
+            + function(reader, "void getSamples") + "\n"
+            + function(source, "static void runMicFilter"))
 
 
 # The factory GLORB.1.3 application (SHA-256 ba2decaa…) was run on a virtual
@@ -52,12 +73,44 @@ VECTORS = (
         (62.9506149, "b4ec00706fcb740c866480f1590c68f0e32850b7705a1dde3fe2b9e891b6188e"),
     )),
 )
+READER_STUB = r"""
+#include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+using FFTsampleType = float;
+using TickType_t = uint32_t;
+using esp_err_t = int;
+constexpr int I2S_NUM_0 = 0;
+constexpr bool _initialized = true;
+static int16_t pcm[512];
+static size_t readBytes = sizeof(pcm);
+static int readError = 0;
+int i2s_read(int port, void* destination, size_t bytes, size_t* received, TickType_t timeout) {
+    if (port != 0 || bytes != sizeof(pcm) || timeout != UINT32_MAX) {
+        std::fputs("Wrong GLORB I2S read port, byte count or timeout\n", stderr);
+        std::exit(1);
+    }
+    std::memcpy(destination, pcm, readBytes);
+    *received = readBytes;
+    return readError;
+}
+"""
 DRIVER = r"""
 int main() {
-    int16_t pcm[512];
     float block[512];
+    for (readError = 0; readError <= 1; ++readError) {
+        // A short success and a full-length failure must both preserve the previous samples.
+        readBytes = readError ? sizeof(pcm) : sizeof(pcm) - sizeof(int16_t);
+        std::fill_n(block, 512, 123.5f);
+        getSamples(block, 512);
+        if (!std::all_of(block, block + 512, [](float v) {return v == 123.5f;})) return 1;
+    }
+    readError = 0;
+    readBytes = sizeof(pcm);
     while (std::fread(pcm, sizeof(int16_t), 512, stdin) == 512) {
-        for (int i = 0; i < 512; ++i) block[i] = pcm[i] * 0.25f;
+        getSamples(block, 512);
         runMicFilter(512, block);
         if (std::fwrite(block, sizeof(float), 512, stdout) != 512) return 1;
     }
@@ -67,11 +120,11 @@ int main() {
 
 
 def verify(database):
-    source = filter_source(database)
+    source = reader_and_filter(configured_source(database))
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory)
         cpp = path / "filter.cpp"
-        cpp.write_text("#include <cstdint>\n#include <cstdio>\nusing FFTsampleType = float;\n" + source + DRIVER)
+        cpp.write_text(READER_STUB + source + DRIVER)
         binary = path / "filter"
         subprocess.run(["c++", "-std=c++17", "-O2", "-ffp-contract=off", cpp, "-o", binary], check=True)
         for hz, amplitude, step, expected in VECTORS:
