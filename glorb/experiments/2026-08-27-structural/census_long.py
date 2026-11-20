@@ -1,6 +1,6 @@
 """Long hue census (>= 3 colour cycles) for the composite/Black Hole presets, optional seg overrides on the target."""
-import json, sys, time, wledlab
-R, T = "10.27.4.160", "10.27.4.158"
+import json, os, sys, time, wledlab
+R, T = os.environ["REF"], os.environ["TARGET"]
 plan = json.loads(sys.argv[1])  # {"2": {"seg": [{"id":0,"col":[[150,150,150],[255,255,255],[255,255,255]]}]}, "12": {}}
 seconds = int(sys.argv[2]) if len(sys.argv) > 2 else 100
 

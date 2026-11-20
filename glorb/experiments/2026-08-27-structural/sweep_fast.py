@@ -1,5 +1,5 @@
-import json, time, wledlab
-R,T="10.27.4.160","10.27.4.158"
+import json, os, time, wledlab
+R, T = os.environ["REF"], os.environ["TARGET"]
 for ps in (1,3,4,5,2,14,12,13,7,9,10,11):
     fr,ft=wledlab.simultaneous(R,T,40,preset=ps); time.sleep(3)
     json.dump({"ref":fr,"tgt":ft},open(f"captures/fast-p{ps}.json","w"))

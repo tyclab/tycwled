@@ -1,6 +1,6 @@
 """Black Hole: which model of the fork's sliders reproduces its hue census? Runs candidates on the port, 60 s each."""
-import json, sys, time, threading, wledlab
-R, T = "10.27.4.160", "10.27.4.158"
+import json, os, sys, time, threading, wledlab
+R, T = os.environ["REF"], os.environ["TARGET"]
 S = "."
 
 

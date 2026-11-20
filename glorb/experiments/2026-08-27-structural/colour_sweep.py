@@ -1,5 +1,5 @@
-import json, sys, time, wledlab
-R, T = "10.27.4.160", "10.27.4.158"
+import json, os, sys, time, wledlab
+R, T = os.environ["REF"], os.environ["TARGET"]
 presets = [int(x) for x in sys.argv[1:]] or [1, 3, 4, 5, 2, 14, 12, 13, 7, 9, 10, 11]
 
 

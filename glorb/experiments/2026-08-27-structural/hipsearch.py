@@ -1,7 +1,8 @@
-import json, sys, math, time, threading, wledlab
+import json, os, sys, math, time, threading, wledlab
 sys.path.insert(0,".")
 from hipsim import W,H,grids
-R,T="10.27.4.160","10.27.4.158"; fs=10
+R, T = os.environ["REF"], os.environ["TARGET"]
+fs=10
 def feats(gr):
     t0=gr[0][0]; cells=[(y,x) for y in range(H) for x in range(W) if gr[0][1][y][x] is not None and max(G[y][x] for _,G in gr)>0.05]
     n=int((gr[-1][0]-t0)*fs); out={c:[] for c in cells}; j=0; mean=[]

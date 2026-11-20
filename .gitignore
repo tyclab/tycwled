@@ -1,5 +1,5 @@
-captures/*.json
-captures/**/*.json
+captures/
+pre-flash-backup/
 *.pyc
 __pycache__/
 pushed_frame.json
