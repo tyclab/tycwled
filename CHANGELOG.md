@@ -202,10 +202,11 @@ bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 
 
 ### Fixed
 
-- `wledlab.py install --cfg` restarts the lamp once when the write changes `nw.espnow` or `wifi.sleep`: WLED 16
-  applies both only when it connects. TycDodecaLinks and TycDodecaRechts came with ESP-NOW off, got it from
-  their install on 2026-11-20 and heard no remote press until they were restarted. A lamp playing a live
-  stream is not restarted; the install ends red and names the switch.
+- `wledlab.py install --cfg` restarts the lamp once when the write changes `nw.espnow`, `wifi.sleep`,
+  `wifi.txpwr`, `id.mdns` or `id.inv`, which WLED 16 uses only when it connects, and puts back what the lamp
+  showed. TycDodecaLinks and TycDodecaRechts came with ESP-NOW off, got it from their install on 2026-11-20
+  and heard no remote press until they were restarted. While a live stream plays, such a write is refused
+  before anything is written; the install ends red and names the settings.
 
 - `wledlab.py flash` checks the image's release name itself, before anything is written, and tells
   the lamp to skip its own check. WLED 16.0.1 compares the uploaded name with the bytes that follow
