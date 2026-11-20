@@ -14,6 +14,12 @@ class BlackHole(unittest.TestCase):
         body = function(SOURCE.read_text(), "glorb_mode_blackhole")
         self.assertIn("glorb_color_from_palette(i * 63, false, PALETTE_SOLID_WRAP, 0)", body)
 
+    def test_star_phase_runs_on_millis(self):
+        # the original reads millis() for the star phase (0x420842f4) and strip.now only in its beat helpers
+        body = function(SOURCE.read_text(), "glorb_mode_blackhole")
+        self.assertIn("const uint32_t t8 = millis() >> 7;", body)
+        self.assertNotIn("strip.now >> 7", body)
+
     def test_check1_is_not_read(self):
         body = function(SOURCE.read_text(), "glorb_mode_blackhole")
         self.assertNotIn("check1", body)
