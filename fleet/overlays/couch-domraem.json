@@ -19,7 +19,7 @@
         "limiter": false
       },
       "sync": {
-        "mode": 1
+        "mode": 0
       }
     }
   },

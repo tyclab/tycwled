@@ -56,7 +56,8 @@ class CfgUnapplied(unittest.TestCase):
                          ["light.gc.col: wanted 1.0, lamp has 2.8", "hw.led.maxpwr: wanted 2800, lamp has <absent>"])
 
 
-SPARES = {"fleet/overlays/spare3-gledopto.json": 3, "fleet/overlays/spare4-gledopto.json": 4}
+SPARES = {"fleet/overlays/spare3-gledopto.json": 3, "fleet/overlays/spare4-gledopto.json": 4,
+          "fleet/overlays/spare5-domraem.json": 5, "fleet/overlays/spare6-domraem.json": 6}
 # One Exoy ONE lamp per controller since 2026-11-18.
 DODECA = {"fleet/overlays/exoy-links-domraem.json": "TycDodecaLinks",
           "fleet/overlays/exoy-rechts-domraem.json": "TycDodecaRechts"}
@@ -146,11 +147,15 @@ class Overlays(unittest.TestCase):
             self.assertEqual(cfg["hw"]["led"]["fps"], 40, path)
             self.assertGreaterEqual((1000 // cfg["hw"]["led"]["fps"]) * 1000, longest_period_us, path)
 
-    def test_the_couch_sends_its_sound_and_both_dodeca_lamps_receive_it(self):
-        # AudioReactive's UDP sound sync: bit 0 sends, bit 1 receives (audio_reactive.cpp, audioSyncEnabled).
-        self.assertEqual(self.load("fleet/overlays/couch-domraem.json")["um"]["AudioReactive"]["sync"], {"mode": 1})
+    def test_each_dodeca_lamp_hears_its_own_microphone_and_no_sound_sync_runs(self):
+        # Since 2026-11-20 each Exoy lamp's controller has an I2S microphone (generic I2S, type 1, SD 26, WS 5,
+        # SCK 21, as the couch's DOM-WLE-ADM). AudioReactive's UDP sound sync: bit 0 sends, bit 1 receives
+        # (audio_reactive.cpp, audioSyncEnabled); it is off everywhere, written as 0 because overlays are partial.
+        self.assertEqual(self.load("fleet/overlays/couch-domraem.json")["um"]["AudioReactive"]["sync"], {"mode": 0})
         for path in DODECA:
-            self.assertEqual(self.load(path)["um"]["AudioReactive"], {"enabled": True, "sync": {"mode": 2}}, path)
+            self.assertEqual(self.load(path)["um"]["AudioReactive"],
+                             {"enabled": True, "digitalmic": {"type": 1, "pin": [26, 5, 21, -1]}, "sync": {"mode": 0}},
+                             path)
 
     def test_every_overlay_that_writes_nw_pairs_the_three_remotes_with_espnow_on(self):
         remotes = ["704bcac8d198", "704bcac9aa6c", "704bcaca4b78"]
