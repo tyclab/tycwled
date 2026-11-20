@@ -1109,8 +1109,7 @@ Two corrections to the section above, from making the model committed and exact:
 
 ### RESOLVED on hardware: 12/12
 
-Gate run after flashing the hole-topology fix (`verify-2026-09-01-holes.log`,
-firmware at 5b2e901): every preset passes every criterion. Black Hole, the
+[Gate run after flashing the hole-topology fix](../acceptance.md) (firmware at 5b2e901): every preset passes every criterion. Black Hole, the
 last holdout, lands at lit_r 1.00/0.99 and mean_r 0.99/0.99 — the model's
 prediction, reproduced on the lamp before the gate was consulted, per the
 protocol above. Preset 11's first window was refused for a 2.59 s stream gap
@@ -1119,11 +1118,9 @@ unhealthy windows itself, and only those.
 
 ### Final gate: 12/12 in one run
 
-`verify-2026-09-01-final.log`: full sweep on the shipped firmware (7eb5f31 —
+The [final gate](../acceptance.md#final-sweep) ran a full sweep on the shipped firmware (7eb5f31 —
 adds the review's `color_blend` blend-255 early return), every preset PASS in
-a single uninterrupted run, no capture retries needed. This supersedes
-`verify-2026-09-01-holes.log` as the acceptance evidence; that log remains as
-the record of the hole-topology fix landing.
+a single uninterrupted run, no capture retries needed. The earlier hole-topology sweep and its re-measurement are recorded in the same summary.
 
 ## 2026-11-14: actual-firmware palette arithmetic
 

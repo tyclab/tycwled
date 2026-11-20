@@ -63,8 +63,8 @@ bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 
   receive it. The DOM-WLE-A has no microphone; with the PDM setting on 26/21 that both came with,
   AudioReactive read no sound. The lamps' overlays no longer set a squelch or microphone pins.
 
-- The couch and both Exoy lamps pair three ESP-NOW remotes: `704bcaca4b78` is the operator's third
-  remote again (unpaired on 2026-11-11 as an unknown address). The two Exoy lamps' overlays turn
+- The couch and both Exoy lamps pair three ESP-NOW remotes again. The third remote was
+  unpaired on 2026-11-11 when its address was unknown. The two Exoy lamps' overlays turn
   ESP-NOW on; their controllers came with it off and heard no remote.
 
 - Each Exoy ONE lamp has its own controller (operator, 2026-11-18): TycDodecaLinks (left lamp,
@@ -197,8 +197,7 @@ bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 
   unhealthy captures and re-measures them; `rescore` re-runs the same
   criteria offline over saved captures.
 - `glorb/experiments/2026-08-31-reversing/`: the disassembly notes, the
-  offline `blackhole_model.py`, and the committed 12/12 gate log
-  (`verify-2026-09-01-holes.log`).
+  offline `blackhole_model.py`, and the [12/12 gate measurements](glorb/experiments/acceptance.md).
 
 ### Fixed
 

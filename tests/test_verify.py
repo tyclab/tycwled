@@ -1,4 +1,7 @@
-"""verify refuses a run that cannot measure before it touches either lamp."""
+"""Verify refusals, public acceptance summaries and private capture diagnostics."""
+from contextlib import redirect_stderr, redirect_stdout
+import io
+import itertools
 import json
 import sys
 import tempfile
@@ -35,6 +38,70 @@ class VerifyRefusals(unittest.TestCase):
         for samples, interval in ((0, 0.5), (-1, 0.5), (200, 0), (200, -0.5)):
             with self.subTest(samples=samples, interval=interval):
                 self.assertIn("must be positive", self.refused({"1": {"n": "solid"}}, samples, interval))
+
+
+class VerifySummary(unittest.TestCase):
+    def run_verify(self, presets):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "presets.json"
+            path.write_text(json.dumps({k: {"n": "private-preset-name"} for k in presets}))
+            captures = Path(directory) / "private-capture-path"
+            ref, target = "private-ref.invalid", "private-target.invalid"
+            active = {}
+            frames = [(i / 10, ["ff0000", "003300"] if i < 5 else ["003300", "ff0000"])
+                      for i in range(11)]
+
+            def post(host, route, body):
+                active[host] = body["ps"]
+
+            def get(host, route):
+                preset = active.get(host)
+                if route == "/json/state":
+                    if preset == 3:
+                        raise OSError("private-diagnostic")
+                    return {"ps": 0 if preset == 2 and host == target else preset}
+                return {"ver": "16.0.1-private-build", "wifi": {"bssid": "private-bssid"},
+                        "leds": {"pwr": 800 if preset == 4 and host == target else 400,
+                                 "fps": 42, "maxpwr": "private-invalid-number"}}
+
+            args = ["wledlab", "--width", "2", "--height", "1", "verify", "--ref", ref,
+                    "--target", target, "--presets-file", str(path), "--samples", "1",
+                    "--interval", "1", "--save-captures", str(captures)]
+            out, err = io.StringIO(), io.StringIO()
+            with patch.object(sys, "argv", args), patch.object(wledlab, "get", get), \
+                    patch.object(wledlab, "post", post), patch.object(wledlab.time, "sleep"), \
+                    patch.object(wledlab.time, "time", side_effect=itertools.count(0, 0.6)), \
+                    patch.object(wledlab, "live_ws", side_effect=OSError("private-stream-error")), \
+                    patch.object(wledlab, "live_http", return_value=frames), \
+                    redirect_stdout(out), redirect_stderr(err), self.assertRaises(SystemExit) as result:
+                wledlab.main()
+            recording = wledlab.load_capture(captures / "verify-p1.json")
+            self.assertEqual(recording["meta"]["ref"]["ip"], ref)
+            self.assertEqual(recording["meta"]["tgt"]["wifi"]["bssid"], "private-bssid")
+            self.assertEqual(len(recording["ref"]), 11)
+            self.assertNotIn("private", out.getvalue())
+            self.assertIn("private-stream-error", err.getvalue())
+            self.assertIn("HTTP polling fallback", out.getvalue())
+            self.assertIn("ref: version 16.0.1 fps 42", out.getvalue())
+            self.assertIn("structural tolerances vhist 0.25", out.getvalue())
+            self.assertIn("400 mA  target   400 mA  ratio 1.000", out.getvalue())
+            return result.exception.code, out.getvalue(), err.getvalue()
+
+    def test_success(self):
+        code, summary, _ = self.run_verify([1])
+        self.assertEqual(code, 0)
+        self.assertIn("1/1 presets passed, 1/1 measured", summary)
+        self.assertTrue(summary.rstrip().endswith("verify: PASS"))
+
+    def test_partial_and_scored_failures(self):
+        code, summary, diagnostics = self.run_verify([1, 2, 3, 4])
+        self.assertEqual(code, 1)
+        self.assertIn("preset  2 FAIL (preset did not apply on target)", summary)
+        self.assertIn("preset  3 FAIL (measurement error)", summary)
+        self.assertIn("private-diagnostic", diagnostics)
+        self.assertIn("FAIL current", summary)
+        self.assertIn("1/4 presets passed, 2/4 measured", summary)
+        self.assertIn("verify: FAIL", summary)
 
 
 if __name__ == "__main__":

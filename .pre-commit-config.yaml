@@ -2,6 +2,15 @@
 # Run the same suite locally and in CI with make lint.
 
 repos:
+  - repo: local
+    hooks:
+      - id: private-lamp-data
+        name: Keep raw lamp captures and backups private
+        entry: python3 tools/check_private_lamp_data.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
   - repo: https://github.com/gitleaks/gitleaks
     rev: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e # frozen: v8.30.1
     hooks:
