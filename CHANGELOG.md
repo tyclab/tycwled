@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The HyperCube takes an OTA upload from another subnet: `fleet/overlays/cube-gl015.json` sets
+  `ota.same-subnet` false, as every other lamp's overlay does. tycpve's `wled:flash` uploads from the
+  CI's subnet, which WLED refuses while the switch is true; tycpve's `wled:install` writes it through
+  the cube's security form with its OTA password.
 - The Exoy lamps run on DOMRAEM controllers with an I2S microphone since 2026-11-20 (operator:
   "switch over to them and make the other spares"): both overlays set AudioReactive's microphone,
   generic I2S on SD 26, WS 5, SCK 21, and sound sync off (`sync.mode` 0); until now they received
