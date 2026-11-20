@@ -1170,7 +1170,7 @@ def _cmd_install(a, access=None):
     look = get(a.host, "/json/state") if a.presets and getattr(a, "restore", False) else None
     if look and recall:
         look = remap_restored_look(look, held, json.load(open(a.presets)))
-    animated, changed = {}, set()
+    animated, changed, restart_look = {}, set(), None
     if a.ledmap:
         raw = open(a.ledmap, "rb").read()
         if b'"map":[' not in raw:
@@ -1220,7 +1220,14 @@ def _cmd_install(a, access=None):
             # runs finalizeInit), and every effect starts over: what the lamp already reads back is not written.
             print("cfg: already as written")
         else:
-            post(a.host, "/json/cfg", cfg_payload(overrides, before)); time.sleep(1)
+            payload = cfg_payload(overrides, before)
+            planned = connect_only_planned(before, payload)
+            # Refused before anything is written, so a run after the show still sees the change and restarts.
+            if planned and not a.reboot and get(a.host, "/json/info").get("live"):
+                sys.exit(f"cfg: {', '.join(planned)} would change and take effect only when the lamp connects, but it "
+                         "plays a live stream: nothing written, run again when the show is over")
+            shown = get(a.host, "/json/state") if planned and not a.reboot else None
+            post(a.host, "/json/cfg", payload); time.sleep(1)
             after = get(a.host, "/json/cfg")
             # A locked lamp does not hear its OTA switches in that body: they go through the security form.
             switches = {k: v for k, v in overrides.get("ota", {}).items()
@@ -1239,6 +1246,10 @@ def _cmd_install(a, access=None):
                 print("  ", b)
             if bad:
                 sys.exit("cfg overrides did not land as written")
+            connect = connect_only_changes(before, after)
+            if connect and not a.reboot:
+                print("cfg:", ", ".join(connect), "changed and take effect only when the lamp connects: rebooting")
+                a.reboot, restart_look = True, shown or get(a.host, "/json/state")
     if a.reboot:
         post(a.host, "/json/state", {"rb": True})
         for _ in range(30):
@@ -1247,6 +1258,9 @@ def _cmd_install(a, access=None):
                 get(a.host, "/json/info"); break
             except Exception:
                 pass
+    # A restart lands on the boot state; a recall puts the look back itself (--restore), otherwise this does.
+    if restart_look is not None and not recall and not restore_look(a.host, restart_look):
+        sys.exit("the look from before the restart did not come back")
     info = get(a.host, "/json/info")
     print("rebooted:" if a.reboot else "live:", info["ver"], "matrix", info["leds"].get("matrix"),
           "ledmap", get(a.host, "/json/state").get("ledmap"), "custom palettes", info.get("cpalcount"))
@@ -1322,6 +1336,31 @@ def cfg_payload(overrides, current):
         if carry:
             payload["nw"] = carry
     return payload
+
+
+# Settings WLED 16.0.1 uses only when it connects (wled.cpp initConnection, initInterfaces): ESP-NOW starts, the
+# Wi-Fi sleep mode and transmit power are set, the hostname and mDNS name are taken and Alexa is set up there. A
+# /json/cfg write stores them (cfg.cpp) without a reconnect, so a lamp that boots with ESP-NOW off and gets it from
+# an install hears no remote until it restarts (TycDodecaLinks and TycDodecaRechts, 2026-11-20: paired, last remote
+# heard none, deaf to every press). Left out because no overlay writes them: nw.ins, nw.dns, ap.*, the sync and
+# E1.31 ports, ota.aota.
+CONNECT_ONLY = (("nw", "espnow"), ("wifi", "sleep"), ("wifi", "txpwr"), ("id", "mdns"), ("id", "inv"))
+
+
+def _connect_value(cfg, path):
+    part = cfg.get(path[0]) if isinstance(cfg, dict) else None
+    return part.get(path[1]) if isinstance(part, dict) else None
+
+
+def connect_only_changes(before, after):
+    """The connect-only settings (CONNECT_ONLY) whose value differs between two /json/cfg reads."""
+    return [".".join(path) for path in CONNECT_ONLY if _connect_value(before, path) != _connect_value(after, path)]
+
+
+def connect_only_planned(before, payload):
+    """The connect-only settings a /json/cfg body would change on a lamp whose cfg reads `before`."""
+    return [".".join(path) for path in CONNECT_ONLY
+            if _connect_value(payload, path) is not None and _connect_value(payload, path) != _connect_value(before, path)]
 
 
 def cfg_unapplied(overrides, after):

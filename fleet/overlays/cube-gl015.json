@@ -4,6 +4,10 @@
     "on": false,
     "bri": 150
   },
+  "nw": {
+    "espnow": true,
+    "linked_remote": ["704bcac8d198", "704bcac9aa6c", "704bcaca4b78"]
+  },
   "ota": {
     "same-subnet": false
   }

@@ -96,10 +96,13 @@ class Overlays(unittest.TestCase):
             self.assertEqual(cfg["um"]["Syslog"]["hostname"], cfg["id"]["mdns"], path)
             self.assertIs(cfg["ota"]["same-subnet"], False, path)
 
-    def test_the_cube_takes_an_ota_upload_from_another_subnet(self):
+    def test_the_cube_takes_an_ota_upload_from_another_subnet_and_the_remotes(self):
         # tycpve's wled:flash uploads from the CI's subnet; WLED refuses that while ota.same-subnet is true
-        # ("Client is not on local subnet"). The cube's overlay holds its boot state and this switch only.
-        self.assertEqual(self.load(CUBE), {"def": {"ps": 0, "on": False, "bri": 150}, "ota": {"same-subnet": False}})
+        # ("Client is not on local subnet"). The remotes switch the cube like every lamp (operator, 2026-11-20:
+        # "Pair cube"). The cube's overlay holds its boot state, the remotes and this switch only.
+        self.assertEqual(self.load(CUBE), {"def": {"ps": 0, "on": False, "bri": 150},
+                                           "nw": {"espnow": True, "linked_remote": ["704bcac8d198", "704bcac9aa6c", "704bcaca4b78"]},
+                                           "ota": {"same-subnet": False}})
 
     def test_spares_change_only_identity_boot_state_and_ota(self):
         for path, n in SPARES.items():
@@ -164,9 +167,9 @@ class Overlays(unittest.TestCase):
 
     def test_every_overlay_that_writes_nw_pairs_the_three_remotes_with_espnow_on(self):
         remotes = ["704bcac8d198", "704bcac9aa6c", "704bcaca4b78"]
-        paths = [path for path in sorted(CONTROLLERS) if "nw" in self.load(path)]
-        self.assertEqual(paths, ["fleet/overlays/couch-domraem.json", "fleet/overlays/exoy-links-domraem.json",
-                                 "fleet/overlays/exoy-rechts-domraem.json"])
+        paths = [path for path in sorted(CONTROLLERS | {CUBE}) if "nw" in self.load(path)]
+        self.assertEqual(paths, ["fleet/overlays/couch-domraem.json", "fleet/overlays/cube-gl015.json",
+                                 "fleet/overlays/exoy-links-domraem.json", "fleet/overlays/exoy-rechts-domraem.json"])
         for path in paths:
             self.assertEqual(self.load(path)["nw"], {"espnow": True, "linked_remote": remotes}, path)
 
