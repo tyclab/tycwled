@@ -1,14 +1,14 @@
 # fleet — the firmware our own lamps run
 
-| Lamp            | IP          | Syslog host (Loki `host`)              | Hardware                                                                                                         | Env              |
-| --------------- | ----------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------- |
-| TycCouch        | 10.27.4.58  | `wled-couch` (also its mDNS name)      | DOMRAEM DOM-WLE-ADM `04:b2:47:85:c8:14`, 300 LEDs on GPIO 16 (output 1)                                          | `fleet_esp32`    |
-| TycMoon         | 10.27.4.59  | `wled-moon`                            | ESP32, 8 MB flash in the 4 MB layout, 8×8 on GPIO 18                                                             | `fleet_esp32`    |
-| TycGlorbLinks   | 10.27.4.60  | `wled-glorb-links`                     | ESP32-S3, 8 MB                                                                                                   | `fleet_glorb`    |
-| TycGlorbRechts  | 10.27.4.61  | `wled-glorb-rechts`                    | ESP32-S3, 8 MB                                                                                                   | `fleet_glorb`    |
-| TycCurtain      | 10.27.4.221 | `tyccurtain`                           | Gledopto GL-C-618WL (white) `70:4b:ca:5b:bd:d0`, three 520-pixel outputs on GPIOs 16/4/12                        | `fleet_gledopto` |
-| TycDodecaLinks  | 10.27.4.225 | `tycdodecalinks` (also its mDNS name)  | DOMRAEM DOM-WLE-A `70:4b:ca:8f:9c:b4`, the left Exoy ONE lamp (kitchen end): 480 LEDs on GPIO 16, a 30×16 matrix | `exoy_domraem`   |
-| TycDodecaRechts | 10.27.4.226 | `tycdodecarechts` (also its mDNS name) | DOMRAEM DOM-WLE-A `70:4b:ca:8f:a5:a0`, the right Exoy ONE lamp (window end): 480 LEDs on GPIO 16, a 30×16 matrix | `exoy_domraem`   |
+| Lamp            | IP          | Syslog host (Loki `host`)              | Hardware                                                                                                                   | Env              |
+| --------------- | ----------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| TycCouch        | 10.27.4.58  | `wled-couch` (also its mDNS name)      | DOMRAEM DOM-WLE-ADM `04:b2:47:85:c8:14`, 300 LEDs on GPIO 16 (output 1)                                                    | `fleet_esp32`    |
+| TycMoon         | 10.27.4.59  | `wled-moon`                            | ESP32, 8 MB flash in the 4 MB layout, 8×8 on GPIO 18                                                                       | `fleet_esp32`    |
+| TycGlorbLinks   | 10.27.4.60  | `wled-glorb-links`                     | ESP32-S3, 8 MB                                                                                                             | `fleet_glorb`    |
+| TycGlorbRechts  | 10.27.4.61  | `wled-glorb-rechts`                    | ESP32-S3, 8 MB                                                                                                             | `fleet_glorb`    |
+| TycCurtain      | 10.27.4.221 | `tyccurtain`                           | Gledopto GL-C-618WL (white) `70:4b:ca:5b:bd:d0`, three 520-pixel outputs on GPIOs 16/4/12                                  | `fleet_gledopto` |
+| TycDodecaLinks  | 10.27.4.225 | `tycdodecalinks` (also its mDNS name)  | DOMRAEM with I2S microphone `30:76:f5:ed:2a:98`, the left Exoy ONE lamp (kitchen end): 480 LEDs on GPIO 16, a 30×16 matrix | `exoy_domraem`   |
+| TycDodecaRechts | 10.27.4.226 | `tycdodecarechts` (also its mDNS name) | DOMRAEM with I2S microphone `20:50:0d:1a:cc:68`, the right Exoy ONE lamp (window end): 480 LEDs on GPIO 16, a 30×16 matrix | `exoy_domraem`   |
 
 All envs are WLED v16.0.1 plus [`syslog_events`](../usermods/syslog_events/),
 sending to our collector at 10.27.2.41:1515, and [`tycstation_fx`](../usermods/tycstation_fx/),
@@ -63,22 +63,23 @@ its own microphone, relay and output configuration. As the couch controller its 
 output, limits, remotes and central OTA access are in
 [`overlays/couch-domraem.json`](overlays/couch-domraem.json). It receives no WLED UDP sync
 (`if.sync.recv`): sync stays off where the lightshow does not need it (operator, 2026-11-06, when
-it was switched off on the lamps). Its microphone is the Exoy lamps' sound source: the overlay
-sends AudioReactive's sound sync (operator, 2026-11-18: "use sound sharing").
+it was switched off on the lamps). It sends no AudioReactive sound sync (`sync.mode` 0): from
+2026-11-18 to 2026-11-20 its microphone was the Exoy lamps' sound source, until each lamp got a
+controller with its own microphone.
 
-Each Exoy lamp has its own DOMRAEM DOM-WLE-A since 2026-11-18 (operator: one controller per
-dodecahedron): TycDodecaLinks drives the left lamp at the kitchen end, TycDodecaRechts the right
+Each Exoy lamp has its own DOMRAEM controller (operator, 2026-11-18: one controller per
+dodecahedron; since 2026-11-20 one with an I2S microphone, order "ESP32 Mic UART", in place of the
+DOM-WLE-A without one): TycDodecaLinks drives the left lamp at the kitchen end, TycDodecaRechts the right
 lamp at the window end; the data wire is on GPIO 16. Their identity, boot preset, the one output,
 its limit, the 30×16 matrix (one vertical panel, top start, not serpentine: row y is LED y of an
 edge), gamma 2.8, forced full brightness for a live stream, no brightness from WLED sync
 (`if.sync.recv.bri` false, see Remote) and AudioReactive are in
 [`overlays/exoy-links-domraem.json`](overlays/exoy-links-domraem.json) and
-[`overlays/exoy-rechts-domraem.json`](overlays/exoy-rechts-domraem.json). The DOM-WLE-A has no
-microphone (operator, 2026-11-18; with the PDM setting on 26/21 that both came with, AudioReactive's
-raw volume was 0 in 1,440 of 1,440 effect calls on TycDodecaRechts while the couch's microphone read
-peaks). Both lamps take their sound from the couch: its overlay sends AudioReactive's UDP sound sync
-(`sync.mode` 1, port 11988) and theirs receive it (`sync.mode` 2), so both get the same level. A
-sender keeps processing sound while a live stream drives its own LEDs. The output is limited to
+[`overlays/exoy-rechts-domraem.json`](overlays/exoy-rechts-domraem.json). Each lamp hears its own
+microphone: generic I2S (AudioReactive type 1) on SD 26, WS 5, SCK 21, as the controllers came and as
+the couch's DOM-WLE-ADM has it; AudioReactive reads a changed microphone setting only at boot.
+Sound sync is off (`sync.mode` 0). From 2026-11-18 to 2026-11-20 the DOM-WLE-As, which have no
+microphone, received the couch's sound sync. The output is limited to
 6000 mA at 55 mA per LED (operator, 2026-11-18: "set limit back to 6A"; 6500 mA each while one
 black GL-C-618WL drove both lamps from one 5 V 12 A supply). The Exoy engine renders each scene
 at its own frame period (`um.Exoy.period_us` 0, for image vid 2611181 and later; an older image
@@ -297,7 +298,7 @@ at 16.8 A and scales it to about 120/255. Operator, 2026-10-07: at this setting 
 longer shows the yellow-green cast it had at full white under the WS2815 model (`ledma` 255,
 12 mA per LED, where the cap never engaged), and raising the limit brings the cast back.
 
-### Spares, 2026-11-17
+### Spares, 2026-11-17 and 2026-11-20
 
 Three controllers became spares on 2026-11-17. On 2026-11-18 Spares 1 and 2 became TycDodecaLinks
 and TycDodecaRechts (above), and the black GL-C-618WL that had driven both Exoy lamps as TycDodeca
@@ -307,10 +308,18 @@ has been tested, and it has no settings PIN or OTA password (it is not in
 (tycstation/tycpve, controller `dodeca`) and runs the Exoy image `exoy_eth` until it is flashed
 with `fleet_gledopto`.
 
-| Spare        | mDNS and syslog host | Hardware                                        | Firmware before its spare days      | Overlay                                                          |
-| ------------ | -------------------- | ----------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------- |
-| TycLedSpare3 | `tycledspare3`       | Gledopto GL-C-015WL `b0:3f:d3:48:5a:94`         | factory WLED 0.15.1, vid 2507300    | [`overlays/spare3-gledopto.json`](overlays/spare3-gledopto.json) |
-| TycLedSpare4 | `tycledspare4`       | Gledopto GL-C-618WL (black) `70:4b:ca:48:91:c8` | `exoy_eth` (TycDodeca), vid 2611140 | [`overlays/spare4-gledopto.json`](overlays/spare4-gledopto.json) |
+| Spare        | mDNS and syslog host | Hardware                                        | Firmware before its spare days                | Overlay                                                          |
+| ------------ | -------------------- | ----------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------- |
+| TycLedSpare3 | `tycledspare3`       | Gledopto GL-C-015WL `b0:3f:d3:48:5a:94`         | factory WLED 0.15.1, vid 2507300              | [`overlays/spare3-gledopto.json`](overlays/spare3-gledopto.json) |
+| TycLedSpare4 | `tycledspare4`       | Gledopto GL-C-618WL (black) `70:4b:ca:48:91:c8` | `exoy_eth` (TycDodeca), vid 2611140           | [`overlays/spare4-gledopto.json`](overlays/spare4-gledopto.json) |
+| TycLedSpare5 | `tycledspare5`       | DOMRAEM DOM-WLE-A `70:4b:ca:8f:9c:b4`           | `exoy_domraem` (TycDodecaLinks), vid 2611190  | [`overlays/spare5-domraem.json`](overlays/spare5-domraem.json)   |
+| TycLedSpare6 | `tycledspare6`       | DOMRAEM DOM-WLE-A `70:4b:ca:8f:a5:a0`           | `exoy_domraem` (TycDodecaRechts), vid 2611190 | [`overlays/spare6-domraem.json`](overlays/spare6-domraem.json)   |
+
+On 2026-11-20 the two DOM-WLE-As that had driven the Exoy lamps since 2026-11-18 became Spares 5
+and 6 (operator: "switch over to them and make the other spares"). They keep the settings PIN and
+OTA password of their lamp days (tycstation/tycpve, controllers `dodeca_left` and `dodeca_right`),
+get `fleet_esp32` and the overlay below; their Exoy presets and the 480-LED output stay until
+someone clears them.
 
 Spares 1 and 2 (DOMRAEM DOM-WLE-A `70:4b:ca:8f:9c:b4` and `70:4b:ca:8f:a5:a0`, factory WLED 16.0.1,
 vid 2605010) are described below as they were set up as spares.
@@ -364,8 +373,9 @@ Every lamp pairs the ESP-NOW remotes tycpve's `wled:remotes` declares, the opera
 2026-11-10 the second remote was unpaired and moved no lamp; the third was unpaired from 2026-11-11
 to 2026-11-18 as an address that belonged to neither remote, until the operator said: "there is a
 3rd remote that must be paired with all"; `wledlab.py remotes` shows the last sender a lamp heard).
-The overlays that write `nw` (the couch and the two Exoy lamps) carry ESP-NOW on and the same three
-remotes, because a `/json/cfg` write with an `nw` block replaces the lamp's paired list. No lamp carries a `remote.json`, so WLED
+The overlays that write `nw` (the couch, the two Exoy lamps and the HyperCube) carry ESP-NOW on and the
+same three remotes, because a `/json/cfg` write with an `nw` block replaces the lamp's paired list. The
+cube holds presets 1 to 4 (its own looks), so buttons 5 to 7 leave it as it is. No lamp carries a `remote.json`, so WLED
 16.0.1's own handler runs (`remote.cpp`): number button N calls preset N, and on, off, night and
 the brightness buttons act on the whole lamp. A lamp with no preset in that slot stays as it is
 and logs `error: code=12 (preset does not exist)`. The fallback effects named in `remote.cpp`

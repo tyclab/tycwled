@@ -144,6 +144,36 @@ class Buttons(unittest.TestCase):
                           "Squid Water", "PS Fuzzy Noise", "TycStation", "Squid Eyes"])
         self.assertEqual(set(curtain), set("012345678"))
 
+    def test_no_follower_plays_the_arm_waves_on_buttons_6_and_7(self):
+        for path in self.FOLLOWERS:
+            presets = self.load(path)
+            for k in "67":
+                live = effect_segments(presets[k])
+                self.assertTrue(live, f"{path} preset {k}")
+                self.assertEqual([s for s in live if s.get("fx") == 53 or str(s.get("n", "")).startswith("squid-")], [],
+                                 f"{path} preset {k} ({presets[k].get('n')})")
+
+    def test_the_exoys_show_their_own_looks_on_buttons_6_and_7_and_keep_the_moved_ones(self):
+        presets = self.load("fleet/overlays/exoy-presets.json")
+        self.assertEqual((presets["6"]["n"], presets["7"]["n"]), ("Edge Twinklefox", "Edge Colorwaves"))
+        self.assertEqual({k: presets[k].get("n") for k in self.EXOY_MOVED}, self.EXOY_MOVED)
+        names = [p["n"] for p in presets.values() if p]
+        self.assertEqual(sorted({n for n in names if names.count(n) > 1}), [], "a look left behind in its old slot")
+
+    def test_the_couch_and_the_moon_show_their_own_look_on_buttons_6_and_7(self):
+        for path in ("fleet/overlays/couch-presets.json", "fleet/overlays/moon-presets.json"):
+            presets = self.load(path)
+            self.assertEqual(presets["6"], presets["7"], path)
+            self.assertEqual(presets["7"]["n"], "DJ Light" if "couch" in path else "Blurz")
+
+    def test_the_glorbs_keep_every_port_look_off_the_squid_buttons(self):
+        fleet = self.load("fleet/overlays/glorb-presets.json")
+        moved = {"1": "7", "2": "6", "3": "18", "4": "15", "5": "16", "7": "17"}
+        for k, look in PORT.items():
+            self.assertEqual(fleet[moved.get(k, k)], look, f"port preset {k}")
+        self.assertEqual(sorted(fleet, key=int), sorted(set(PORT) - set(moved) | set(moved.values()) | set("123458"), key=int))
+
+
 class Playlists(unittest.TestCase):
     """A playlist step whose preset does not exist changes nothing: the lamp keeps the look before for the step's
     time and reports error 12 (WLED 16.0.1 presets.cpp, handlePresets)."""
@@ -154,6 +184,14 @@ class Playlists(unittest.TestCase):
             for k, p in presets.items():
                 for step in p.get("playlist", {}).get("ps", []):
                     self.assertTrue(presets.get(str(step)), f"{path} playlist {k} step {step}")
+
+    def test_the_exoys_boot_playlist_plays_its_ten_looks_in_order(self):
+        # Preset 20 is what both Exoy lamps play after power-on (fleet/README.md); the slot moves of 2026-11-18 re-pointed it.
+        presets = json.load(open(os.path.join(HERE, "..", "fleet/overlays/exoy-presets.json")))
+        self.assertEqual([presets[str(step)]["n"] for step in presets["20"]["playlist"]["ps"]],
+                         ["Edge Flow", "Edge Aurora", "Edge Pacifica", "Edge Plasma", "Edge Twinklefox", "Edge Colorwaves",
+                          "Edge Comets", "Edge Lake", "Face Noise", "Face Polar Lights"])
+
 
 class Effects(unittest.TestCase):
     def test_presets_only_use_effects_the_map_names(self):
