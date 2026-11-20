@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import struct, sys, os
+from pathlib import Path
 
-path = sys.argv[1] if len(sys.argv) > 1 else "/home/tycorc/git/tyclab/tycwled/glorb/firmware/firmware_gma_83_debug.bin"
+path = sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parents[2] / "firmware" / "firmware_gma_83_debug.bin"
 outdir = sys.argv[2] if len(sys.argv) > 2 else "segments"
 os.makedirs(outdir, exist_ok=True)
 

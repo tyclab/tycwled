@@ -14,7 +14,7 @@ owns setup; the reversing record is `glorb/experiments/2026-08-31-reversing/NOTE
   not reliable. One measurement job per lamp, one flash at a time. Respect
   configured drift refusals and the current authorized hardware scope.
 - Never commit vendor firmware under `glorb/firmware/` or `*/segments/`.
-  Captures stay untracked; commit the acceptance verify log. Keep wledlab.py
+  Publish only the verify summary. Keep raw captures, diagnostics and device backups private. Keep wledlab.py
   standard-library-only and preserve the fleet build's required usermods.
 - Main is PR-only with merge commits. Preserve that merge policy, hooks and CI.
   Keep private addresses, personal/employer details and credentials out of this

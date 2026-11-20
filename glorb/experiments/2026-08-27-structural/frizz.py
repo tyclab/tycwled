@@ -1,6 +1,6 @@
 """Frizzles: fit blur/speed at bri 255 on the fork's sparkle shape (peak, lit count, current)."""
-import json, sys, time, threading, math, wledlab
-R, T = "10.27.4.160", "10.27.4.158"
+import json, os, sys, time, threading, math, wledlab
+R, T = os.environ["REF"], os.environ["TARGET"]
 
 
 def rgb(c):

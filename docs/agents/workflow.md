@@ -4,8 +4,9 @@ Read for this topic; paths below are relative to the repository root unless stat
 
 - `make lint test check-palettes check-ledmaps` before pushing; `make verify REF=<factory lamp>
 TARGET=<port lamp>` is the acceptance check (~24 min, occupies both lamps, restores presets).
-- PR-only main, merge commits. Verify evidence: commit the verify log (see
-  `glorb/experiments/2026-08-31-reversing/verify-*.log`); capture JSONs stay untracked.
+- PR-only main, merge commits. Publish only the verify summary on standard output
+  (see [historical runs](../../glorb/experiments/acceptance.md)). Raw captures, diagnostic stderr
+  and live device backups stay in private storage.
 - NEVER commit anything under `glorb/firmware/` or `*/segments/` — carved vendor firmware, not
   redistributable. gitignored; keep it that way.
 - `wledlab.py` is stdlib-only; keep it that way.

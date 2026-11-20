@@ -1,18 +1,18 @@
 # fleet — the firmware our own lamps run
 
-| Lamp            | IP          | Syslog host (Loki `host`)              | Hardware                                                                                                                   | Env              |
-| --------------- | ----------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| TycCouch        | 10.27.4.58  | `wled-couch` (also its mDNS name)      | DOMRAEM DOM-WLE-ADM `04:b2:47:85:c8:14`, 300 LEDs on GPIO 16 (output 1)                                                    | `fleet_esp32`    |
-| TycMoon         | 10.27.4.59  | `wled-moon`                            | ESP32, 8 MB flash in the 4 MB layout, 8×8 on GPIO 18                                                                       | `fleet_esp32`    |
-| TycGlorbLinks   | 10.27.4.60  | `wled-glorb-links`                     | ESP32-S3, 8 MB                                                                                                             | `fleet_glorb`    |
-| TycGlorbRechts  | 10.27.4.61  | `wled-glorb-rechts`                    | ESP32-S3, 8 MB                                                                                                             | `fleet_glorb`    |
-| TycCurtain      | 10.27.4.221 | `tyccurtain`                           | Gledopto GL-C-618WL (white) `70:4b:ca:5b:bd:d0`, three 520-pixel outputs on GPIOs 16/4/12                                  | `fleet_gledopto` |
-| TycDodecaLinks  | 10.27.4.225 | `tycdodecalinks` (also its mDNS name)  | DOMRAEM with I2S microphone `30:76:f5:ed:2a:98`, the left Exoy ONE lamp (kitchen end): 480 LEDs on GPIO 16, a 30×16 matrix | `exoy_domraem`   |
-| TycDodecaRechts | 10.27.4.226 | `tycdodecarechts` (also its mDNS name) | DOMRAEM with I2S microphone `20:50:0d:1a:cc:68`, the right Exoy ONE lamp (window end): 480 LEDs on GPIO 16, a 30×16 matrix | `exoy_domraem`   |
+| Lamp            | Syslog host (Loki `host`)              | Hardware                                                                                               | Env              |
+| --------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------- |
+| TycCouch        | `wled-couch` (also its mDNS name)      | DOMRAEM DOM-WLE-ADM, 300 LEDs on GPIO 16 (output 1)                                                    | `fleet_esp32`    |
+| TycMoon         | `wled-moon`                            | ESP32, 8 MB flash in the 4 MB layout, 8×8 on GPIO 18                                                   | `fleet_esp32`    |
+| TycGlorbLinks   | `wled-glorb-links`                     | ESP32-S3, 8 MB                                                                                         | `fleet_glorb`    |
+| TycGlorbRechts  | `wled-glorb-rechts`                    | ESP32-S3, 8 MB                                                                                         | `fleet_glorb`    |
+| TycCurtain      | `tyccurtain`                           | Gledopto GL-C-618WL (white), three 520-pixel outputs on GPIOs 16/4/12                                  | `fleet_gledopto` |
+| TycDodecaLinks  | `tycdodecalinks` (also its mDNS name)  | DOMRAEM with I2S microphone, the left Exoy ONE lamp (kitchen end): 480 LEDs on GPIO 16, a 30×16 matrix | `exoy_domraem`   |
+| TycDodecaRechts | `tycdodecarechts` (also its mDNS name) | DOMRAEM with I2S microphone, the right Exoy ONE lamp (window end): 480 LEDs on GPIO 16, a 30×16 matrix | `exoy_domraem`   |
 
-All envs are WLED v16.0.1 plus [`syslog_events`](../usermods/syslog_events/),
-sending to our collector at 10.27.2.41:1515, and [`tycstation_fx`](../usermods/tycstation_fx/),
-the squid patterns as effects.
+All environments build WLED v16.0.1 with [`syslog_events`](../usermods/syslog_events/), which sends
+events to the fleet collector on UDP port 1515, and [`tycstation_fx`](../usermods/tycstation_fx/),
+which provides the squid effects. Controller addresses and hardware IDs are in the private inventory.
 
 The Lamp column is each controller's `id.name`, the name the WLED app shows (TycStation names since
 2026-11-17). Its overlay carries it: the Moon and the GLORBs have overlays that hold only that name,
@@ -55,7 +55,7 @@ all 120.
   Ethernet support is already in v16.0.1; no vendor firmware overlay is needed.
   The curtain runs on Wi-Fi. The `ESP32_Ethernet` build supports Wi-Fi too;
   Ethernet cabling is optional. Preserve the Wi-Fi settings and use the controller's Wi-Fi
-  MAC for the host reservation (the curtain's is `70:4b:ca:5b:bd:d0` since 2026-10-07).
+  MAC for the host reservation.
   Build it explicitly with `fleet/build.sh ../WLED-v16.0.1 fleet_gledopto`.
 
 The DOMRAEM DOM-WLE-ADM uses `fleet_esp32`, retaining its `ESP32` release name and
@@ -166,12 +166,13 @@ git tag "$tag" origin/main && git push origin "$tag"
 
 tycpve's on-demand `wled:flash` job flashes a release: it pins the release's images by sha256,
 reads only the selected lamp's PIN and OTA password from OpenBao inside CI, and runs the
-`flash` below (and on a GLORB the effect-ID check). No credential is needed on a PC. Done by hand,
-one lamp at a time, and stop if one does not come back:
+`flash` below (and on a GLORB the effect-ID check). No credential is needed on a PC. For a manual flash,
+set `COUCH_HOST` or `GLORB_LEFT_HOST` from the private inventory. Flash one lamp at a time and
+stop if it does not come back.
 
 ```sh
-python3 wledlab.py flash --host 10.27.4.58 --firmware fleet/out/fleet_esp32.bin --release ESP32 --credentials-file /path/to/private-couch.json
-python3 wledlab.py flash --host 10.27.4.60 --firmware fleet/out/fleet_glorb.bin --release ESP32-S3_8MB_qspi --credentials-file /path/to/private-glorb-left.json
+python3 wledlab.py flash --host "$COUCH_HOST" --firmware fleet/out/fleet_esp32.bin --release ESP32 --credentials-file /path/to/private-couch.json
+python3 wledlab.py flash --host "$GLORB_LEFT_HOST" --firmware fleet/out/fleet_glorb.bin --release ESP32-S3_8MB_qspi --credentials-file /path/to/private-glorb-left.json
 ```
 
 `flash` snapshots `/json/info`, `/json/cfg` and `presets.json` under
@@ -288,7 +289,7 @@ node and sync settings, AudioReactive options), checked key by key against the l
 moved from the old ESP32's GPIO 2 to the DOMRAEM's output 1. The reservations moved with the roles in tycnetwork !998. Full
 pre-swap file sets of all four controllers are kept outside git in
 `~/.local/share/tycwled/backups/2026-10-07-swap/` (they hold no Wi-Fi secrets; WLED keeps
-those in `wsec.json`, which it never serves). The old couch ESP32 (`08:d1:f9:12:71:e8`) is
+those in `wsec.json`, which it never serves). The old couch ESP32 is
 retired for good: on the couch strip and its 8 A supply it logged a brownout reset 6 s into white at
 brightness 128 (and ten brownout resets on 6 and 7 October), while the DOMRAEM on the same strip
 and supply did not reset during white stepped up to brightness 255 nor during a 30 s strobe at 255
@@ -308,12 +309,12 @@ has been tested, and it has no settings PIN or OTA password (it is not in
 (tycstation/tycpve, controller `dodeca`) and runs the Exoy image `exoy_eth` until it is flashed
 with `fleet_gledopto`.
 
-| Spare        | mDNS and syslog host | Hardware                                        | Firmware before its spare days                | Overlay                                                          |
-| ------------ | -------------------- | ----------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------- |
-| TycLedSpare3 | `tycledspare3`       | Gledopto GL-C-015WL `b0:3f:d3:48:5a:94`         | factory WLED 0.15.1, vid 2507300              | [`overlays/spare3-gledopto.json`](overlays/spare3-gledopto.json) |
-| TycLedSpare4 | `tycledspare4`       | Gledopto GL-C-618WL (black) `70:4b:ca:48:91:c8` | `exoy_eth` (TycDodeca), vid 2611140           | [`overlays/spare4-gledopto.json`](overlays/spare4-gledopto.json) |
-| TycLedSpare5 | `tycledspare5`       | DOMRAEM DOM-WLE-A `70:4b:ca:8f:9c:b4`           | `exoy_domraem` (TycDodecaLinks), vid 2611190  | [`overlays/spare5-domraem.json`](overlays/spare5-domraem.json)   |
-| TycLedSpare6 | `tycledspare6`       | DOMRAEM DOM-WLE-A `70:4b:ca:8f:a5:a0`           | `exoy_domraem` (TycDodecaRechts), vid 2611190 | [`overlays/spare6-domraem.json`](overlays/spare6-domraem.json)   |
+| Spare        | mDNS and syslog host | Hardware                    | Firmware before its spare days                | Overlay                                                          |
+| ------------ | -------------------- | --------------------------- | --------------------------------------------- | ---------------------------------------------------------------- |
+| TycLedSpare3 | `tycledspare3`       | Gledopto GL-C-015WL         | factory WLED 0.15.1, vid 2507300              | [`overlays/spare3-gledopto.json`](overlays/spare3-gledopto.json) |
+| TycLedSpare4 | `tycledspare4`       | Gledopto GL-C-618WL (black) | `exoy_eth` (TycDodeca), vid 2611140           | [`overlays/spare4-gledopto.json`](overlays/spare4-gledopto.json) |
+| TycLedSpare5 | `tycledspare5`       | DOMRAEM DOM-WLE-A           | `exoy_domraem` (TycDodecaLinks), vid 2611190  | [`overlays/spare5-domraem.json`](overlays/spare5-domraem.json)   |
+| TycLedSpare6 | `tycledspare6`       | DOMRAEM DOM-WLE-A           | `exoy_domraem` (TycDodecaRechts), vid 2611190 | [`overlays/spare6-domraem.json`](overlays/spare6-domraem.json)   |
 
 On 2026-11-20 the two DOM-WLE-As that had driven the Exoy lamps since 2026-11-18 became Spares 5
 and 6 (operator: "switch over to them and make the other spares"). They keep the settings PIN and
@@ -321,7 +322,7 @@ OTA password of their lamp days (tycstation/tycpve, controllers `dodeca_left` an
 get `fleet_esp32` and the overlay below; their Exoy presets and the 480-LED output stay until
 someone clears them.
 
-Spares 1 and 2 (DOMRAEM DOM-WLE-A `70:4b:ca:8f:9c:b4` and `70:4b:ca:8f:a5:a0`, factory WLED 16.0.1,
+Spares 1 and 2 (DOMRAEM DOM-WLE-A, factory WLED 16.0.1,
 vid 2605010) are described below as they were set up as spares.
 
 Spares 1 to 3 got `fleet_esp32` of release `fleet-20261115-6e18eb5`: 16.0.1, vid 2611150, release
@@ -368,8 +369,8 @@ the role uses.
 
 ## Remote
 
-Every lamp pairs the ESP-NOW remotes tycpve's `wled:remotes` declares, the operator's three:
-`704bcac8d198`, `704bcac9aa6c` and `704bcaca4b78`; a lamp ignores any other sender (until
+Every lamp pairs the three ESP-NOW remotes declared in tycpve's `wled:remotes` job.
+A lamp ignores any other sender (until
 2026-11-10 the second remote was unpaired and moved no lamp; the third was unpaired from 2026-11-11
 to 2026-11-18 as an address that belonged to neither remote, until the operator said: "there is a
 3rd remote that must be paired with all"; `wledlab.py remotes` shows the last sender a lamp heard).
@@ -450,10 +451,11 @@ overlay, [`ledmap.json`](../curtain/ledmap.json) its 2D map, generated by
 [`mkledmap.py`](../curtain/mkledmap.py); `make lint` fails when the committed map differs
 from the generator output. `id.name` is `TycCurtain`; Home Assistant shows the device under the
 name set there, "Curtain", which `id.name` does not change. The overlay switches Ethernet off (see Memory) and leaves relay, microphone and Wi-Fi settings alone. Apply it with
-the patched fleet build, which preserves unrelated settings on a partial configuration write:
+the patched fleet build, which preserves unrelated settings on a partial configuration write.
+Set `CURTAIN_HOST` to the address from the private inventory.
 
 ```sh
-python3 wledlab.py install --host 10.27.4.221 --cfg curtain/h70b5-gledopto.json
+python3 wledlab.py install --host "$CURTAIN_HOST" --cfg curtain/h70b5-gledopto.json
 ```
 
 ### Wiring
@@ -554,12 +556,12 @@ The lightshow's `Curtain` fixture is patched from WLED's own report (`POST /api/
 with `mode: "pixels"`), so it takes the grid size WLED reports: 68 × 42, 2856 cells.
 
 ```sh
-python3 wledlab.py install --host 10.27.4.221 --ledmap curtain/ledmap.json
+python3 wledlab.py install --host "$CURTAIN_HOST" --ledmap curtain/ledmap.json
 ```
 
 `install` refuses a map without the exact bytes `"map":[`, uploads it as `/ledmap.json`, reads
 it back byte for byte and reloads it. By hand:
-`curl -F "data=@curtain/ledmap.json;filename=/ledmap.json" http://10.27.4.221/upload`, then
+`curl -F "data=@curtain/ledmap.json;filename=/ledmap.json" "http://${CURTAIN_HOST}/upload"`, then
 `POST /json/state` with `{"ledmap":0}`.
 
 Without a `ledmap.json` on the controller the cfg matrix applies: three 20 × 26 panels at

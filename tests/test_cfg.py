@@ -17,14 +17,14 @@ import wledlab  # noqa: E402
 
 OVERRIDES = {"light": {"gc": {"bri": 1.0, "col": 1.0, "val": 1.0}}, "hw": {"led": {"maxpwr": 2800, "fps": 42}},
              "ota": {"same-subnet": False}}
-LAMP = {"nw": {"espnow": True, "linked_remote": ["4cebd6203de7"], "ins": [{"ssid": "x"}]},
+LAMP = {"nw": {"espnow": True, "linked_remote": ["00005e00530a"], "ins": [{"ssid": "x"}]},
         "light": {"gc": {"bri": 1, "col": 2.8, "val": 2.8}}, "hw": {"led": {"maxpwr": 3000, "fps": 42}}}
 
 
 class CfgPayload(unittest.TestCase):
     def test_carries_the_lamps_remotes(self):
         body = wledlab.cfg_payload(OVERRIDES, LAMP)
-        self.assertEqual(body["nw"], {"espnow": True, "linked_remote": ["4cebd6203de7"]})
+        self.assertEqual(body["nw"], {"espnow": True, "linked_remote": ["00005e00530a"]})
         self.assertEqual(body["light"], OVERRIDES["light"])
 
     def test_leaves_wifi_out_of_the_body(self):

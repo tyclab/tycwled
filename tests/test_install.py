@@ -32,7 +32,7 @@ class Lamp:
         self.palettes, self.lost, self.keeps_list = 0, 0, False
         self.state = {"on": True, "bri": 100, "ps": -1, "pl": -1, "transition": 7, "seg": [segment(191)]}
         # /json/cfg as tycdodeca serves it, cut to what the tests read (cfg.cpp serializeConfig).
-        self.cfg = {"id": {"mdns": "tycdodeca", "name": "Exoy"}, "nw": {"espnow": True, "linked_remote": ["704bcac8d198"]},
+        self.cfg = {"id": {"mdns": "tycdodeca", "name": "Exoy"}, "nw": {"espnow": True, "linked_remote": ["00005e00530a"]},
                     "ota": {"lock": True, "lock-wifi": True, "aota": False, "same-subnet": True}, "wifi": {"sleep": False},
                     "def": {"ps": 0, "on": False, "bri": 128},
                     "hw": {"led": {"total": 960, "maxpwr": 0, "ins": [{"start": 0, "len": 480, "pin": [16], "maxpwr": 5000, "ledma": 55},
@@ -176,23 +176,23 @@ class Install(unittest.TestCase):
         self.cfg_file({"hw": {"led": {"maxpwr": 0, "ins": outputs}}})
         wledlab._cmd_install(self.args)
         self.assertEqual(self.lamp.calls, [("post", {"hw": {"led": {"maxpwr": 0, "ins": outputs}},
-                                                     "nw": {"espnow": True, "linked_remote": ["704bcac8d198"]}})])
+                                                     "nw": {"espnow": True, "linked_remote": ["00005e00530a"]}})])
         self.assertEqual(([o["maxpwr"] for o in self.lamp.cfg["hw"]["led"]["ins"]], self.lamp.cfg["nw"]["linked_remote"]),
-                         ([6000, 6000], ["704bcac8d198"]))
+                         ([6000, 6000], ["00005e00530a"]))
 
     def test_a_name_only_overlay_writes_the_name_and_leaves_the_outputs_alone(self):
         outputs = copy.deepcopy(self.lamp.cfg["hw"]["led"]["ins"])
         self.cfg_file({"id": {"name": "TycMoon"}})
         wledlab._cmd_install(self.args)
         self.assertEqual(self.lamp.calls, [("post", {"id": {"name": "TycMoon"},
-                                                     "nw": {"espnow": True, "linked_remote": ["704bcac8d198"]}})])
+                                                     "nw": {"espnow": True, "linked_remote": ["00005e00530a"]}})])
         self.assertEqual((self.lamp.cfg["id"], self.lamp.cfg["hw"]["led"]["ins"]),
                          ({"mdns": "tycdodeca", "name": "TycMoon"}, outputs))
 
     def test_an_overlay_that_names_the_remotes_pairs_them_and_reads_them_back(self):
         # TycDodecaLinks, 2026-11-18: a new controller with no remote got its list from the overlay, and the install
         # ended red on the change it was asked to make.
-        remotes = ["704bcac8d198", "704bcac9aa6c", "704bcaca4b78"]
+        remotes = ["00005e00530a", "00005e00530b", "00005e00530c"]
         self.cfg_file({"nw": {"espnow": True, "linked_remote": remotes}})
         wledlab._cmd_install(self.args)
         self.assertEqual(self.lamp.calls, [("post", {"nw": {"espnow": True, "linked_remote": remotes}})])
@@ -201,7 +201,7 @@ class Install(unittest.TestCase):
     def test_an_overlay_that_turns_espnow_on_restarts_the_lamp_once_and_puts_its_look_back(self):
         # TycDodecaLinks and TycDodecaRechts, 2026-11-20: they came with ESP-NOW off, the install turned it on, and
         # neither heard a remote until it was restarted (WLED starts ESP-NOW only when it connects).
-        remotes = ["704bcac8d198", "704bcac9aa6c", "704bcaca4b78"]
+        remotes = ["00005e00530a", "00005e00530b", "00005e00530c"]
         self.lamp.cfg["nw"] = {"espnow": False, "linked_remote": [""]}
         self.lamp.running = self.lamp.connect_settings()
         shown = copy.deepcopy(self.lamp.state)
@@ -226,7 +226,7 @@ class Install(unittest.TestCase):
 
     def test_an_explicit_reboot_with_an_espnow_change_restarts_once(self):
         self.lamp.cfg["nw"] = {"espnow": False, "linked_remote": [""]}
-        self.cfg_file({"nw": {"espnow": True, "linked_remote": ["704bcac8d198"]}})
+        self.cfg_file({"nw": {"espnow": True, "linked_remote": ["00005e00530a"]}})
         self.args.reboot = True
         wledlab._cmd_install(self.args)
         self.assertEqual((self.lamp.restarts, self.lamp.running["nw.espnow"]), (1, True))
@@ -240,7 +240,7 @@ class Install(unittest.TestCase):
         self.lamp.cfg["nw"] = {"espnow": False, "linked_remote": [""]}
         self.lamp.running = self.lamp.connect_settings()
         self.lamp.live_stream = True
-        self.cfg_file({"nw": {"espnow": True, "linked_remote": ["704bcac8d198"]}})
+        self.cfg_file({"nw": {"espnow": True, "linked_remote": ["00005e00530a"]}})
         with self.assertRaises(SystemExit) as stopped:
             wledlab._cmd_install(self.args)
         self.assertIn("plays a live stream: nothing written", str(stopped.exception))

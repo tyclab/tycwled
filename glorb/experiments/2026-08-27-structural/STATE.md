@@ -61,8 +61,8 @@ be re-measured before it is used.
 ## Re-measurement + first gate artifact (2026-08-31)
 
 Full 12-preset sweep with the fixed tooling (`structural-remeasure.log`, captures
-committed as `captures/struct-pN.json.gz`) followed by the first structural
-`verify` run (`verify-remeasure.log`, presets sha256 in its header):
+kept privately as `captures/struct-pN.json.gz`) followed by the
+[first structural verify run](../acceptance.md):
 
 - **verify: FAIL ['7', '10', '12', '14']** — every owner-accepted preset PASSes,
   every known-or-suspected mismatch FAILs. Tolerances (vhist 0.25, hue EMD 0.45,
@@ -86,7 +86,7 @@ committed as `captures/struct-pN.json.gz`) followed by the first structural
   single-segment candidates (`after_pat.sh`) remain the open fix.
 - Lamps were found OFF before the run and were switched off again after it.
 
-## Calibrated gate + second verify run (2026-08-31, `verify-remeasure2.log`)
+## Calibrated gate + second verify run (2026-08-31)
 
 The first run showed the hue criterion was too tight and that `peak_r`/`lit_r`
 were reported but not gated. Tolerances were recalibrated against the only data
@@ -95,7 +95,7 @@ lamps — and `peak_r`/`lit_r` promoted to gates (the frozen Frizzles criterion)
 A second full verify then ran with the calibrated gates:
 
 **verify: FAIL ['7', '10', '11', '14']** — p12 now PASSes (hue 0.37), p11 now
-FAILs on the newly-gated peak ratio. Captures committed as
+FAILs on the newly-gated peak ratio. Private captures are archived as
 `captures/verify-pN.json.gz` (with full `lamp_meta` provenance).
 
 Calibration derivation — worst accepted-preset value across both verify runs vs
@@ -189,12 +189,11 @@ review notes.
    compared against their own spread. **Capability added only — the
    2026-08-27 hipsearch rankings have not been re-run with readback and
    replicates; do not cite them.**
-3. Captures: `captures/*.json.gz` are committable (`.gitignore` narrowed);
-   the sweep backing any committed verdict gets committed alongside it.
+3. Raw captures for each sweep stay in private storage. Publish the [acceptance summary](../acceptance.md).
 4. Frizzles: acceptance restated as peak/lit vs the fork (README), frozen —
    and enforced by the gate since run 2 (`--peak-tol` 1.5, `--lit-tol` 1.6).
 5. Provenance: every new capture embeds firmware, fps, maxpwr, cpalcount and
-   the full segment state of both lamps. **The committed
+   the full segment state of both lamps. **The archived
    `captures/struct-pN.json.gz` predate this stamp and carry no meta block;
    only the `captures/verify-pN.json.gz` set has it.**
 
@@ -203,7 +202,7 @@ review notes.
 - ~~The gate: `leds.pwr` is a post-brightness channel sum — a first moment,
   invariant to redistribution. Add structural tolerances to `verify`, default
   it to ≥100 s, and commit its log.~~ Done: structural gate shipped, two
-  verify logs committed; it now fails exactly the presets `leds.pwr` alone
+  verify runs summarized; it now fails exactly the presets `leds.pwr` alone
   passed (11, 14) plus the known 7/10. Still open from this bullet: `tstd`
   (breathing depth) is reported but not gated, and captures are aligned by
   relative time only — no absolute-timestamp alignment between the two lamps

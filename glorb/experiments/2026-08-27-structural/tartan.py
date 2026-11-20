@@ -1,6 +1,6 @@
 """Tartan: line grey g + boosted layer palette k, scored on the fork's crossing colours (hueV per bin, at-255 share, current)."""
-import json, sys, time, threading, wledlab
-R, T = "10.27.4.160", "10.27.4.158"
+import json, os, sys, time, threading, wledlab
+R, T = os.environ["REF"], os.environ["TARGET"]
 S = "."
 def rgb(c): return int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16)
 def vhist(frames):
