@@ -1239,6 +1239,13 @@ def _cmd_install(a, access=None):
                 print("  ", b)
             if bad:
                 sys.exit("cfg overrides did not land as written")
+            connect = connect_only_changes(before, after)
+            if connect and not a.reboot:
+                if get(a.host, "/json/info").get("live"):
+                    sys.exit(f"cfg: {', '.join(connect)} changed and take effect only when the lamp connects, but it plays "
+                             "a live stream: restart it when the show is over")
+                print("cfg:", ", ".join(connect), "changed and take effect only when the lamp connects: rebooting")
+                a.reboot = True
     if a.reboot:
         post(a.host, "/json/state", {"rb": True})
         for _ in range(30):
@@ -1322,6 +1329,21 @@ def cfg_payload(overrides, current):
         if carry:
             payload["nw"] = carry
     return payload
+
+
+# Settings WLED 16.0.1 applies only when it connects (wled.cpp initConnection): ESP-NOW starts there when
+# nw.espnow is on, and the Wi-Fi sleep mode is set there. A /json/cfg write stores them (cfg.cpp) without a
+# reconnect, so a lamp that boots with ESP-NOW off and gets it from an install hears no remote until it restarts
+# (TycDodecaLinks and TycDodecaRechts, 2026-11-20: paired, last remote heard none, deaf to every press).
+CONNECT_ONLY = (("nw", "espnow"), ("wifi", "sleep"))
+
+
+def connect_only_changes(before, after):
+    """The connect-only settings (CONNECT_ONLY) whose value differs between two /json/cfg reads."""
+    def value(cfg, path):
+        part = cfg.get(path[0]) if isinstance(cfg, dict) else None
+        return part.get(path[1]) if isinstance(part, dict) else None
+    return [".".join(path) for path in CONNECT_ONLY if value(before, path) != value(after, path)]
 
 
 def cfg_unapplied(overrides, after):

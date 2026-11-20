@@ -27,12 +27,13 @@ class Lamp:
 
     def __init__(self):
         self.files, self.calls, self.frozen, self.deaf, self.stuck, self.drops, self.mute = {}, [], False, False, False, 0, 0
+        self.live_stream = False
         # Custom palettes as loadCustomPalettes (colors.cpp) left them, and how many deletes the filesystem loses.
         self.palettes, self.lost, self.keeps_list = 0, 0, False
         self.state = {"on": True, "bri": 100, "ps": -1, "pl": -1, "transition": 7, "seg": [segment(191)]}
         # /json/cfg as tycdodeca serves it, cut to what the tests read (cfg.cpp serializeConfig).
         self.cfg = {"id": {"mdns": "tycdodeca", "name": "Exoy"}, "nw": {"espnow": True, "linked_remote": ["704bcac8d198"]},
-                    "ota": {"lock": True, "lock-wifi": True, "aota": False, "same-subnet": True},
+                    "ota": {"lock": True, "lock-wifi": True, "aota": False, "same-subnet": True}, "wifi": {"sleep": False},
                     "hw": {"led": {"total": 960, "maxpwr": 0, "ins": [{"start": 0, "len": 480, "pin": [16], "maxpwr": 5000, "ledma": 55},
                                                                     {"start": 480, "len": 480, "pin": [12], "maxpwr": 5500, "ledma": 55}]}}}
 
@@ -75,7 +76,7 @@ class Lamp:
 
     def get(self, host, path):
         if path == "/json/info":
-            return {"ver": "16.0.1", "leds": {}, "cpalcount": self.palettes}
+            return {"ver": "16.0.1", "leds": {}, "cpalcount": self.palettes, "live": self.live_stream}
         if path == "/json/cfg":
             return copy.deepcopy(self.cfg)
         state = copy.deepcopy(self.state)
@@ -88,6 +89,9 @@ class Lamp:
             # cfg.cpp deserializeConfig: the paired remotes are cleared before the body is looked at, and a body
             # that names the outputs replaces them all.
             self.cfg["nw"]["linked_remote"] = body.get("nw", {}).get("linked_remote", [])
+            # CJSON keeps a setting the body does not name: the ESP-NOW switch and the Wi-Fi sleep mode.
+            self.cfg["nw"]["espnow"] = body.get("nw", {}).get("espnow", self.cfg["nw"]["espnow"])
+            self.cfg["wifi"]["sleep"] = body.get("wifi", {}).get("sleep", self.cfg["wifi"]["sleep"])
             self.cfg["id"].update(body.get("id", {}))
             led = body.get("hw", {}).get("led", {})
             self.cfg["hw"]["led"].update(copy.deepcopy(led))
@@ -179,6 +183,36 @@ class Install(unittest.TestCase):
         wledlab._cmd_install(self.args)
         self.assertEqual(self.lamp.calls, [("post", {"nw": {"espnow": True, "linked_remote": remotes}})])
         self.assertEqual(self.lamp.cfg["nw"]["linked_remote"], remotes)
+
+    def test_an_overlay_that_turns_espnow_on_restarts_the_lamp_once(self):
+        # TycDodecaLinks and TycDodecaRechts, 2026-11-20: they came with ESP-NOW off, the install turned it on, and
+        # neither heard a remote until it was restarted (WLED starts ESP-NOW only when it connects).
+        remotes = ["704bcac8d198", "704bcac9aa6c", "704bcaca4b78"]
+        self.lamp.cfg["nw"] = {"espnow": False, "linked_remote": [""]}
+        self.cfg_file({"nw": {"espnow": True, "linked_remote": remotes}})
+        wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.calls, [("post", {"nw": {"espnow": True, "linked_remote": remotes}}), ("post", {"rb": True})])
+        self.assertEqual(self.lamp.cfg["nw"], {"espnow": True, "linked_remote": remotes})
+
+    def test_wifi_sleep_turned_off_restarts_the_lamp_once(self):
+        self.lamp.cfg["wifi"]["sleep"] = True
+        self.cfg_file({"wifi": {"sleep": False}})
+        wledlab._cmd_install(self.args)
+        self.assertEqual([call for call in self.lamp.calls if call[1] == {"rb": True}], [("post", {"rb": True})])
+
+    def test_a_lamp_that_already_has_espnow_on_is_not_restarted(self):
+        self.cfg_file({"id": {"name": "TycMoon"}})
+        wledlab._cmd_install(self.args)
+        self.assertNotIn(("post", {"rb": True}), self.lamp.calls)
+
+    def test_a_lamp_playing_a_live_stream_is_not_restarted_and_the_install_fails(self):
+        self.lamp.cfg["nw"] = {"espnow": False, "linked_remote": [""]}
+        self.lamp.live_stream = True
+        self.cfg_file({"nw": {"espnow": True, "linked_remote": ["704bcac8d198"]}})
+        with self.assertRaises(SystemExit) as stopped:
+            wledlab._cmd_install(self.args)
+        self.assertIn("plays a live stream", str(stopped.exception))
+        self.assertNotIn(("post", {"rb": True}), self.lamp.calls)
 
     def test_a_remote_list_the_write_dropped_fails_the_install(self):
         # A body without the lamp's remotes makes WLED 16 clear them; the read-back must catch that.
