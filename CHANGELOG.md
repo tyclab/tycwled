@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The remotes switch the HyperCube too (operator, 2026-11-20: "Pair cube"): `fleet/overlays/cube-gl015.json`
+  turns ESP-NOW on and pairs the operator's three remotes, as the couch's and the Exoy lamps' overlays do.
+  Its presets 1 to 4 are the cube's own looks; buttons 5 to 7 leave it as it is.
 - The HyperCube takes an OTA upload from another subnet: `fleet/overlays/cube-gl015.json` sets
   `ota.same-subnet` false, as every other lamp's overlay does. tycpve's `wled:flash` uploads from the
   CI's subnet, which WLED refuses while the switch is true; tycpve's `wled:install` writes it through
@@ -198,6 +201,11 @@ bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 
   (`verify-2026-09-01-holes.log`).
 
 ### Fixed
+
+- `wledlab.py install --cfg` restarts the lamp once when the write changes `nw.espnow` or `wifi.sleep`: WLED 16
+  applies both only when it connects. TycDodecaLinks and TycDodecaRechts came with ESP-NOW off, got it from
+  their install on 2026-11-20 and heard no remote press until they were restarted. A lamp playing a live
+  stream is not restarted; the install ends red and names the switch.
 
 - `wledlab.py flash` checks the image's release name itself, before anything is written, and tells
   the lamp to skip its own check. WLED 16.0.1 compares the uploaded name with the bytes that follow

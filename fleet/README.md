@@ -373,8 +373,9 @@ Every lamp pairs the ESP-NOW remotes tycpve's `wled:remotes` declares, the opera
 2026-11-10 the second remote was unpaired and moved no lamp; the third was unpaired from 2026-11-11
 to 2026-11-18 as an address that belonged to neither remote, until the operator said: "there is a
 3rd remote that must be paired with all"; `wledlab.py remotes` shows the last sender a lamp heard).
-The overlays that write `nw` (the couch and the two Exoy lamps) carry ESP-NOW on and the same three
-remotes, because a `/json/cfg` write with an `nw` block replaces the lamp's paired list. No lamp carries a `remote.json`, so WLED
+The overlays that write `nw` (the couch, the two Exoy lamps and the HyperCube) carry ESP-NOW on and the
+same three remotes, because a `/json/cfg` write with an `nw` block replaces the lamp's paired list. The
+cube holds presets 1 to 4 (its own looks), so buttons 5 to 7 leave it as it is. No lamp carries a `remote.json`, so WLED
 16.0.1's own handler runs (`remote.cpp`): number button N calls preset N, and on, off, night and
 the brightness buttons act on the whole lamp. A lamp with no preset in that slot stays as it is
 and logs `error: code=12 (preset does not exist)`. The fallback effects named in `remote.cpp`
