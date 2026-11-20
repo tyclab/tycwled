@@ -20,6 +20,7 @@ Build (WLED checkout at the port lamp's release tag, usermod symlinked in):
 
 ```sh
 git clone --depth 1 --branch v16.0.1 https://github.com/wled/WLED.git
+git -C WLED apply /path/to/tycwled/fleet/patches/glorb-mic-filter.patch
 ln -s /path/to/tycwled/glorb/usermod/glorb_fx WLED/usermods/glorb_fx
 cp /path/to/tycwled/glorb/usermod/glorb_fx/platformio_override.ini WLED/
 cd WLED && pio run -e glorb_port
