@@ -1,0 +1,17 @@
+diff --git a/usermods/audioreactive/audio_reactive.cpp b/usermods/audioreactive/audio_reactive.cpp
+index 196fba3..a2565df 100644
+--- a/usermods/audioreactive/audio_reactive.cpp
++++ b/usermods/audioreactive/audio_reactive.cpp
+@@ -583,8 +583,11 @@ static void runMicFilter(uint16_t numSamples, FFTsampleType *sampleBuffer)
+   //constexpr float alpha = 0.04f;   // 150Hz
+   //constexpr float alpha = 0.03f;   // 110Hz
+   //constexpr float alpha = 0.0285f; //100Hz
++  #ifdef UM_AUDIOREACTIVE_MIC_FILTER_ALPHA
++  constexpr float alpha = UM_AUDIOREACTIVE_MIC_FILTER_ALPHA;
++  #else
+   constexpr float alpha = 0.0256f; //90Hz
+-  //constexpr float alpha = 0.0225f; // 80hz
++  #endif
+   //constexpr float alpha = 0.01693f;// 60hz
+   // high frequency cutoff  parameter
+   //constexpr float beta1 = 0.75f;   // 11Khz
