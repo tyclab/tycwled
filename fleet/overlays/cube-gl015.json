@@ -3,5 +3,8 @@
     "ps": 0,
     "on": false,
     "bri": 150
+  },
+  "ota": {
+    "same-subnet": false
   }
 }

@@ -96,6 +96,11 @@ class Overlays(unittest.TestCase):
             self.assertEqual(cfg["um"]["Syslog"]["hostname"], cfg["id"]["mdns"], path)
             self.assertIs(cfg["ota"]["same-subnet"], False, path)
 
+    def test_the_cube_takes_an_ota_upload_from_another_subnet(self):
+        # tycpve's wled:flash uploads from the CI's subnet; WLED refuses that while ota.same-subnet is true
+        # ("Client is not on local subnet"). The cube's overlay holds its boot state and this switch only.
+        self.assertEqual(self.load(CUBE), {"def": {"ps": 0, "on": False, "bri": 150}, "ota": {"same-subnet": False}})
+
     def test_spares_change_only_identity_boot_state_and_ota(self):
         for path, n in SPARES.items():
             self.assertEqual(self.load(path), {"id": {"name": f"TycLedSpare{n}", "mdns": f"tycledspare{n}"},
@@ -125,7 +130,7 @@ class Overlays(unittest.TestCase):
         # (playlist.cpp handlePlaylist returns while bri is 0) and then shows its first look, not one plain colour.
         boot_presets = {"fleet/overlays/couch-domraem.json": "fleet/overlays/couch-presets.json",
                         **{path: "fleet/overlays/exoy-presets.json" for path in DODECA}}
-        # The cube's overlay holds its boot state only; outputs and presets come from tyclab/tycHyperWled.
+        # The cube's overlay holds its boot state and its OTA switch; outputs and presets come from tyclab/tycHyperWled.
         for path in sorted(CONTROLLERS | {CUBE}):
             start = self.load(path)["def"]
             self.assertIs(start["on"], False, path)
