@@ -251,7 +251,11 @@ static void glorb_mode_blackhole(void) {
   const int cols = SEG_W;
   const int rows = SEG_H;
   glorb_fadeToBlackBy(SEGMENT.custom2 >> 4);
-  const uint32_t t8 = strip.now >> 7;  // == millis()/128
+  // The star phase runs on millis(), not on strip.now: the original calls 0x420842f4 here (esp_timer time / 1000),
+  // while its beat helpers read strip.now. The two differ after every switch-on from off (WLED resets its time base
+  // then), a UDP time sync or a JSON "tb". Measured 2026-11-20 on an ESP32-S3 dev board, factory image against
+  // this port with strip.now here: lit-LED overlap 0.81 before an off/on, 0.42 to 0.46 after it.
+  const uint32_t t8 = millis() >> 7;
   const uint8_t count = (SEGMENT.custom1 >> 6) + 2;
   for (size_t i = 0; i < count; i++) {
     // Phases are the fork helper's 4th argument. That helper (0x4204307c) takes

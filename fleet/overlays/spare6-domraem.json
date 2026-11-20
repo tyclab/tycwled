@@ -1,0 +1,19 @@
+{
+  "id": {
+    "name": "TycLedSpare6",
+    "mdns": "tycledspare6"
+  },
+  "def": {
+    "ps": 0,
+    "on": false,
+    "bri": 16
+  },
+  "ota": {
+    "same-subnet": false
+  },
+  "um": {
+    "Syslog": {
+      "hostname": "tycledspare6"
+    }
+  }
+}

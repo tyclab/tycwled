@@ -9,6 +9,21 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The remotes switch the HyperCube too (operator, 2026-11-20: "Pair cube"): `fleet/overlays/cube-gl015.json`
+  turns ESP-NOW on and pairs the operator's three remotes, as the couch's and the Exoy lamps' overlays do.
+  Its presets 1 to 4 are the cube's own looks; buttons 5 to 7 leave it as it is.
+- The HyperCube takes an OTA upload from another subnet: `fleet/overlays/cube-gl015.json` sets
+  `ota.same-subnet` false, as every other lamp's overlay does. tycpve's `wled:flash` uploads from the
+  CI's subnet, which WLED refuses while the switch is true; tycpve's `wled:install` writes it through
+  the cube's security form with its OTA password.
+- The Exoy lamps run on DOMRAEM controllers with an I2S microphone since 2026-11-20 (operator:
+  "switch over to them and make the other spares"): both overlays set AudioReactive's microphone,
+  generic I2S on SD 26, WS 5, SCK 21, and sound sync off (`sync.mode` 0); until now they received
+  the couch's sound sync (mode 2). The couch no longer sends it (`sync.mode` 0 in its overlay, was 1);
+  no other controller received it. The two DOM-WLE-As that drove the lamps become TycLedSpare5 and
+  TycLedSpare6: new overlays `fleet/overlays/spare5-domraem.json` and `spare6-domraem.json` (name,
+  mDNS, syslog host, boots off at brightness 16, `ota.same-subnet` false), tested with the other
+  spares. Host table and Spares section in `fleet/README.md`.
 - The HyperCube boots off: new overlay `fleet/overlays/cube-gl015.json` with `def` `{ps: 0, on: false,
 bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 when power returned.
 - The Exoy lamps boot off (operator, 2026-11-19: "if we have power outage this happens and this an
@@ -186,6 +201,12 @@ bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 
   (`verify-2026-09-01-holes.log`).
 
 ### Fixed
+
+- `wledlab.py install --cfg` restarts the lamp once when the write changes `nw.espnow`, `wifi.sleep`,
+  `wifi.txpwr`, `id.mdns` or `id.inv`, which WLED 16 uses only when it connects, and puts back what the lamp
+  showed. TycDodecaLinks and TycDodecaRechts came with ESP-NOW off, got it from their install on 2026-11-20
+  and heard no remote press until they were restarted. While a live stream plays, such a write is refused
+  before anything is written; the install ends red and names the settings.
 
 - `wledlab.py flash` checks the image's release name itself, before anything is written, and tells
   the lamp to skip its own check. WLED 16.0.1 compares the uploaded name with the bytes that follow
