@@ -56,6 +56,7 @@ presets — "ref" below is that lamp, "target" the ported one.
 ```sh
 git clone --depth 1 --branch v16.0.1 https://github.com/wled/WLED.git
 git -C WLED apply "$PWD/fleet/patches/glorb-mic-filter.patch"
+git -C WLED apply "$PWD/fleet/patches/glorb-pdm-envelope.patch"
 ln -s "$PWD/glorb/usermod/glorb_fx" WLED/usermods/glorb_fx
 cp glorb/usermod/glorb_fx/platformio_override.ini WLED/
 cd WLED && pio run -e glorb_port

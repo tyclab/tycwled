@@ -1,0 +1,47 @@
+--- a/usermods/audioreactive/audio_reactive.cpp
++++ b/usermods/audioreactive/audio_reactive.cpp
+@@ -994,3 +994,3 @@
+     */
+-    void agcAvg(unsigned long the_time)
++    void agcAvg(unsigned long the_time, bool scheduled = false)
+     {
+@@ -1011,3 +1011,3 @@
+       unsigned long time_now = millis();
+-      if ((the_time > 0) && (the_time < time_now)) time_now = the_time;  // allow caller to override my clock
++      if (scheduled || ((the_time > 0) && (the_time < time_now))) time_now = the_time;  // allow caller to override my clock
+
+@@ -1342,2 +1342,21 @@
+     //////////////////////
++
++#ifdef UM_AUDIOREACTIVE_PDM_ENVELOPE_PERIOD_US
++    void updatePdmEnvelope()
++    {
++      constexpr uint32_t periodUs = UM_AUDIOREACTIVE_PDM_ENVELOPE_PERIOD_US;
++      constexpr uint32_t blockUs = uint32_t(samplesFFT * 1000000UL / SAMPLE_RATE);
++      static_assert(periodUs > 0 && periodUs <= blockUs, "Invalid PDM envelope sample period");
++      const int64_t nowUs = esp_timer_get_time();
++      static int64_t previousUs = nowUs - periodUs;
++
++      // Only the latest FFT block's peak is available after a stall.
++      if (nowUs - previousUs > blockUs) previousUs = nowUs - periodUs;
++      while (nowUs - previousUs >= periodUs) {
++        previousUs += periodUs;
++        getSample();
++        agcAvg(static_cast<uint32_t>(previousUs / 1000), true);
++      }
++    }
++#endif
+
+@@ -1589,2 +1608,8 @@
+
++#ifdef UM_AUDIOREACTIVE_PDM_ENVELOPE_PERIOD_US
++        if (dmType == 5) {
++          updatePdmEnvelope();
++        } else
++#endif
++        {
+         // run filters, and repeat in case of loop delays (hick-up compensation)
+@@ -1597,2 +1622,3 @@
+         } while (userloopDelay > 0);
++        }
+         lastUMRun = t_now;                    // update time keeping
