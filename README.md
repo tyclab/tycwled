@@ -131,11 +131,14 @@ reads every key back. Do not post that file with a bare `curl`: WLED 16
 drops every paired ESP-NOW remote on a `/json/cfg` write that carries no
 `nw` block (`cfg.cpp` clears the list before it looks for one, since
 PR 4654), so `--cfg` sends the lamp's own `espnow` flag and remote list
-along with the overrides. WLED applies `nw.espnow` and `wifi.sleep` only when
-it connects (`wled.cpp` `initConnection`; a `/json/cfg` write stores them and
-does not reconnect), so `--cfg` restarts the lamp once when it changes either,
-and refuses that restart while the lamp plays a live stream. A lamp that got
-ESP-NOW from an install and was never restarted hears no remote.
+along with the overrides. WLED uses `nw.espnow`, `wifi.sleep`, `wifi.txpwr`,
+`id.mdns` and `id.inv` only when it connects (`wled.cpp` `initConnection`,
+`initInterfaces`; a `/json/cfg` write stores them and does not reconnect), so
+`--cfg` restarts the lamp once when it changes one of them and then puts back
+what the lamp showed (a recall with `--restore` does that itself). While the
+lamp plays a live stream such a write is refused before anything is written,
+so a run after the show still restarts it. A lamp that got ESP-NOW from an
+install and was never restarted hears no remote.
 
 ### Protected fleet maintenance
 
