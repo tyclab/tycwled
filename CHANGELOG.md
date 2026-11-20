@@ -9,6 +9,14 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The Exoy lamps run on DOMRAEM controllers with an I2S microphone since 2026-11-20 (operator:
+  "switch over to them and make the other spares"): both overlays set AudioReactive's microphone,
+  generic I2S on SD 26, WS 5, SCK 21, and sound sync off (`sync.mode` 0); until now they received
+  the couch's sound sync (mode 2). The couch no longer sends it (`sync.mode` 0 in its overlay, was 1);
+  no other controller received it. The two DOM-WLE-As that drove the lamps become TycLedSpare5 and
+  TycLedSpare6: new overlays `fleet/overlays/spare5-domraem.json` and `spare6-domraem.json` (name,
+  mDNS, syslog host, boots off at brightness 16, `ota.same-subnet` false), tested with the other
+  spares. Host table and Spares section in `fleet/README.md`.
 - The HyperCube boots off: new overlay `fleet/overlays/cube-gl015.json` with `def` `{ps: 0, on: false,
 bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 when power returned.
 - The Exoy lamps boot off (operator, 2026-11-19: "if we have power outage this happens and this an
