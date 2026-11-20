@@ -198,6 +198,20 @@ captures, so a tolerance change never costs another 24 minutes on the lamps.
 
 `make verify` runs `make lint` first (pre-commit over the whole tree).
 It passes `--restore-preset 4`; `wledlab.py verify` alone defaults to 1.
+The [historical acceptance summary](glorb/experiments/acceptance.md) records all four sweeps.
+
+To publish a new run, save verify's standard output. Device diagnostics go to
+standard error. For private recordings and subsequent offline scoring:
+
+```sh
+mkdir -p captures
+python3 wledlab.py verify --ref "$REF" --target "$TARGET" \
+  --presets-file glorb/wled16-port/presets.json --restore-preset 4 \
+  --save-captures captures >verify-summary.log 2>captures/diagnostics.log
+```
+
+Keep raw recordings and device backups in private storage. The historical
+August measurement scripts also read the lamp addresses from `REF` and `TARGET`.
 
 A failed verify run is the finding; do not tune by eye on top of it.
 

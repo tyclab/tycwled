@@ -438,16 +438,20 @@ def live_ws(ip, seconds):
     return frames
 
 
-def live(ip, seconds):
+def live(ip, seconds, *, role=None):
     """WS liveview on both firmwares (0.14 serves the same 'L' v2 stream); HTTP polling as fallback."""
     try:
         frames = live_ws(ip, seconds)
         if frames:
             return frames
     except (OSError, RuntimeError) as e:
-        print(f"WARN {ip}: WS liveview failed ({e}); HTTP polling fallback -- different instrument, lower rate", flush=True)
-        return live_http(ip, seconds)
-    print(f"WARN {ip}: WS liveview yielded no frames; HTTP polling fallback", flush=True)
+        reason = f"failed ({e})"
+    else:
+        reason = "yielded no frames"
+    if role:
+        print(f"WARN {role}: WS liveview unavailable; HTTP polling fallback", flush=True)
+    print(f"WARN {ip}: WS liveview {reason}; HTTP polling fallback -- different instrument, lower rate",
+          file=sys.stderr if role else sys.stdout, flush=True)
     return live_http(ip, seconds)
 
 
@@ -945,44 +949,58 @@ def cmd_verify(a):
     (both lamps stream), and is a first moment -- never the only criterion (--current-only =
     legacy). A crash on one preset records a FAIL and continues; lamps are always restored."""
     import hashlib
-    raw = open(a.presets_file, "rb").read(); want = json.loads(raw); fails = []; tested = 0
-    n = sum(1 for v in want.values() if v)
+    with open(a.presets_file, "rb") as f:
+        raw = f.read()
+    want = json.loads(raw); fails = []; tested = 0
+    try:
+        presets = [int(key) for key, value in want.items() if value]
+    except ValueError:
+        sys.exit("REFUSED: preset IDs must be integers")
+    n = len(presets)
     if n == 0:
         sys.exit(f"REFUSED: {a.presets_file} has no testable preset -- a gate that checks nothing must not pass")
     if a.samples <= 0 or a.interval <= 0:
         sys.exit("REFUSED: --samples and --interval must be positive")
     window = a.samples * a.interval
     print(f"verify: presets.json sha256 {hashlib.sha256(raw).hexdigest()}")
+    print(f"verify: current tolerance {a.tolerance:g}, samples {a.samples}, interval {a.interval:g} s")
+    if not a.current_only:
+        limits = ("vhist", "hue", "sstd", "act", "peak", "lit", "sat", "mean")
+        print("verify: structural tolerances " + ", ".join(f"{metric} {getattr(a, metric + '_tol'):g}" for metric in limits))
     for tag, ip in (("ref", a.ref), ("target", a.target)):
-        m = lamp_meta(ip)
-        print(f"  {tag} {ip}: ver {m['ver']} fps {m['fps']} maxpwr {m['maxpwr']} cpalcount {m['cpalcount']} rssi {(m['wifi'] or {}).get('rssi')}")
+        try:
+            m = lamp_meta(ip)
+        except Exception:
+            print(f"verify: FAIL ({tag} metadata unavailable; 0/{n} presets measured)")
+            raise
+        version = re.match(r"^(\d+\.\d+\.\d+)(?:$|[-+])", str(m["ver"]))
+        metrics = " ".join(f"{key} {m[key]}" for key in ("fps", "maxpwr", "cpalcount") if isinstance(m.get(key), (int, float)))
+        print(f"  {tag}: version {version[1] if version else 'unknown'} {metrics}")
     # Current stays a criterion across firmwares. Both estimate it from what they write to the bus,
     # so it is the only view of the output stage -- liveview is pre-gamma on both and cannot see it.
     # A current ratio far off 1.0 while the frame metrics match means the two lamps disagree about
     # output gamma, which is exactly how the port's light.gc was found to be wrong.
     print(f"verify: {n} presets, {window:.0f} s each (~{n * (window + 20) / 60:.0f} min); both lamps end on preset {a.restore_preset}", flush=True)
     try:
-        for k, v in want.items():
-            if not v:
-                continue
+        for k in presets:
             t1 = t2 = None
             try:
                 for ip in (a.ref, a.target):
-                    post(ip, "/json/state", {"on": True, "bri": 255, "ps": int(k)})
+                    post(ip, "/json/state", {"on": True, "bri": 255, "ps": k})
                 time.sleep(2)
-                bad = [ip for ip in (a.ref, a.target) if get(ip, "/json/state").get("ps") != int(k)]
+                bad = [role for role, ip in (("ref", a.ref), ("target", a.target)) if get(ip, "/json/state").get("ps") != k]
                 if bad:
-                    print(f"  preset {k:>2} {v.get('n', ''):<26} FAIL (preset did not apply on {bad})", flush=True)
+                    print(f"  preset {k:>2} FAIL (preset did not apply on {', '.join(bad)})", flush=True)
                     fails.append(k); continue
                 # a capture with stream gaps is a broken instrument, not a verdict: it is never
                 # scored, so re-measure the window (twice at most) instead of burning the preset.
                 # Only capture health triggers a retry -- a scored FAIL is final; re-rolling
                 # scored windows would be fishing for a friendlier measurement.
                 for attempt in range(3):
-                    meta = {"preset": int(k), "window": window, "ref": lamp_meta(a.ref), "tgt": lamp_meta(a.target)} if a.save_captures else None
+                    meta = {"preset": k, "window": window, "ref": lamp_meta(a.ref), "tgt": lamp_meta(a.target)} if a.save_captures else None
                     res = {}
-                    t1 = threading.Thread(target=lambda: res.__setitem__("ref", live(a.ref, window)))
-                    t2 = threading.Thread(target=lambda: res.__setitem__("tgt", live(a.target, window)))
+                    t1 = threading.Thread(target=lambda: res.__setitem__("ref", live(a.ref, window, role="ref")))
+                    t2 = threading.Thread(target=lambda: res.__setitem__("tgt", live(a.target, window, role="target")))
                     if not a.current_only:
                         t1.start(); t2.start()
                     pr, pt = [], []
@@ -1003,7 +1021,8 @@ def cmd_verify(a):
                         fr, ft = res.get("ref") or [], res.get("tgt") or []
                         if a.save_captures and fr and ft:
                             os.makedirs(a.save_captures, exist_ok=True)
-                            json.dump({"meta": meta, "ref": fr, "tgt": ft}, open(os.path.join(a.save_captures, f"verify-p{k}.json"), "w"))
+                            with open(os.path.join(a.save_captures, f"verify-p{k}.json"), "w") as f:
+                                json.dump({"meta": meta, "ref": fr, "tgt": ft}, f)
                         hr, ht = capture_health(fr, window), capture_health(ft, window)
                         # both lamps must deliver the same raster, or the two scores describe
                         # different pictures: a short frame rescopes the statistics, it does not raise
@@ -1013,7 +1032,7 @@ def cmd_verify(a):
                         line += f"  hz {hr['hz']}/{ht['hz']} cov {hr['coverage']}/{ht['coverage']} gap {hr['max_gap']}/{ht['max_gap']} cells {hr['cells']}/{ht['cells']}"
                         if unhealthy:
                             if attempt < 2:
-                                print(f"  preset {k:>2} {v.get('n', ''):<26} capture unhealthy ({','.join(unhealthy)}) -- re-measuring ({attempt + 1}/2)", flush=True)
+                                print(f"  preset {k:>2} capture unhealthy ({','.join(unhealthy)}) -- re-measuring ({attempt + 1}/2)", flush=True)
                                 continue
                             checks.append(("capture", False)); line += f"  capture UNHEALTHY ({','.join(unhealthy)})"
                         else:
@@ -1025,7 +1044,7 @@ def cmd_verify(a):
                 # (ABL reporting under the floor, or --current-only with the structural ones off)
                 bad = [c for c, ok in checks if not ok] or ([] if checks else ["no-criteria"])
                 tested += 1
-                print(f"  preset {k:>2} {v.get('n', ''):<26} {line}  {'PASS' if not bad else 'FAIL ' + ','.join(bad)}", flush=True)
+                print(f"  preset {k:>2} {line}  {'PASS' if not bad else 'FAIL ' + ','.join(bad)}", flush=True)
                 fails += [] if not bad else [k]
             except Exception as e:  # a broken preset must not cost the remaining ~20 min of run
                 # the capture threads run the full window regardless; leaving them streaming would
@@ -1033,11 +1052,17 @@ def cmd_verify(a):
                 for t in (t1, t2):
                     if t is not None and t.is_alive():
                         t.join()
-                print(f"  preset {k:>2} {v.get('n', ''):<26} FAIL (error: {e})", flush=True)
+                print(f"  preset {k:>2} FAIL (measurement error)", flush=True)
+                print(f"preset {k} measurement error: {e}", file=sys.stderr)
                 fails.append(k)
     finally:
-        for ip in (a.ref, a.target):
-            post(ip, "/json/state", {"on": True, "bri": 255, "ps": a.restore_preset})
+        try:
+            for ip in (a.ref, a.target):
+                post(ip, "/json/state", {"on": True, "bri": 255, "ps": a.restore_preset})
+        except Exception:
+            print(f"verify: FAIL (could not restore preset; {tested}/{n} presets measured)")
+            raise
+    print(f"verify: {n - len(fails)}/{n} presets passed, {tested}/{n} measured")
     if tested != n:  # a preset that never reached a verdict must not vanish into a PASS
         print(f"verify: FAIL (only {tested} of {n} presets reached a verdict)")
     else:

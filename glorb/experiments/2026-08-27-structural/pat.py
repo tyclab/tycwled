@@ -12,7 +12,7 @@ import json, os, sys, threading, time, wledlab
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from structural import feats, pwr_both
 from hipsim import H, grids
-R, T = "10.27.4.160", "10.27.4.158"
+R, T = os.environ["REF"], os.environ["TARGET"]
 S = os.path.dirname(os.path.abspath(__file__))
 PALETTES = {12: "pattern-steep-188.json", 13: "pattern-linear-187.json", 14: "fire-span-112-224-plain-186.json", 15: "fire-span-64-224-plain-185.json"}
 SECONDS = 100  # >= 3 colour cycles; 10-40 s windows swing +-25 %

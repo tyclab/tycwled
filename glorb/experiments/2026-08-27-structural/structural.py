@@ -9,7 +9,6 @@ Importable without side effects (pat.py uses feats/pwr_both)."""
 import json, math, os, sys, time, wledlab
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from hipsim import W, H, grids
-R, T = "10.27.4.160", "10.27.4.158"
 fs = 10
 SECONDS = 100
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
@@ -72,6 +71,8 @@ def report(ps, fr, ft, pa=None, pb=None):
 
 def main(argv):
     offline = "--offline" in argv
+    if not offline:
+        R, T = os.environ["REF"], os.environ["TARGET"]
     presets = [int(x) for x in argv if x != "--offline"] or [1, 3, 4, 5, 2, 14, 12, 13, 7, 9, 10, 11]
     os.makedirs(CAP, exist_ok=True)
     try:

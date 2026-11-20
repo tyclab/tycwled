@@ -17,11 +17,11 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import wledlab  # noqa: E402
 
-LINKED = ["704bcac8d198", "704bcaca4b78"]
+LINKED = ["00005e00530a", "00005e00530b"]
 
 
 class Lamp:
-    def __init__(self, heard="704bcaca4b78"):
+    def __init__(self, heard="00005e00530b"):
         self.pin, self.unlocked, self.heard = "4872", False, heard
         self.cfg = {"nw": {"espnow": True, "linked_remote": list(LINKED)}, "light": {"gc": {"col": 1}},
                     "ota": {"lock": True, "lock-wifi": True}}
@@ -40,7 +40,7 @@ class Lamp:
 
     def get(self, host, path):
         if path == "/json/info":
-            return {"ver": "16.0.1", "mac": "f0f5bd569528"}
+            return {"ver": "16.0.1", "mac": "00005e00530c"}
         if path == "/json/cfg":
             return copy.deepcopy(self.cfg)
         raise AssertionError(path)
@@ -81,7 +81,7 @@ class Remotes(unittest.TestCase):
         sleep.start()
         self.addCleanup(sleep.stop)
 
-    def run_remotes(self, link=None, mac="f0:f5:bd:56:95:28"):
+    def run_remotes(self, link=None, mac="00:00:5e:00:53:0c"):
         out = io.StringIO()
         with redirect_stdout(out):
             wledlab.cmd_remotes(SimpleNamespace(host="lamp", mac=mac, credentials_file=self.file, link=link))
@@ -89,15 +89,15 @@ class Remotes(unittest.TestCase):
 
     def test_report_reads_the_last_sender_behind_the_pin_and_relocks(self):
         report = self.run_remotes()
-        self.assertEqual(report, {"host": "lamp", "espnow": True, "linked": LINKED, "last_heard": "704bcaca4b78",
+        self.assertEqual(report, {"host": "lamp", "espnow": True, "linked": LINKED, "last_heard": "00005e00530b",
                                   "last_heard_linked": True, "changed": False})
         self.assertEqual(self.lamp.posts, [])
         self.assertFalse(self.lamp.unlocked)
 
     def test_an_unlinked_sender_is_reported_as_such(self):
-        self.lamp.heard = "704bca112233"
+        self.lamp.heard = "00005e00530d"
         report = self.run_remotes()
-        self.assertEqual((report["last_heard"], report["last_heard_linked"]), ("704bca112233", False))
+        self.assertEqual((report["last_heard"], report["last_heard_linked"]), ("00005e00530d", False))
 
     def test_a_lamp_that_heard_no_remote_reports_none(self):
         self.lamp.heard = None
@@ -105,10 +105,10 @@ class Remotes(unittest.TestCase):
 
     def test_link_replaces_the_list_keeps_espnow_and_nothing_else_changes(self):
         before = copy.deepcopy(self.lamp.cfg)
-        report = self.run_remotes(link=LINKED + ["70:4B:CA:11:22:33"])
-        self.assertEqual(self.lamp.posts, [{"nw": {"espnow": True, "linked_remote": LINKED + ["704bca112233"]}}])
+        report = self.run_remotes(link=LINKED + ["00:00:5E:00:53:0D"])
+        self.assertEqual(self.lamp.posts, [{"nw": {"espnow": True, "linked_remote": LINKED + ["00005e00530d"]}}])
         self.assertTrue(report["changed"])
-        before["nw"]["linked_remote"] = LINKED + ["704bca112233"]
+        before["nw"]["linked_remote"] = LINKED + ["00005e00530d"]
         self.assertEqual(self.lamp.cfg, before)
         self.assertFalse(self.lamp.unlocked)
 
@@ -118,18 +118,18 @@ class Remotes(unittest.TestCase):
 
     def test_a_malformed_address_is_refused_before_any_unlock(self):
         with self.assertRaises(ValueError):
-            self.run_remotes(link=["704bcac8d19"])
+            self.run_remotes(link=["00005e00530"])
         self.assertEqual(self.lamp.posts, [])
 
     def test_another_lamp_is_refused(self):
         with self.assertRaises(RuntimeError):
-            self.run_remotes(link=LINKED + ["704bca112233"], mac="aa:bb:cc:dd:ee:ff")
+            self.run_remotes(link=LINKED + ["00005e00530d"], mac="00:00:5e:00:53:0e")
         self.assertEqual(self.lamp.posts, [])
 
     def test_a_write_that_changes_anything_else_fails(self):
         self.lamp.side_effect = lambda cfg: cfg["light"]["gc"].update(col=2.2)
         with self.assertRaises(RuntimeError):
-            self.run_remotes(link=LINKED + ["704bca112233"])
+            self.run_remotes(link=LINKED + ["00005e00530d"])
         self.assertFalse(self.lamp.unlocked)
 
 
