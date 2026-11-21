@@ -3,9 +3,12 @@
 glorb_fx gives the ESP32-S3 its second instruction-cache bank at start. That bank's RAM
 (0x40374000-0x40378000) must then hold no code and must be reserved from the heap, and the switch itself
 must lie in RAM; an image that breaks one of them overwrites its own code or heap or stops at start. The
-image is checked whole (every segment, checksum, SHA-256) and for where its RAM code starts. The heap
-record and the switch need symbols: they are checked on the ELF the image names as its source, with the
-checks the build runs after linking (glorb_fx/icache_32kb.py).
+image is checked as an ESP32-S3 image that is whole and nothing more (every segment, checksum, SHA-256, no
+byte after it) and for where its RAM code starts. The heap record and the switch need symbols: they are
+checked on the ELF the image names as its source, with the checks the build runs after linking
+(glorb_fx/icache_32kb.py), and the image has to hold every byte that ELF loads.
+
+Not checked here: that the image fits its OTA slot (PlatformIO checks the size when it builds).
 """
 import argparse
 import functools
@@ -18,6 +21,7 @@ import struct
 BANK = (0x40374000, 0x40378000)
 RAM_CODE = (0x40370000, 0x403E0000)
 ELF_SHA256 = slice(0xB0, 0xD0)  # app_elf_sha256 of the application description at the first segment's start
+ESP32_S3 = 9  # chip ID in the image header
 LAYOUT = Path(__file__).resolve().parents[1] / "glorb/usermod/glorb_fx/icache_32kb.py"
 
 
@@ -25,6 +29,9 @@ def segments(image):
     """Load address and bytes of each segment of an ESP32 application image that is whole."""
     if len(image) < 24 or image[0] != 0xE9:
         raise ValueError("not an ESP32 application image")
+    chip, = struct.unpack_from("<H", image, 12)
+    if chip != ESP32_S3:
+        raise ValueError(f"the image is made for chip ID {chip}, not for the ESP32-S3 ({ESP32_S3})")
     offset, checksum, loaded = 24, 0xEF, []
     for _ in range(image[1]):
         if offset + 8 > len(image):
@@ -41,11 +48,14 @@ def segments(image):
         raise ValueError("the image's checksum does not match its segments")
     if not image[23] or hashlib.sha256(image[:end]).digest() != image[end:end + 32]:
         raise ValueError("the image's SHA-256 is missing or does not match its content")
+    if len(image) != end + 32:
+        raise ValueError(f"the image carries {len(image) - end - 32} bytes after its SHA-256")
     return loaded
 
 
 def check(image, elf):
-    code = [address for address, _ in segments(image) if RAM_CODE[0] <= address < RAM_CODE[1]]
+    held = segments(image)
+    code = [address for address, _ in held if RAM_CODE[0] <= address < RAM_CODE[1]]
     if not code:
         raise ValueError("no RAM code segment in the image")
     for address in code:
@@ -58,6 +68,16 @@ def check(image, elf):
     layout = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(layout)
     _, switch = layout.check_elf(elf)
+    names_elf = held[0][0] + ELF_SHA256.start - 32  # where the image names its ELF, which cannot name itself
+    for address, data in layout.loaded(elf):
+        got = layout.read(held, address, address + len(data))
+        if got is None:
+            raise ValueError(f"the image lacks the {len(data)} bytes its ELF loads at {address:#x}")
+        if address <= names_elf < address + len(data):
+            at = names_elf - address
+            got, data = got[:at] + got[at + 32:], data[:at] + data[at + 32:]
+        if got != data:
+            raise ValueError(f"the image differs from its ELF in the {len(data)} bytes at {address:#x}")
     return min(code), switch
 
 

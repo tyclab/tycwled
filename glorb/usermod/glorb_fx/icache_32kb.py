@@ -9,7 +9,8 @@ the reservation without this memory layout overlaps the code's own reservation a
 After linking, the script reads the ELF and stops the build when RAM code still starts inside the second
 bank (the linker took another memory.ld), when the cache switch function does not lie in RAM (it runs while
 flash is unreachable; inlined into its caller it would sit in flash and stop the lamp at start) or when the
-bank is no record of the table the SDK's heap start-up reads (the heap would hand out the cache's RAM).
+table the SDK's heap start-up reads does not hold the bank exactly once without overlap (missing, the heap
+hands out the cache's RAM; twice or overlapping, the heap's start-up stops).
 """
 from pathlib import Path
 import struct
@@ -41,8 +42,8 @@ def sections(elf):
     return [struct.unpack_from("<10I", elf, table + index * entry) for index in range(count)]
 
 
-def symbols(elf):
-    """Name to address of every symbol in a 32-bit little-endian ELF."""
+def symbols(elf, functions=False):
+    """Name to address of every symbol in a 32-bit little-endian ELF, or of every function only."""
     headers = sections(elf)
     found = {}
     for _, kind, _, _, offset, size, link, _, _, _ in headers:
@@ -50,20 +51,38 @@ def symbols(elf):
             continue
         names = headers[link][4]
         for at in range(offset, offset + size, 16):
-            name, value = struct.unpack_from("<II", elf, at)
-            found[elf[names + name:elf.index(b"\0", names + name)].decode()] = value
+            name, value, _, info = struct.unpack_from("<IIIB", elf, at)
+            if not functions or info & 0xF == 2:  # STT_FUNC
+                found[elf[names + name:elf.index(b"\0", names + name)].decode()] = value
     return found
 
 
-def check_layout(found):
+def loaded(elf):
+    """Address and bytes of every section the ELF loads into the chip."""
+    return [(address, elf[offset:offset + size]) for _, kind, flags, address, offset, size, *_ in sections(elf)
+            if kind == 1 and flags & 2 and size]  # SHT_PROGBITS, SHF_ALLOC
+
+
+def read(parts, start, end):
+    """The bytes that (address, bytes) parts hold for start..end, across their boundaries; None when some lack."""
+    out = bytearray()
+    for address, data in sorted(parts):
+        at = start + len(out)
+        if address <= at < min(end, address + len(data)):
+            out += data[at - address:end - address]
+    return bytes(out) if len(out) == end - start else None
+
+
+def check_layout(found, functions):
     """RAM code starts after both cache banks and the cache switch function lies in RAM."""
     start = found.get("_iram_start")
     if start is None or start < RAM_CODE[0]:
         raise ValueError(f"RAM code starts at {start if start is None else hex(start)}, inside the instruction "
                          "cache's RAM: the linker did not take this script's memory.ld")
-    # The compiler's copies of the function (name.isra.0 and the like) count; the info row's helper and the
-    # heap record, which only share the prefix, do not: they are used with the caches on.
-    switches = {name: address for name, address in found.items() if SWITCH in name}
+    # The compiler's copies of the function (name.isra.0 and the like) count. The info row's helper and the
+    # heap record, which only share the prefix, do not (they are used with the caches on), nor does a source
+    # file of that name (functions only).
+    switches = {name: address for name, address in functions.items() if SWITCH in name}
     if not switches:
         raise ValueError(f"no {SWITCH} function in the ELF: the cache switch was inlined into its caller, "
                          "which runs from flash")
@@ -73,25 +92,32 @@ def check_layout(found):
     return start, min(switches.values())
 
 
-def check_reservation(elf, found):
-    """The second bank is a record of the table the SDK's heap start-up reads (soc_get_reserved_regions)."""
+def check_reservation(parts, found):
+    """The second bank is one record of the table the SDK's heap start-up reads (soc_get_reserved_regions), and
+    that table passes the start-up's own test: sorted by start, no record reaches into the next."""
     try:
         start, end = found["soc_reserved_memory_region_start"], found["soc_reserved_memory_region_end"]
     except KeyError:
         raise ValueError("the ELF has no table of memory reserved from the heap") from None
-    table = next((elf[offset + start - address:offset + end - address]
-                  for _, kind, _, address, offset, size, *_ in sections(elf)
-                  if kind == 1 and address <= start <= end <= address + size), b"")  # SHT_PROGBITS
-    if BANK not in [struct.unpack_from("<II", table, at) for at in range(0, len(table) - 7, 8)]:
-        raise ValueError(f"{BANK[0]:#x}-{BANK[1]:#x} is no record of the heap's table of reserved memory "
-                         f"({start:#x}-{end:#x}): the heap would hand out the second cache bank's RAM")
+    table = read(parts, start, end) or b""
+    records = sorted(struct.unpack_from("<II", table, at) for at in range(0, len(table) - 7, 8))
+    if records.count(BANK) != 1:
+        raise ValueError(f"{BANK[0]:#x}-{BANK[1]:#x} is {records.count(BANK)} records of the heap's table of reserved "
+                         f"memory ({start:#x}-{end:#x}), not one: without it the heap hands out the second cache "
+                         "bank's RAM, twice stops the heap's start-up")
+    for (low, low_end), (high, _) in zip(records, records[1:]):
+        if low_end > high:
+            raise ValueError(f"reserved memory {low:#x}-{low_end:#x} reaches into the record at {high:#x}: the "
+                             "heap's start-up stops on overlapping records")
 
 
 def check_elf(elf):
-    found = symbols(elf)
-    layout = check_layout(found)
-    check_reservation(elf, found)
-    return layout
+    found, parts = symbols(elf), loaded(elf)
+    start, switch = check_layout(found, symbols(elf, functions=True))
+    if read(parts, switch, switch + 1) is None:
+        raise ValueError(f"the ELF holds no code at the cache switch's address {switch:#x}")
+    check_reservation(parts, found)
+    return start, switch
 
 
 def verify(target, source, env):
