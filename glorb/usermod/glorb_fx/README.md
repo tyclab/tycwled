@@ -36,3 +36,21 @@ build assigned.
 
 Display names intentionally match the fork, so they duplicate stock names in the
 effect list; the presets reference IDs, not names.
+
+## Instruction cache
+
+The framework's ESP32-S3 SDK is prebuilt for a 16 KB instruction cache. The code
+one WLED 16 main-loop pass touches does not fit it, so every pass fetches most of
+its code from flash again: 549 loops/s, against 3,022 with 32 KB (one image, the
+cache switched every 8 s in one boot, 2026-11-21). WLED's AudioReactive advances
+the microphone baseline once per loop pass, so the loop rate also sets how the
+lamp follows sound.
+
+`icache_32kb.py` (a PlatformIO pre-script in the override) links against a copy
+of the framework's `memory.ld` whose RAM code starts after both cache banks and
+defines `GLORB_ICACHE_32KB`; the usermod then keeps the second bank's RAM
+(0x40374000–0x40378000) out of the heap and switches the cache in `setup()`. The
+three belong together: the define comes from the script only, the usermod
+refuses to switch when RAM code still starts below 0x40378000, and
+`fleet/check_glorb_icache.py` checks the built image. The cost is 16 KB of RAM.
+The info page's "Main loop" row shows the loop rate and the cache size.

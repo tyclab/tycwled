@@ -413,9 +413,41 @@ static void glorb_mode_tartan(void) {
 }
 static const char _data_FX_MODE_GLORB_TARTAN[] PROGMEM = "Tartan@X scale,Y scale,Sharpness,Speed;!;!;2g";
 
+#ifdef GLORB_ICACHE_32KB
+// The code one WLED 16 main-loop pass touches does not fit the SDK's 16 KB instruction cache: measured
+// 549 loops/s against 3,022 with 32 KB (ESP32-S3, 2026-11-21). icache_32kb.py links RAM code after both
+// cache banks and sets this define; the second bank's RAM is kept out of the heap here.
+#include "esp32s3/rom/cache.h"
+#include "soc/soc_memory_layout.h"
+SOC_RESERVE_MEMORY_REGION(0x40374000, 0x40378000, glorb_icache_bank1);
+extern "C" int _iram_start;
+extern "C" void spi_flash_disable_interrupts_caches_and_other_cpu(void);
+extern "C" void spi_flash_enable_interrupts_caches_and_other_cpu(void);
+// Runs with both caches and the other core stopped: RAM code and ROM calls only, so never inlined.
+static void IRAM_ATTR __attribute__((noinline)) glorb_icache_32kb() {
+  spi_flash_disable_interrupts_caches_and_other_cpu();
+  Cache_Occupy_ICache_MEMORY(CACHE_MEMORY_IBANK0, CACHE_MEMORY_IBANK1);
+  Cache_Set_ICache_Mode(CACHE_SIZE_FULL, CACHE_8WAYS_ASSOC, CACHE_LINE_SIZE_32B);
+  Cache_Invalidate_ICache_All();
+  spi_flash_enable_interrupts_caches_and_other_cpu();
+}
+static bool glorb_use_icache_32kb() {
+  // Code in the bank's RAM would be overwritten by the cache.
+  if (reinterpret_cast<uintptr_t>(&_iram_start) < 0x40378000) return false;
+  glorb_icache_32kb();
+  return true;
+}
+#endif
+
 class GlorbFxUsermod : public Usermod {
+  uint32_t loops = 0, loopsSince = 0, loopsPerSecond = 0;
+  bool icache32kb = false;
+
  public:
   void setup() override {
+#ifdef GLORB_ICACHE_32KB
+    icache32kb = glorb_use_icache_32kb();
+#endif
     strip.addEffect(255, &glorb_mode_colorwaves, _data_FX_MODE_GLORB_COLORWAVES);
     strip.addEffect(255, &glorb_mode_running, _data_FX_MODE_GLORB_RUNNING);
     strip.addEffect(255, &glorb_mode_frizzles, _data_FX_MODE_GLORB_FRIZZLES);
@@ -423,7 +455,23 @@ class GlorbFxUsermod : public Usermod {
     strip.addEffect(255, &glorb_mode_hiphotic, _data_FX_MODE_GLORB_HIPHOTIC);
     strip.addEffect(255, &glorb_mode_tartan, _data_FX_MODE_GLORB_TARTAN);
   }
-  void loop() override {}
+  void loop() override {
+    ++loops;
+    const uint32_t now = millis();
+    if (now - loopsSince >= 1000) {
+      loopsPerSecond = loops * 1000 / (now - loopsSince);
+      loops = 0;
+      loopsSince = now;
+    }
+  }
+  // The main-loop rate shows whether the loop's code fits the instruction cache.
+  void addToJsonInfo(JsonObject &root) override {
+    JsonObject user = root["u"];
+    if (user.isNull()) user = root.createNestedObject("u");
+    JsonArray row = user.createNestedArray(F("Main loop"));
+    row.add(loopsPerSecond);
+    row.add(icache32kb ? F(" /s, 32 KB code cache") : F(" /s, 16 KB code cache"));
+  }
   uint16_t getId() override { return USERMOD_ID_USER_FX; }
 };
 
