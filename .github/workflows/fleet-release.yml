@@ -99,7 +99,7 @@ jobs:
       - name: Check GLORB microphone filter, envelope and memory layout
         if: matrix.env == 'fleet_glorb'
         run: |
-          python fleet/check_glorb_icache.py fleet/out/fleet_glorb.bin
+          python fleet/check_glorb_icache.py fleet/out/fleet_glorb.bin fleet/out/fleet_glorb.elf
           pio run --project-dir ../WLED-v16.0.1 --environment fleet_glorb --target compiledb
           python fleet/check_glorb_mic_filter.py ../WLED-v16.0.1/compile_commands.json
           python fleet/check_glorb_envelope.py ../WLED-v16.0.1/compile_commands.json

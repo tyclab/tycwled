@@ -11,7 +11,8 @@ from check_glorb_mic_filter import configured_source, function
 # Bench, 2026-11-21, sound transmission off as on the installed lamps: the factory image crossed
 # Running's three-to-two-step threshold at 12.00 and 11.96 s (345 Hz) and 14.57 and 14.49 s (1,378 Hz),
 # a 429 us microphone clock at 12.07 and 14.52 s (one run), a 467 us clock at 13.93 and 16.41 s. 467 us
-# had been fitted on the factory image while it transmitted its audio values.
+# had been fitted on the factory image while it transmitted its audio values. Not measured: this clock
+# against the factory image with sound transmission on.
 PERIOD_US = 429
 
 
