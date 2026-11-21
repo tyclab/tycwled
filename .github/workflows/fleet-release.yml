@@ -12,6 +12,7 @@ on:
       - fleet/build.sh
       - fleet/check_glorb_mic_filter.py
       - fleet/check_glorb_envelope.py
+      - fleet/check_glorb_icache.py
       - fleet/platformio_override.ini
       - fleet/patches/**
       - glorb/usermod/**
@@ -22,6 +23,7 @@ on:
       - fleet/build.sh
       - fleet/check_glorb_mic_filter.py
       - fleet/check_glorb_envelope.py
+      - fleet/check_glorb_icache.py
       - fleet/platformio_override.ini
       - fleet/patches/**
       - glorb/usermod/**
@@ -94,9 +96,10 @@ jobs:
           fleet/build.sh ../WLED-v16.0.1 "$FLEET_ENV"
           echo "vid=$(sed -n -E 's/^#define VERSION ([0-9]+)$/\1/p' ../WLED-v16.0.1/wled00/wled.h)" >> "$GITHUB_OUTPUT"
           sha256sum fleet/out/*
-      - name: Check GLORB microphone filter and envelope
+      - name: Check GLORB microphone filter, envelope and memory layout
         if: matrix.env == 'fleet_glorb'
         run: |
+          python fleet/check_glorb_icache.py fleet/out/fleet_glorb.bin
           pio run --project-dir ../WLED-v16.0.1 --environment fleet_glorb --target compiledb
           python fleet/check_glorb_mic_filter.py ../WLED-v16.0.1/compile_commands.json
           python fleet/check_glorb_envelope.py ../WLED-v16.0.1/compile_commands.json

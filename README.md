@@ -68,6 +68,13 @@ override also sets `-D I2S_USE_16BIT_SAMPLES`; without it that microphone reads
 silence on the ESP32-S3 and every sound-reactive effect renders black. See the
 PDM entry under GLORB facts.
 
+The override also runs `glorb_fx/icache_32kb.py`, which gives the build a 32 KB
+instruction cache: with the SDK's 16 KB the main loop runs about five times slower
+(`fleet_glorb` on an ESP32-S3 on 2026-11-21: 629–663 loops/s against 3,010–3,055
+with 32 KB). The info page's "Main loop" row shows the rate and the cache size
+read back from the chip. Details and what it does not change:
+`glorb/usermod/glorb_fx/README.md`, "Instruction cache".
+
 ### 2. Flash it
 
 Upload `.pio/build/glorb_port/firmware.bin` at `http://<lamp>/update`. If the

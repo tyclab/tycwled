@@ -8,6 +8,12 @@ import tempfile
 
 from check_glorb_mic_filter import configured_source, function
 
+# Bench, 2026-11-21, sound transmission off as on the installed lamps: the factory image crossed
+# Running's three-to-two-step threshold at 12.00 and 11.96 s (345 Hz) and 14.57 and 14.49 s (1,378 Hz),
+# a 429 us microphone clock at 12.07 and 14.52 s (one run), a 467 us clock at 13.93 and 16.41 s. 467 us
+# had been fitted on the factory image while it transmitted its audio values.
+PERIOD_US = 429
+
 
 def firmware_clock(source):
     dispatch = re.search(r"if\s*\(dmType == 5\)\s*\{\s*updatePdmEnvelope\(\);", source)
@@ -22,8 +28,11 @@ def firmware_clock(source):
     tables = re.findall(r"^const (?:float|double) agc\w+\[\d+\] = \{[^}]+\};", source, re.M)
     # ESP32 unsigned long is 32 bits, including the PI controller's persistent clock.
     agc = function(source, "void agcAvg").replace("unsigned long", "uint32_t")
-    return "\n".join([*constants, "namespace pi {", *tables, agc, "}",
-                      function(source, "void updatePdmEnvelope")])
+    clock = function(source, "void updatePdmEnvelope")
+    period = re.search(r"constexpr uint32_t periodUs = (\d+);", clock)
+    if not period or int(period[1]) != PERIOD_US:
+        raise ValueError(f"The GLORB PDM envelope period is not the calibrated {PERIOD_US} us")
+    return "\n".join([*constants, "namespace pi {", *tables, agc, "}", clock])
 
 
 DRIVER = r"""
@@ -48,7 +57,7 @@ bool checkSequence = true;
 void agcAvg(uint32_t when, bool scheduled) {
     assert(scheduled);
     if (checkSequence) {
-        const uint32_t expectedMs = (startUs + uint64_t(samples - 1) * 467) / 1000;
+        const uint32_t expectedMs = (startUs + uint64_t(samples - 1) * PERIOD_US) / 1000;
         assert(when == expectedMs);
     }
     lastAgcMs = when;
@@ -88,9 +97,8 @@ int main(int argc, char **argv) {
     for (uint32_t elapsed = 0;; elapsed = std::min(elapsed + loopUs, runUs)) {
         nowUs = startUs + elapsed;
         updatePdmEnvelope();
-        // The factory's measured microphone baseline advances at roughly 2,140 updates/s.
-        // The 467 us calibration gives 2,142 updates in the first second including t=0.
-        assert(samples == 1 + elapsed / 467);
+        // One update at t=0 and one per calibrated period, whatever the main-loop cadence.
+        assert(samples == 1 + elapsed / PERIOD_US);
 
         if (elapsed == runUs) break;
     }
@@ -101,7 +109,7 @@ int main(int argc, char **argv) {
     nowUs += 200000;
     updatePdmEnvelope();
     assert(samples == priorSamples + 1 && lastAgcMs == uint32_t(nowUs / 1000));
-    nowUs += 466;
+    nowUs += PERIOD_US - 1;
     updatePdmEnvelope();
     assert(samples == priorSamples + 1);
     ++nowUs;
@@ -125,11 +133,11 @@ def verify(database):
     with tempfile.TemporaryDirectory() as directory:
         cpp = Path(directory) / "clock.cpp"
         binary = cpp.with_suffix("")
-        cpp.write_text(DRIVER + clock + CHECK)
+        cpp.write_text(f"#include <cstdint>\nconstexpr uint32_t PERIOD_US = {PERIOD_US};\n" + DRIVER + clock + CHECK)
         subprocess.run(["c++", "-std=c++17", "-O2", cpp, "-o", binary], check=True)
         # Include both the ESP's microsecond and millisecond counter rollover.
         for start in (0, 2**32 - 100000, (2**32 - 98) * 1000):
-            for interval in (50, 467, 1550, 5000, 22000):
+            for interval in (50, PERIOD_US, 340, 1550, 5000, 22000):
                 subprocess.run([binary, str(start), str(interval)], check=True)
     print("GLORB PDM envelope cadence, AGC timestamps, rollover and stall recovery verified")
 
