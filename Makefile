@@ -2,8 +2,8 @@
 
 install-hooks:
 	@command -v pre-commit >/dev/null 2>&1 || { echo "Error: pre-commit not installed (pip install pre-commit)."; exit 1; }
-	pre-commit install
-	@echo "pre-commit hooks installed. Run 'make lint' to check the whole tree."
+	pre-commit install --hook-type pre-commit --hook-type pre-push
+	@echo "pre-commit and pre-push hooks installed. Run 'make lint' to check the whole tree."
 
 lint: check-ledmaps check-palettes
 	pre-commit run --all-files

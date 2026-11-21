@@ -8,6 +8,7 @@ every override the lamp did not take.
 import glob
 import json
 import os
+import re
 import sys
 import unittest
 
@@ -17,7 +18,7 @@ import wledlab  # noqa: E402
 
 OVERRIDES = {"light": {"gc": {"bri": 1.0, "col": 1.0, "val": 1.0}}, "hw": {"led": {"maxpwr": 2800, "fps": 42}},
              "ota": {"same-subnet": False}}
-LAMP = {"nw": {"espnow": True, "linked_remote": ["00005e00530a"], "ins": [{"ssid": "x"}]},
+LAMP = {"nw": {"espnow": True, "linked_remote": ["00005e00530a"], "ins": [{"ssid": "example"}]},
         "light": {"gc": {"bri": 1, "col": 2.8, "val": 2.8}}, "hw": {"led": {"maxpwr": 3000, "fps": 42}}}
 
 
@@ -162,11 +163,13 @@ class Overlays(unittest.TestCase):
                              {"enabled": True, "digitalmic": {"type": 1, "pin": [26, 5, 21, -1]}, "sync": {"mode": 0}},
                              path)
 
-    def test_every_overlay_that_writes_nw_pairs_the_three_remotes_with_espnow_on(self):
-        remotes = ["704bcac8d198", "704bcac9aa6c", "704bcaca4b78"]
+    def test_every_overlay_that_writes_nw_pairs_the_same_three_remotes_with_espnow_on(self):
         paths = [path for path in sorted(CONTROLLERS | {CUBE}) if "nw" in self.load(path)]
         self.assertEqual(paths, ["fleet/overlays/couch-domraem.json", "fleet/overlays/cube-gl015.json",
                                  "fleet/overlays/exoy-links-domraem.json", "fleet/overlays/exoy-rechts-domraem.json"])
+        remotes = self.load(paths[0])["nw"]["linked_remote"]
+        self.assertEqual(len(set(remotes)), 3)
+        self.assertTrue(all(re.fullmatch("[0-9a-f]{12}", remote) for remote in remotes), paths[0])
         for path in paths:
             self.assertEqual(self.load(path)["nw"], {"espnow": True, "linked_remote": remotes}, path)
 

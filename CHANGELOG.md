@@ -9,6 +9,15 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- A capture no longer carries the lamp's address or its Wi-Fi details: `wledlab.py capture` and
+  `verify --save-captures` stamp firmware version, fps, power limit, palette count and state only.
+  Scoring reads none of the dropped fields; older captures still load.
+- `tools/check_private_lamp_data.py` reads content, not only paths: recordings in every capture format,
+  compressed or renamed, device backups, MAC addresses, private network addresses, Wi-Fi names and
+  coordinates are refused in the staged tree, in every commit of a push and of a pull request, and so
+  is a branch that starts from the history before the recordings were removed. `make install-hooks`
+  installs the push hook too. The factory config is checked by content like any other file.
+
 - The remotes switch the HyperCube too (operator, 2026-11-20: "Pair cube"): `fleet/overlays/cube-gl015.json`
   turns ESP-NOW on and pairs the operator's three remotes, as the couch's and the Exoy lamps' overlays do.
   Its presets 1 to 4 are the cube's own looks; buttons 5 to 7 leave it as it is.

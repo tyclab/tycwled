@@ -768,11 +768,12 @@ def capture_is_healthy(h, seconds=None, expect_cells=None):
 
 
 def lamp_meta(ip):
-    """Provenance stamp for a capture: firmware, fps, ABL config and the full segment state."""
+    """Provenance stamp for a capture: firmware, fps, ABL config and the full segment state.
+    It names neither the lamp's address nor its Wi-Fi: scoring reads none of it."""
     info = get(ip, "/json/info"); st = get(ip, "/json/state")
     leds = info.get("leds", {})
-    return {"ip": ip, "ver": info.get("ver"), "fps": leds.get("fps"), "maxpwr": leds.get("maxpwr"),
-            "cpalcount": info.get("cpalcount"), "wifi": info.get("wifi"), "state": st}
+    return {"ver": info.get("ver"), "fps": leds.get("fps"), "maxpwr": leds.get("maxpwr"),
+            "cpalcount": info.get("cpalcount"), "state": st}
 
 
 
