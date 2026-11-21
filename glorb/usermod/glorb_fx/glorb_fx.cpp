@@ -1,4 +1,5 @@
 #include "wled.h"
+#include <atomic>
 
 // GLORB factory effects for WLED 16: the fork's fx 189-195 (0.14.4-GLORB.1.3) reimplemented from
 // glorb/experiments/2026-08-31-reversing/NOTES.md, after stock WLED 0.14.4 (MIT) effects by
@@ -424,6 +425,8 @@ SOC_RESERVE_MEMORY_REGION(0x40374000, 0x40378000, glorb_icache_bank1);
 extern "C" void spi_flash_disable_interrupts_caches_and_other_cpu(void);
 extern "C" void spi_flash_enable_interrupts_caches_and_other_cpu(void);
 // Runs with both caches and the other core stopped: RAM code and ROM calls only, so never inlined.
+// The ROM header asks for no cache mode change while a cache is suspended; ESP-IDF 4.4 changes modes in
+// that state itself (cpu_start.c for the S3's data cache, cache_utils.c for the S2's instruction cache).
 static void IRAM_ATTR __attribute__((noinline)) glorb_icache_32kb() {
   spi_flash_disable_interrupts_caches_and_other_cpu();
   Cache_Occupy_ICache_MEMORY(CACHE_MEMORY_IBANK0, CACHE_MEMORY_IBANK1);
@@ -441,7 +444,8 @@ static uint32_t glorb_icache_bytes() {
 #endif
 
 class GlorbFxUsermod : public Usermod {
-  uint32_t loops = 0, loopsSince = 0, loopsPerSecond = 0;
+  uint32_t loops = 0, loopsSince = 0;
+  std::atomic<uint32_t> loopsPerSecond{0};  // written in loop(), read by /json/info on the web server's task
 
  public:
   void setup() override {
@@ -459,7 +463,7 @@ class GlorbFxUsermod : public Usermod {
     ++loops;
     const uint32_t now = millis();
     if (now - loopsSince >= 1000) {
-      loopsPerSecond = loops * 1000 / (now - loopsSince);
+      loopsPerSecond.store(loops * 1000 / (now - loopsSince), std::memory_order_relaxed);
       loops = 0;
       loopsSince = now;
     }
@@ -469,7 +473,7 @@ class GlorbFxUsermod : public Usermod {
     JsonObject user = root["u"];
     if (user.isNull()) user = root.createNestedObject("u");
     JsonArray row = user.createNestedArray(F("Main loop"));
-    row.add(loopsPerSecond);
+    row.add(loopsPerSecond.load(std::memory_order_relaxed));
 #ifdef GLORB_ICACHE_32KB
     row.add(String(F(" /s, ")) + glorb_icache_bytes() / 1024 + F(" KB code cache"));
 #else

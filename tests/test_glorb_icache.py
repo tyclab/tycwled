@@ -5,6 +5,7 @@ loop runs 629-663 times a second, with 32 KB 3,010-3,055 times. The second cache
 (0x40374000-0x40378000) holds code in the stock memory layout, so three things have to change together:
 the linker script, the heap reservation and the switch.
 """
+import hashlib
 import importlib.util
 import struct
 import sys
@@ -29,40 +30,58 @@ def load(path, name):
     return module
 
 
-def image(segments):
-    """An ESP32 application image: the 24-byte header, then (load address, bytes) segments."""
-    out = bytearray(struct.pack("<BBBBI", 0xE9, len(segments), 2, 0x3F, 0x40378000) + bytes(16))
-    for address, data in segments:
+def image(segments, built_from=b""):
+    """An ESP32 application image: header, (load address, bytes) segments, checksum and SHA-256. The first
+    segment starts with the application description, which names the ELF the image was made from."""
+    out = bytearray(struct.pack("<BBBBI", 0xE9, len(segments), 2, 0x3F, 0x40378000) + bytes(15) + b"\x01")
+    checksum = 0xEF
+    for index, (address, data) in enumerate(segments):
+        if index == 0:
+            data = bytes(0x90) + hashlib.sha256(built_from).digest() + data
         out += struct.pack("<II", address, len(data)) + data
-    return bytes(out)
+        for byte in data:
+            checksum ^= byte
+    out += bytes((15 - len(out)) % 16) + bytes([checksum])
+    return bytes(out) + hashlib.sha256(out).digest()
 
 
 RESERVED = struct.pack("<II", 0x40374000, 0x40378000)
 
 
-def elf(symbols):
-    """A 32-bit little-endian ELF that holds nothing but a symbol table with these names and addresses."""
+def elf(symbols, data=None):
+    """A 32-bit little-endian ELF: a symbol table with these names and addresses and one loaded section per
+    address: bytes of data."""
     names, entries = b"\0", [bytes(16)]
     for name, value in symbols.items():
         entries.append(struct.pack("<IIIBBH", len(names), value, 0, 2, 0, 1))
         names += name.encode() + b"\0"
     table = b"".join(entries)
-    section_names = b"\0.symtab\0.strtab\0.shstrtab\0"
-    at_names = 52 + len(table)
-    at_section_names = at_names + len(names)
+    section_names = b"\0.symtab\0.strtab\0.shstrtab\0.data\0"
+    body = table + names + section_names
 
-    def section(name, kind, offset, size, link=0, entry=0):
-        return struct.pack("<10I", name, kind, 0, 0, offset, size, link, 0, 1, entry)
+    def section(name, kind, offset, size, link=0, entry=0, address=0):
+        return struct.pack("<10I", name, kind, 0, address, offset, size, link, 0, 1, entry)
 
-    sections = [bytes(40), section(1, 2, 52, len(table), link=2, entry=16), section(9, 3, at_names, len(names)),
-                section(17, 3, at_section_names, len(section_names))]
+    sections = [bytes(40), section(1, 2, 52, len(table), link=2, entry=16),
+                section(9, 3, 52 + len(table), len(names)),
+                section(17, 3, 52 + len(table) + len(names), len(section_names))]
+    for address, content in (data or {}).items():
+        sections.append(section(27, 1, 52 + len(body), len(content), address=address))
+        body += content
     header = (b"\x7fELF\x01\x01\x01" + bytes(9)
-              + struct.pack("<HHIIIIIHHHHHH", 2, 94, 1, 0, 0, at_section_names + len(section_names), 0, 52, 0, 0, 40,
-                            len(sections), 3))
-    return header + table + names + section_names + b"".join(sections)
+              + struct.pack("<HHIIIIIHHHHHH", 2, 94, 1, 0, 0, 52 + len(body), 0, 52, 0, 0, 40, len(sections), 3))
+    return header + body + b"".join(sections)
 
 
 SWITCH = "_ZL17glorb_icache_32kbv"
+TABLE = {"soc_reserved_memory_region_start": 0x3C0F0100, "soc_reserved_memory_region_end": 0x3C0F0110}
+LAYOUT = {"_iram_start": 0x40378000, SWITCH: 0x40378E00, **TABLE}
+OTHER_RECORD = struct.pack("<II", 0x3FC88000, 0x3FC90000)
+
+
+def built(table=OTHER_RECORD + RESERVED, symbols=LAYOUT, elsewhere=b""):
+    """An ELF with the SDK's table of reserved memory at 0x3c0f0100 and other read-only data at 0x3c0f0200."""
+    return elf(symbols, {0x3C0F0100: table, 0x3C0F0200: elsewhere + bytes(8)})
 
 
 class LinkerScript(unittest.TestCase):
@@ -112,6 +131,10 @@ class Usermod(unittest.TestCase):
         self.assertIn("Cache_Get_Mode(&mode);", self.guarded)
         self.assertNotIn("icache32kb", self.source)
 
+    def test_the_loop_rate_is_shared_between_two_tasks_as_an_atomic(self):
+        # loop() writes it on the Arduino task, /json/info reads it on the web server's task.
+        self.assertIn("std::atomic<uint32_t> loopsPerSecond{0};", self.source)
+
 
 class BuiltElf(unittest.TestCase):
     def setUp(self):
@@ -138,26 +161,68 @@ class BuiltElf(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.script.symbols(b"\xe9" + bytes(100))
 
+    def test_a_helper_that_runs_with_the_caches_on_may_lie_in_flash(self):
+        # Built without inlining (-Og), the info row's glorb_icache_bytes() is a function of its own, in flash.
+        start, switch = self.script.check_layout({**LAYOUT, "_ZL18glorb_icache_bytesv": 0x42006AD0})
+        self.assertEqual((start, switch), (0x40378000, 0x40378E00))
+
+    def test_the_bank_in_the_heaps_table_of_reserved_memory_passes(self):
+        self.assertEqual(self.script.check_elf(built()), (0x40378000, 0x40378E00))
+
+    def test_the_banks_addresses_outside_that_table_stop_the_build(self):
+        # The SDK's heap start-up reads records between the two table symbols and nowhere else.
+        for table in (OTHER_RECORD + bytes(8), bytes(6) + RESERVED + bytes(2)):
+            with self.assertRaisesRegex(ValueError, "heap"):
+                self.script.check_elf(built(table=table, elsewhere=RESERVED))
+
+    def test_an_elf_without_the_table_stops_the_build(self):
+        with self.assertRaisesRegex(ValueError, "heap"):
+            self.script.check_elf(built(symbols={"_iram_start": 0x40378000, SWITCH: 0x40378E00}))
+
 
 class BuiltImage(unittest.TestCase):
     def setUp(self):
         import check_glorb_icache
         self.check = check_glorb_icache.check
+        self.elf = built()
 
-    def test_ram_code_above_the_bank_with_the_reservation_passes(self):
-        self.check(image([(0x3C0F0020, b"rodata" + RESERVED), (0x42000020, bytes(64)), (0x40378000, bytes(64))]))
+    def image(self, ram_code=0x40378000, built_from=None):
+        return image([(0x3C0F0020, b"rodata"), (0x42000020, bytes(64)), (ram_code, bytes(64))],
+                     self.elf if built_from is None else built_from)
+
+    def test_a_complete_image_with_its_elf_passes(self):
+        self.assertEqual(self.check(self.image(), self.elf), (0x40378000, 0x40378E00))
 
     def test_ram_code_inside_the_second_bank_fails(self):
         with self.assertRaisesRegex(ValueError, "0x40374000"):
-            self.check(image([(0x3C0F0020, RESERVED), (0x42000020, bytes(64)), (0x40374000, bytes(64))]))
-
-    def test_a_missing_heap_reservation_fails(self):
-        with self.assertRaisesRegex(ValueError, "reserv"):
-            self.check(image([(0x3C0F0020, b"rodata"), (0x42000020, bytes(64)), (0x40378000, bytes(64))]))
+            self.check(self.image(ram_code=0x40374000), self.elf)
 
     def test_an_image_without_ram_code_fails(self):
         with self.assertRaisesRegex(ValueError, "no RAM code"):
-            self.check(image([(0x3C0F0020, RESERVED), (0x42000020, bytes(64))]))
+            self.check(image([(0x3C0F0020, b"rodata"), (0x42000020, bytes(64))], self.elf), self.elf)
+
+    def test_an_image_cut_short_fails(self):
+        whole = self.image()
+        for length in (len(whole) - 1, len(whole) - 33, len(whole) - 60, 0x100, 20):
+            with self.assertRaisesRegex(ValueError, "image"):
+                self.check(whole[:length], self.elf)
+
+    def test_an_image_with_a_changed_byte_fails(self):
+        changed = bytearray(self.image())
+        changed[0x120] ^= 1
+        with self.assertRaisesRegex(ValueError, "checksum|SHA-256"):
+            self.check(bytes(changed), self.elf)
+
+    def test_the_elf_of_another_build_fails(self):
+        with self.assertRaisesRegex(ValueError, "another build"):
+            self.check(self.image(), built(elsewhere=b"other"))
+
+    def test_an_elf_without_the_heap_reservation_fails(self):
+        # The bank's addresses somewhere in the image are no reservation.
+        unreserved = built(table=OTHER_RECORD + bytes(8), elsewhere=RESERVED)
+        with self.assertRaisesRegex(ValueError, "heap"):
+            self.check(image([(0x3C0F0020, RESERVED), (0x42000020, bytes(64)), (0x40378000, bytes(64))], unreserved),
+                       unreserved)
 
 
 if __name__ == "__main__":
