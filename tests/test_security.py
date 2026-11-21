@@ -45,7 +45,7 @@ class Lamp:
 
     def get(self, host, path):
         if path == "/json/info":
-            return {"ver": "16.0.1", "mac": "aabbccddeeff"}
+            return {"ver": "16.0.1", "mac": "00005e0053ff"}
         if path == "/json/cfg":
             return copy.deepcopy(self.cfg)
         if path == "/json/state":
@@ -60,7 +60,7 @@ class Security(unittest.TestCase):
         self.file = os.path.join(self.directory.name, "credentials.json")
         with open(self.file, "w") as stream:
             json.dump({"pin": "4872", "ota_password": "example-private-password-32chars"}, stream)
-        self.args = SimpleNamespace(host="lamp", mac="aa:bb:cc:dd:ee:ff", credentials_file=self.file)
+        self.args = SimpleNamespace(host="lamp", mac="00:00:5e:00:53:ff", credentials_file=self.file)
         self.lamp = Lamp()
         for name, replacement in (("settings_request", self.lamp.request), ("get", self.lamp.get),
                                   ("readback", lambda *_: b'{"1":{"n":"preserved"}}')):

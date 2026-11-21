@@ -49,7 +49,7 @@ DENIED_PAGE = (b"<html><body> <h2>Access Denied</h2>Please unlock OTA in securit
 FACTORY_0154 = {
     "rev": [1, 0], "vid": 2508020, "id": {"mdns": "wled-test", "name": "WLED", "inv": "Light", "sui": False},
     "nw": {"espnow": False, "linked_remote": "",
-           "ins": [{"ssid": "test", "pskl": 12, "ip": [0, 0, 0, 0], "gw": [0, 0, 0, 0], "sn": [255, 255, 255, 0]}],
+           "ins": [{"ssid": "example", "pskl": 12, "ip": [0, 0, 0, 0], "gw": [0, 0, 0, 0], "sn": [255, 255, 255, 0]}],
            "dns": [192, 0, 2, 1]},
     "ap": {"ssid": "WLED-AP", "pskl": 8, "chan": 1, "hide": 0, "behav": 0, "ip": [4, 3, 2, 1]},
     "wifi": {"sleep": False, "phy": False, "txpwr": 78},
@@ -196,7 +196,7 @@ class DeclaredUsermods(unittest.TestCase):
         cfg0 = copy.deepcopy(self.BEFORE)
         cfg1 = copy.deepcopy(self.BEFORE) | {"vid": 2611150, "um": after_um}
         state = {"on": False, "bri": 16, "seg": [{"id": 0, "fx": 0}]}
-        info = {"ver": "16.0.1", "vid": 2611140, "release": "ESP32_Ethernet", "mac": "001122334455", "uptime": 5000}
+        info = {"ver": "16.0.1", "vid": 2611140, "release": "ESP32_Ethernet", "mac": "00005e005301", "uptime": 5000}
         printed = io.StringIO()
         with tempfile.TemporaryDirectory() as snap:
             firmware = os.path.join(snap, "firmware.bin")
@@ -250,10 +250,10 @@ class DeclaredUsermods(unittest.TestCase):
 
 class SpareMigration(unittest.TestCase):
     def setUp(self):
-        self.info = {"ver": "0.15.3", "arch": "esp32", "release": "ESP32_Ethernet", "mac": "001122334455", "ip": "192.0.2.20"}
+        self.info = {"ver": "0.15.3", "arch": "esp32", "release": "ESP32_Ethernet", "mac": "00005e005301", "ip": "192.0.2.20"}
         self.before = {
             "vid": 2508020,
-            "nw": {"espnow": True, "linked_remote": "aabbccddeeff", "ins": [{"ssid": "test", "pskl": 12}]},
+            "nw": {"espnow": True, "linked_remote": "aabbccddeeff", "ins": [{"ssid": "example", "pskl": 12}]},
             "hw": {"led": {"ledma": 0, "ld": True, "prl": True, "fps": 42,
                            "ins": [{"type": 22, "pin": [16], "len": 30}]},
                    "btn": {"max": 4, "ins": [{"type": 2, "pin": [17], "macros": [1, 2, 3]},
@@ -268,7 +268,7 @@ class SpareMigration(unittest.TestCase):
         self.after = {
             "vid": 2610050,
             "nw": {"espnow": True, "linked_remote": ["aabbccddeeff"],
-                   "ins": [{"ssid": "test", "pskl": 12, "bssid": ""}]},
+                   "ins": [{"ssid": "example", "pskl": 12, "bssid": ""}]},
             "hw": {"led": {"fps": 42, "ins": [{"type": 22, "pin": [16], "len": 30, "drv": 0, "text": ""}]},
                    "btn": {"max": 32, "ins": [{"type": 2, "pin": [17], "macros": [1, 2, 3]}]},
                    "relay": {"pin": 18, "rev": False}},
@@ -317,7 +317,7 @@ class SpareMigration(unittest.TestCase):
         self.assertEqual(wledlab.cfg_drift(expected, self.after), [])
 
     def test_0154_factory_shape_migrates(self):
-        info = {"ver": "0.15.4", "arch": "esp32", "release": "ESP32", "mac": "001122334455", "ip": "192.0.2.20"}
+        info = {"ver": "0.15.4", "arch": "esp32", "release": "ESP32", "mac": "00005e005301", "ip": "192.0.2.20"}
         saved = copy.deepcopy(FACTORY_0154)
         expected = wledlab.cfg_migrate_015_to_16(FACTORY_0154, info)
         self.assertEqual(FACTORY_0154, saved)
@@ -509,7 +509,7 @@ class ImageRelease(unittest.TestCase):
 class FailedUpload(unittest.TestCase):
     """An upload that ends without the new firmware: what the tool says and how it leaves the lamp."""
 
-    INFO = {"ver": "16.0.1", "vid": 2611180, "release": "ESP32", "mac": "001122334455", "uptime": 5000}
+    INFO = {"ver": "16.0.1", "vid": 2611180, "release": "ESP32", "mac": "00005e005301", "uptime": 5000}
     STATE = {"on": False, "bri": 129, "ps": -1, "pl": -1, "mainseg": 0, "seg": [{"id": 0, "fx": 251, "sx": 0}]}
     REFUSAL = ("OTA refused or failed (curl 0): Update failed! Firmware release name mismatch: current='ESP32', "
                "uploaded='ESP32??'. Enable 'Ignore firmware validation' to proceed anyway. Back\n")

@@ -11,6 +11,8 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+import check_private_lamp_data  # noqa: E402
 import wledlab  # noqa: E402
 
 
@@ -47,6 +49,7 @@ class VerifySummary(unittest.TestCase):
             path.write_text(json.dumps({k: {"n": "private-preset-name"} for k in presets}))
             captures = Path(directory) / "private-capture-path"
             ref, target = "private-ref.invalid", "private-target.invalid"
+            bssid = ":".join(["02"] * 6)
             active = {}
             frames = [(i / 10, ["ff0000", "003300"] if i < 5 else ["003300", "ff0000"])
                       for i in range(11)]
@@ -60,7 +63,7 @@ class VerifySummary(unittest.TestCase):
                     if preset == 3:
                         raise OSError("private-diagnostic")
                     return {"ps": 0 if preset == 2 and host == target else preset}
-                return {"ver": "16.0.1-private-build", "wifi": {"bssid": "private-bssid"},
+                return {"ver": "16.0.1-private-build", "wifi": {"bssid": bssid},
                         "leds": {"pwr": 800 if preset == 4 and host == target else 400,
                                  "fps": 42, "maxpwr": "private-invalid-number"}}
 
@@ -76,8 +79,12 @@ class VerifySummary(unittest.TestCase):
                     redirect_stdout(out), redirect_stderr(err), self.assertRaises(SystemExit) as result:
                 wledlab.main()
             recording = wledlab.load_capture(captures / "verify-p1.json")
-            self.assertEqual(recording["meta"]["ref"]["ip"], ref)
-            self.assertEqual(recording["meta"]["tgt"]["wifi"]["bssid"], "private-bssid")
+            saved = (captures / "verify-p1.json").read_bytes()
+            for lamp in ("ref", "tgt"):
+                self.assertEqual(sorted(recording["meta"][lamp]), ["cpalcount", "fps", "maxpwr", "state", "ver"])
+            for private in (ref, target, bssid):
+                self.assertNotIn(private.encode(), saved)
+            self.assertEqual(check_private_lamp_data.findings("saved.json", saved), ["a raw lamp recording"])
             self.assertEqual(len(recording["ref"]), 11)
             self.assertNotIn("private", out.getvalue())
             self.assertIn("private-stream-error", err.getvalue())

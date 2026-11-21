@@ -336,7 +336,8 @@ Two measurement rules learned the hard way:
 | Current ratio within ±15 % (n/a under 50 mA ABL estimate); brightness and saturation measured from the frames         | `verify`                                                        |
 | Both lamps captured simultaneously over the same window; hue/saturation only from cells bright enough to have a hue   | `verify`, `compare`                                             |
 
-CI (`.github/workflows/ci.yml`) runs `make lint`, `make test` and a gitleaks
+CI (`.github/workflows/ci.yml`) runs `make lint`, the private-data check on every
+commit of a pull request, `make test` and a gitleaks
 scan of the full git history on every pull request and push to main.
 
 `check-ledmap` exits nonzero when the measured LED count differs or the target

@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.15"
@@ -25,11 +27,22 @@ jobs:
       # The same target a contributor runs locally: pre-commit over the whole
       # tree plus the repo's own checks (ledmap bytes, generated palettes).
       - run: make lint
+      # make lint reads the tree the change ends in; a file added and removed again is only in its commits.
+      - name: Check every new commit for private lamp data
+        env:
+          COMMITS: >-
+            ${{ github.event_name == 'pull_request'
+            && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha)
+            || format('{0}..{1}', github.event.before, github.sha) }}
+        run: python3 tools/check_private_lamp_data.py "$COMMITS"
 
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The private-data test checks that this history starts at the rewritten one.
+          fetch-depth: 0
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.15"

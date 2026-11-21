@@ -9,9 +9,11 @@ Open an issue with:
 
 - firmware versions of the lamps involved (`/json/info` → `ver`),
 - the preset number and what differs (motion, colour, brightness, mapping),
-- if you can: `python3 wledlab.py capture --host <lamp> --seconds 120 --out
-capture.json` and the output of `python3 wledlab.py analyse capture.json`,
-  or a `make verify` run if you have a factory lamp next to it.
+- if you can: run `python3 wledlab.py capture --host <lamp> --seconds 120 --out
+capture.json` and post the output of `python3 wledlab.py analyse capture.json`,
+  or the summary of a `make verify` run if you have a factory lamp next to it.
+  Keep `capture.json` itself: a recording stays with you, the analysis is what
+  an issue needs.
 
 ## Lint hooks and tests
 
@@ -22,9 +24,18 @@ make lint                # pre-commit over the tree + ledmap/palette checks
 make test                # offline palette-emulation tests, seconds
 ```
 
-Hooks: gitleaks, yamllint, markdownlint-cli2, prettier (never on the lamp
-files under `glorb/`, which are byte-exact), ruff-check. CI runs the same
+Hooks: the private-data check, gitleaks, yamllint, markdownlint-cli2, prettier
+(never on the lamp files under `glorb/`, which are byte-exact), ruff-check.
+`make install-hooks` installs them for commits and for pushes. CI runs the same
 `make lint` and `make test`, plus a gitleaks scan of the history.
+
+The private-data check (`tools/check_private_lamp_data.py`) reads file content,
+compressed files included, in the staged tree, in every commit of a push and in
+every commit of a pull request. It refuses recordings, device backups, MAC
+addresses, private network addresses, Wi-Fi names and coordinates, and a branch
+that starts from the history before the recordings were removed. Tests and
+examples use documentation values: MACs from `00:00:5E:00:53:00` to `…:FF`,
+addresses from `192.0.2.0/24`, network names that start with `example`.
 
 ## Change something
 
