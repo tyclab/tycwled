@@ -39,18 +39,37 @@ effect list; the presets reference IDs, not names.
 
 ## Instruction cache
 
-The framework's ESP32-S3 SDK is prebuilt for a 16 KB instruction cache. The code
-one WLED 16 main-loop pass touches does not fit it, so every pass fetches most of
-its code from flash again: 549 loops/s, against 3,022 with 32 KB (one image, the
-cache switched every 8 s in one boot, 2026-11-21). WLED's AudioReactive advances
-the microphone baseline once per loop pass, so the loop rate also sets how the
-lamp follows sound.
+The framework's ESP32-S3 SDK is prebuilt for a 16 KB instruction cache, and the
+main loop of this build runs about five times slower with it than with 32 KB.
+Measured on one ESP32-S3 board on 2026-11-21:
+
+| Image                                                                          |           16 KB |               32 KB |
+| ------------------------------------------------------------------------------ | --------------: | ------------------: |
+| `fleet_glorb`, two flashes of the same source, eight reads each                | 629–663 loops/s | 3,010–3,055 loops/s |
+| Instrumented build with stage timers, the cache switched every 8 s in one boot |     549 loops/s |       3,022 loops/s |
+
+In the instrumented build a call repeated at once took 84 µs instead of 278 µs
+with 16 KB and the same time with 32 KB, which is why the cause is read as code
+fetched from flash again on every pass; cache misses themselves were not counted.
+
+The cache size does not change how this build follows sound. Its microphone
+baseline runs on its own clock (`fleet/patches/glorb-pdm-envelope.patch`), and
+with that clock at 467 µs the Running effect answered a tone at the same time
+with either cache size (345 Hz: 13.95 s with 16 KB, 13.93 s with 32 KB). Without
+that patch WLED's AudioReactive advances the baseline once per loop pass.
 
 `icache_32kb.py` (a PlatformIO pre-script in the override) links against a copy
 of the framework's `memory.ld` whose RAM code starts after both cache banks and
 defines `GLORB_ICACHE_32KB`; the usermod then keeps the second bank's RAM
 (0x40374000–0x40378000) out of the heap and switches the cache in `setup()`. The
-three belong together: the define comes from the script only, the usermod
-refuses to switch when RAM code still starts below 0x40378000, and
-`fleet/check_glorb_icache.py` checks the built image. The cost is 16 KB of RAM.
-The info page's "Main loop" row shows the loop rate and the cache size.
+three belong together. The define comes from the script only. After linking, the
+script reads the ELF and stops the build when RAM code starts inside the second
+bank or when the switch function does not lie in RAM; with the define and the
+stock layout the image would stop in heap start-up on every boot.
+`fleet/check_glorb_icache.py` checks the released image. Free heap is about
+17 KB lower (188 KB against 171 KB on the bench). The info page's "Main loop" row
+shows the loop rate and the cache size read back from the chip.
+
+OTA in both directions worked on the bench board: from release 2611202 (16 KB
+layout) to this build and from this build back to 2611202, each with one CPU
+reset and an answer 5 s later. Not tested: the lamps on the wall.

@@ -2,7 +2,8 @@
 
 glorb_fx gives the ESP32-S3 its second instruction-cache bank at start. That bank's RAM
 (0x40374000-0x40378000) must then hold no code and must be reserved from the heap; an image that breaks
-either would overwrite its own code or heap on the lamp.
+either would overwrite its own code or heap on the lamp. That the switch function itself lies in RAM is
+checked on the ELF at build time (glorb_fx/icache_32kb.py); an application image carries no symbols.
 """
 import argparse
 from pathlib import Path

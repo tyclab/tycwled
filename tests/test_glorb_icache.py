@@ -1,9 +1,9 @@
 """The GLORB build runs with a 32 KB instruction cache.
 
-Measured on an ESP32-S3 on 2026-11-21 (one image, the cache switched every 8 s in one boot): the code
-one WLED 16 main-loop pass touches does not fit the SDK's 16 KB instruction cache, 549 loops/s against
-3,022 with 32 KB. The second cache bank's RAM (0x40374000-0x40378000) holds code in the stock memory
-layout, so three things have to change together: the linker script, the heap reservation and the switch.
+Measured on an ESP32-S3 on 2026-11-21: with the SDK's 16 KB instruction cache the fleet image's main
+loop runs 629-663 times a second, with 32 KB 3,010-3,055 times. The second cache bank's RAM
+(0x40374000-0x40378000) holds code in the stock memory layout, so three things have to change together:
+the linker script, the heap reservation and the switch.
 """
 import importlib.util
 import struct
@@ -40,6 +40,31 @@ def image(segments):
 RESERVED = struct.pack("<II", 0x40374000, 0x40378000)
 
 
+def elf(symbols):
+    """A 32-bit little-endian ELF that holds nothing but a symbol table with these names and addresses."""
+    names, entries = b"\0", [bytes(16)]
+    for name, value in symbols.items():
+        entries.append(struct.pack("<IIIBBH", len(names), value, 0, 2, 0, 1))
+        names += name.encode() + b"\0"
+    table = b"".join(entries)
+    section_names = b"\0.symtab\0.strtab\0.shstrtab\0"
+    at_names = 52 + len(table)
+    at_section_names = at_names + len(names)
+
+    def section(name, kind, offset, size, link=0, entry=0):
+        return struct.pack("<10I", name, kind, 0, 0, offset, size, link, 0, 1, entry)
+
+    sections = [bytes(40), section(1, 2, 52, len(table), link=2, entry=16), section(9, 3, at_names, len(names)),
+                section(17, 3, at_section_names, len(section_names))]
+    header = (b"\x7fELF\x01\x01\x01" + bytes(9)
+              + struct.pack("<HHIIIIIHHHHHH", 2, 94, 1, 0, 0, at_section_names + len(section_names), 0, 52, 0, 0, 40,
+                            len(sections), 3))
+    return header + table + names + section_names + b"".join(sections)
+
+
+SWITCH = "_ZL17glorb_icache_32kbv"
+
+
 class LinkerScript(unittest.TestCase):
     def setUp(self):
         self.script = load(USERMOD / "icache_32kb.py", "icache_32kb")
@@ -74,13 +99,44 @@ class Usermod(unittest.TestCase):
         self.assertNotRegex((ROOT / "fleet/platformio_override.ini").read_text(), r"-D\s*GLORB_ICACHE_32KB")
         self.assertIn("pre:usermods/glorb_fx/icache_32kb.py", OVERRIDE.read_text())
 
-    def test_the_switch_runs_from_ram_and_refuses_a_stock_memory_layout(self):
-        # Flash is unreachable while the caches are stopped; an inlined copy would sit in flash.
+    def test_the_switch_is_kept_out_of_line_in_ram(self):
+        # Flash is unreachable while the caches are stopped; an inlined copy would sit in flash. Whether the
+        # built function really lies in RAM is checked on the ELF (BuiltElf below).
         self.assertRegex(self.guarded, r"static void IRAM_ATTR __attribute__\(\(noinline\)\) glorb_icache_32kb\(\)")
-        self.assertRegex(self.guarded, r"reinterpret_cast<uintptr_t>\(&_iram_start\) < 0x40378000\) return false;")
+        # A stock memory layout with the define stops in heap start-up, before any check in setup() could
+        # run: the layout is checked at build time, not on the lamp.
+        self.assertNotIn("_iram_start", self.source)
 
-    def test_the_main_loop_rate_is_readable_on_the_info_page(self):
+    def test_the_info_page_reads_the_cache_size_back_from_the_chip(self):
         self.assertIn('user.createNestedArray(F("Main loop"))', self.source)
+        self.assertIn("Cache_Get_Mode(&mode);", self.guarded)
+        self.assertNotIn("icache32kb", self.source)
+
+
+class BuiltElf(unittest.TestCase):
+    def setUp(self):
+        self.script = load(USERMOD / "icache_32kb.py", "icache_32kb")
+
+    def test_ram_code_after_both_banks_with_the_switch_in_ram_passes(self):
+        start, switch = self.script.check_layout(self.script.symbols(elf(
+            {"_iram_start": 0x40378000, SWITCH: 0x40378E00, "loop": 0x42001234})))
+        self.assertEqual((start, switch), (0x40378000, 0x40378E00))
+
+    def test_ram_code_inside_the_second_bank_stops_the_build(self):
+        with self.assertRaisesRegex(ValueError, "memory.ld"):
+            self.script.check_layout(self.script.symbols(elf({"_iram_start": 0x40374000, SWITCH: 0x40374E00})))
+
+    def test_a_switch_in_flash_stops_the_build(self):
+        with self.assertRaisesRegex(ValueError, "flash"):
+            self.script.check_layout(self.script.symbols(elf({"_iram_start": 0x40378000, SWITCH: 0x42012340})))
+
+    def test_an_inlined_switch_stops_the_build(self):
+        with self.assertRaisesRegex(ValueError, "inlined"):
+            self.script.check_layout(self.script.symbols(elf({"_iram_start": 0x40378000, "loop": 0x42001234})))
+
+    def test_something_that_is_no_elf_stops_the_build(self):
+        with self.assertRaises(ValueError):
+            self.script.symbols(b"\xe9" + bytes(100))
 
 
 class BuiltImage(unittest.TestCase):
