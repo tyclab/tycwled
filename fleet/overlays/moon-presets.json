@@ -865,6 +865,7 @@
     "transition": 7,
     "bs": 0,
     "mainseg": 0,
+    "n": "TycStation",
     "seg": [
       {
         "id": 0,
@@ -880,32 +881,31 @@
         "bri": 255,
         "cct": 127,
         "set": 0,
-        "lc": 1,
-        "n": "",
         "col": [
-          [255, 160, 0],
+          [0, 0, 0],
           [0, 0, 0],
           [0, 0, 0]
         ],
-        "fx": 163,
+        "fx": 53,
         "sx": 128,
-        "ix": 128,
-        "pal": 6,
+        "ix": 0,
+        "pal": 0,
         "c1": 128,
         "c2": 128,
         "c3": 16,
         "sel": true,
         "rev": false,
         "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
         "o1": false,
         "o2": false,
         "o3": false,
         "si": 0,
         "m12": 0,
-        "bm": 0
+        "bm": 0,
+        "n": "tycstation-8x8.gif",
+        "rY": false,
+        "mY": false,
+        "tp": false
       },
       {
         "stop": 0
@@ -1000,8 +1000,7 @@
       {
         "stop": 0
       }
-    ],
-    "n": "Blurz"
+    ]
   },
   "8": {
     "on": true,

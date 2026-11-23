@@ -911,17 +911,16 @@
         "bri": 255,
         "cct": 127,
         "set": 0,
-        "lc": 1,
-        "n": "Exoy window",
+        "n": "tycstation-30x16.gif",
         "col": [
-          [255, 160, 0],
+          [0, 0, 0],
           [0, 0, 0],
           [0, 0, 0]
         ],
-        "fx": 67,
-        "sx": 60,
-        "ix": 128,
-        "pal": 13,
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
         "c1": 128,
         "c2": 128,
         "c3": 16,
@@ -935,49 +934,11 @@
         "o2": false,
         "o3": false,
         "si": 0,
-        "m12": 1,
+        "m12": 0,
         "bm": 0
       },
       {
-        "id": 1,
-        "start": 30,
-        "stop": 60,
-        "startY": 0,
-        "stopY": 16,
-        "grp": 1,
-        "spc": 0,
-        "of": 0,
-        "on": true,
-        "frz": false,
-        "bri": 255,
-        "cct": 127,
-        "set": 0,
-        "lc": 1,
-        "n": "Exoy kitchen",
-        "col": [
-          [255, 160, 0],
-          [0, 0, 0],
-          [0, 0, 0]
-        ],
-        "fx": 67,
-        "sx": 60,
-        "ix": 128,
-        "pal": 13,
-        "c1": 128,
-        "c2": 128,
-        "c3": 16,
-        "sel": true,
-        "rev": false,
-        "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
-        "o1": false,
-        "o2": false,
-        "o3": false,
-        "si": 0,
-        "m12": 1,
-        "bm": 0
+        "stop": 0
       },
       {
         "stop": 0
@@ -1070,7 +1031,7 @@
         "stop": 0
       }
     ],
-    "n": "Edge Colorwaves"
+    "n": "TycStation"
   },
   "8": {
     "on": true,
@@ -2845,7 +2806,7 @@
   },
   "20": {
     "playlist": {
-      "ps": [24, 25, 26, 27, 6, 7, 28, 9, 13, 14],
+      "ps": [24, 25, 26, 27, 6, 29, 28, 9, 13, 14],
       "dur": [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000],
       "transition": [20, 20, 20, 20, 20, 20, 20, 20, 20, 20],
       "repeat": 0,
@@ -3964,6 +3925,187 @@
       }
     ],
     "n": "Edge Comets"
+  },
+  "29": {
+    "on": true,
+    "transition": 7,
+    "bs": 0,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 30,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy window",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 67,
+        "sx": 60,
+        "ix": 128,
+        "pal": 13,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "id": 1,
+        "start": 30,
+        "stop": 60,
+        "startY": 0,
+        "stopY": 16,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "lc": 1,
+        "n": "Exoy kitchen",
+        "col": [
+          [255, 160, 0],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 67,
+        "sx": 60,
+        "ix": 128,
+        "pal": 13,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1,
+        "bm": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Edge Colorwaves"
   },
   "30": {
     "on": true,
@@ -5348,7 +5490,7 @@
   },
   "250": {
     "playlist": {
-      "ps": [24, 25, 26, 27, 6, 7, 28, 9, 13, 14],
+      "ps": [24, 25, 26, 27, 6, 29, 28, 9, 13, 14],
       "dur": [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000],
       "transition": [20, 20, 20, 20, 20, 20, 20, 20, 20, 20],
       "repeat": 0,

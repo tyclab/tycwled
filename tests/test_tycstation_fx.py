@@ -178,12 +178,13 @@ class Host(unittest.TestCase):
                     self.assertLessEqual(max(abs(a - b) for a, b in zip(frame, want)), 1)
 
     def test_arms_follow_the_committed_gifs(self):
-        # The 20x6 file holds wire values (the GLORBs run gamma 1.0), so its gamma-off render is compared as it is.
-        for path, w, h in (("squid-arms-300x1.gif", 300, 1), ("squid-arms-8x8.gif", 8, 8), ("squid-arms-20x6.gif", 20, 6),
+        # The cube's 288x1 file holds wire values (it runs colour gamma 1.0), so its gamma-off render is compared as it
+        # is. The GLORBs' 20x6 file is drawn on the ball, which this effect does not do.
+        for path, w, h in (("squid-arms-300x1.gif", 300, 1), ("squid-arms-8x8.gif", 8, 8), ("squid-arms-288x1.gif", 288, 1),
                            ("squid-arms-30x16.gif", 30, 16)):
             with self.subTest(path=path), open(os.path.join(ROOT, "fleet", "squid", path), "rb") as f:
-                want, glorb = gif_decode(f.read()), w == 20
-                self.assertFramesAlign(self.render("arms", w, h, 0, 0.05, len(want), gamma=not glorb), want, encoded=glorb)
+                want, wire = gif_decode(f.read()), w == 288
+                self.assertFramesAlign(self.render("arms", w, h, 0, 0.05, len(want), gamma=not wire), want, encoded=wire)
 
     def test_skin_follows_the_committed_gif_where_the_squid_is_absent(self):
         # squid-skin.gif draws the squid from 2.6 s to 10.6 s of its 12; before and after, the frames are the skin alone
