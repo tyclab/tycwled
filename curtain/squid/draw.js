@@ -1,8 +1,25 @@
 const W = 68, H = 42, TAU = Math.PI * 2;
-const B = [90, 162, 255], V = [139, 108, 240], R = [255, 74, 61], E = [180, 140, 245];
+// The website's tokens --blue, --violet and --red. No other colour is drawn: eyes and highlights take the gradient.
+const B = [90, 162, 255], V = [139, 108, 240], R = [255, 74, 61];
+// What the next round tunes, in one place (operator, 2026-11-23: "not sure about animation and design but make one
+// then we work off that"). L: loop seconds; delay: frame seconds.
+const LOOK = {
+  // TycStation on the lamps: the gradient blue, violet, red and back runs `turns` times along the lamp per loop.
+  tyc: { L: 8, delay: .1, turns: 1 },
+  // TycStation on the curtain: the mark, its gradient drifting across it once per loop, its arms swaying.
+  mark: { L: 8, delay: .1, sway: 5, blinkAt: 5.2 },
+  // The arm waves: one wave period per loop, `waves` waves from the middle to each end.
+  arms: { L: 2, delay: .05, waves: 2 },
+  // A GLORB: the column its front faces (0-19), the share of each side the front display covers (1 = all round),
+  // and the level the back mirrors the front at.
+  ball: { front: 0, span: 2 / 3, backLevel: .35 },
+};
 const css = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 const mix = (a, b, u) => [0, 1, 2].map(i => a[i] + (b[i] - a[i]) * u);
 const grad = u => { u = Math.min(1, Math.max(0, u)); return u < .48 ? mix(B, V, u / .48) : mix(V, R, (u - .48) / .52); };
+// The gradient out to red and back to blue, u wrapping: a look that runs round it meets no seam.
+const poles = u => { u = frac(u); return grad(u < .5 ? 2 * u : 2 - 2 * u); };
+const MARK = [[0, B], [.48, V], [1, R]];
 const hash = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
 const ease = u => u * u * (3 - 2 * u);
 const frac = x => x - Math.floor(x);
@@ -39,11 +56,11 @@ const ARMS = [
 function squid(g, o) {
   const { x, y, s, pa = 0, pb = 0, sway = 5, blink = 0, look = [0, 0], alpha = 1, squash = 1, rot = 0,
     arms = true, head = true, eyes = true, eyeK = 1, stroke = null, lw = 1, spread = 1, stretch = 1,
-    lift = [0, 0], armAlpha = null, headAlpha = 1, mouth = 'smile' } = o;
+    lift = [0, 0], armAlpha = null, headAlpha = 1, mouth = 'smile', stops = MARK } = o;
   if (alpha <= 0) return;
   g.save(); g.translate(x, y); g.rotate(rot); g.scale(s, s * squash);
   const gr = g.createLinearGradient(-112, 0, 112, 0);
-  gr.addColorStop(0, css(B)); gr.addColorStop(.48, css(V)); gr.addColorStop(1, css(R));
+  for (const [at, c] of stops) gr.addColorStop(at, css(c));
   g.strokeStyle = stroke || gr; g.lineWidth = 13 * lw; g.lineCap = 'round'; g.lineJoin = 'round';
   if (arms) for (const side of [1, -1]) ARMS.forEach((a, ai) => {
     const aa = armAlpha ? armAlpha(ai, side) : 1;
@@ -72,7 +89,7 @@ function squid(g, o) {
   }
   if (eyes) {
     const bl = Array.isArray(blink) ? blink : [blink, blink];
-    g.globalAlpha = alpha; g.fillStyle = css(E);
+    g.globalAlpha = alpha; g.fillStyle = gr;
     [-19, 19].forEach((sx, k) => {
       g.beginPath(); g.ellipse(sx + look[0], -10 + look[1], 8 * eyeK, Math.max(.8, 9.5 * eyeK * (1 - bl[k])), 0, 0, TAU); g.fill();
     });
@@ -118,7 +135,7 @@ const LOOPS = {
   // swim in, startle, ink burst, dart right, peek, dash left, second burst, shoot out of the top
   b: { L: 9.6, delay: .08, stages: ['swim in', 'startle', 'ink burst', 'dart away', 'peek', 'dash back', 'second burst', 'shoot off'], draw(g, t) {
     const w = k => TAU * k * t / 9.6;
-    g.globalCompositeOperation = 'lighter';
+    g.globalCompositeOperation = 'lighten';
     for (const b of [{ at: 2.4, x: 34, y: 15, id: 0, ring: false }, { at: 5.6, x: 17, y: 20, id: 1, ring: true }]) {
       const age = t - b.at;
       if (age < 0 || age > 3.4) continue;
@@ -151,18 +168,18 @@ const LOOPS = {
     const q = g.createLinearGradient(0, 0, 0, H);
     q.addColorStop(0, 'rgba(18,40,100,.85)'); q.addColorStop(1, 'rgba(3,5,16,.4)');
     g.fillStyle = q; g.fillRect(0, 0, W, H);
-    g.globalCompositeOperation = 'lighter';
+    g.globalCompositeOperation = 'lighter';  // as the usermod's Squid Plankton sums its specks
     for (let i = 0; i < 44; i++) {
       const sp = .5 + hash(i, 1) * 1.5, life = L / (1 + (i % 2));
       const tau = frac(t / life + hash(i, 5)) * life, env = Math.min(1, 2.5 * Math.sin(Math.PI * tau / life));
       const x = ((hash(i, 2) * W + Math.sin(w(1) + i) * 1.5 + tau * sp * .3) % W + W) % W;
       const y = hash(i, 3) * (H + 8) - 4 + sp * life / 2 - sp * tau;
       const tw = Math.max(1, Math.round((.5 + hash(i, 4)) * L / Math.PI));
-      dot(g, x, y, 1, [B, V, E][i % 3], (.3 + .7 * Math.abs(Math.sin(Math.PI * tw * t / L + i))) * .85 * env);
+      dot(g, x, y, 1, [B, V, R][i % 3], (.3 + .7 * Math.abs(Math.sin(Math.PI * tw * t / L + i))) * .85 * env);
     }
     if (t > 10.4) for (let k = 0; k < 7; k++) {
       const row = Math.ceil(k / 2), fx = 76 - (t - 10.4) / 5.6 * 104 + row * 3.2, fy = 31 + (k % 2 ? -1 : 1) * row * 1.7 + Math.sin(t * 5 + k) * .5;
-      dot(g, fx, fy, 1.5, k % 2 ? B : E, .95); dot(g, fx + 1.3, fy, 1, k % 2 ? B : E, .6);
+      dot(g, fx, fy, 1.5, k % 2 ? B : R, .95); dot(g, fx + 1.3, fy, 1, k % 2 ? B : R, .6);
     }
     g.globalCompositeOperation = 'source-over';
     const swim = kf(t, [[0, 1], [4.6, 1], [5.1, 0], [8.2, 0], [8.6, 1], [16, 1]]), jet = Math.cos(TAU * frac(t / 1.2));
@@ -196,7 +213,7 @@ const LOOPS = {
     const L = 12, w = k => TAU * k * t / L;
     const win = c => { const d = Math.abs(t - c); return ease(clamp01(2 - Math.min(d, L - d))); };
     const w1 = win(1.5), w2 = win(4.5), w3 = win(7.5), w4 = win(10.5), band = -14 + (t - 5.5) / 4 * (W + 28);
-    g.globalCompositeOperation = 'lighter';
+    g.globalCompositeOperation = 'lighten';
     for (let cy = 0; cy < 11; cy++) for (let cx = 0; cx < 17; cx++) {
       const h = hash(cx + 7, cy), x = 2 + cx * 4 + (hash(cx, cy) - .5) * 1.6 + (cy % 2) * 2 - 1, y = 2 + cy * 3.9 + (hash(cy, cx + 40) - .5) * 1.6;
       const v = w1 * Math.sin(x * .2 + y * .12 - w(6) + h * 1.2) + w2 * Math.sin(Math.hypot(x - 34, (y - 21) * 1.3) * .42 - w(9))
@@ -217,7 +234,7 @@ const LOOPS = {
   // through as a dark shape and fades again
   w: { L: 16, delay: .125, stages: ['swell', 'dark shape drifts in', 'drift', 'fade'], draw(g, t) {
     const L = 16, w = k => TAU * k * t / L;
-    g.globalCompositeOperation = 'lighter';
+    g.globalCompositeOperation = 'lighten';
     for (let cy = 0; cy < 11; cy++) for (let cx = 0; cx < 17; cx++) {
       const h = hash(cx + 7, cy);
       const x = 2 + cx * 4 + (hash(cx, cy) - .5) * 1.6 + (cy % 2) * 2 - 1 + Math.sin(w(1) + cy * .55) * 1.1;
@@ -232,20 +249,62 @@ const LOOPS = {
       sway: 10, rot: .12 * Math.sin(w(1)), stroke: '#000', lw: 1.7, eyeK: 1.2, blink: pulse(t, 8.5, .3),
       alpha: kf(t, [[0, 0], [3, 0], [5, 1], [11.5, 1], [13.5, 0], [16, 0]]) });
   } },
+
+  // TycStation: the mark where the logo sat, 46 x 40 cells from x 13, y 1, centred on the door (fleet/README.md,
+  // Logo); its gradient drifts out and back across it, its arms sway, it blinks once.
+  t: { L: LOOK.mark.L, delay: LOOK.mark.delay, stages: ['drift', 'blink'], draw(g, t) {
+    const { L, sway, blinkAt } = LOOK.mark, n = 24;
+    const stops = Array.from({ length: n + 1 }, (_, k) => [k / n, poles(k / n / 2 - t / L)]);
+    squid(g, { x: 36, y: 15.2, s: .196, pa: TAU * 2 * t / L, pb: TAU * t / L, sway, stops, blink: pulse(t, blinkAt, .3) });
+  } },
 };
 
 // The other lamps (a strip, a small matrix): the mark's gradient along the row, blue end to red end, with arm waves
-// running outward from the middle. One wave period per loop; two waves per half, one on rows under 16 wide.
+// running outward from the middle; half the waves on rows under 16 wide.
 // lampGamma: the output gamma of the lamp the file is for. The loops are drawn for a lamp that applies WLED's 2.8;
 // mkgifs.py applies that table itself for a lamp that runs 1.0, so every lamp puts the same values on the wire.
 function armWaves(w, h, lampGamma = 2.8) {
-  const k = TAU * (w >= 16 ? 2 : 1) / (w / 2);
-  return { w, h, lampGamma, L: 2, delay: .05, draw(g, t) {
+  const { L, delay, waves } = LOOK.arms, k = TAU * (w >= 16 ? waves : waves / 2) / (w / 2);
+  return { w, h, lampGamma, L, delay, draw(g, t) {
     for (let x = 0; x < w; x++) {
-      const v = .08 + .92 * Math.pow(.5 + .5 * Math.sin(Math.abs(x - (w - 1) / 2) * k - Math.PI * t), 3);
+      const v = .08 + .92 * Math.pow(.5 + .5 * Math.sin(Math.abs(x - (w - 1) / 2) * k - TAU * t / L), 3);
       g.fillStyle = css(grad(x / (w - 1)), v); g.fillRect(x, 0, 1, h);
     }
   } };
 }
-const ROWS = { 'squid-arms-300x1': armWaves(300, 1), 'squid-arms-20x6': armWaves(20, 6, 1), 'squid-arms-8x8': armWaves(8, 8),
-  'squid-arms-30x16': armWaves(30, 16) };
+
+// TycStation on a strip or a matrix: the gradient out and back, running along the row.
+function tycFlow(w, h, lampGamma = 2.8) {
+  const { L, delay, turns } = LOOK.tyc;
+  return { w, h, lampGamma, L, delay, draw(g, t) {
+    for (let x = 0; x < w; x++) { g.fillStyle = css(poles(turns * x / w - t / L)); g.fillRect(x, 0, 1, h); }
+  } };
+}
+
+// A GLORB: a 20 x 6 raster whose ledmap keeps rings of 5, 15, 20, 20, 15 and 5 LEDs, row y a ring at latitude
+// π(.5 - (y + .5) / 6), column x at longitude 2π(x + .5) / 20, as the lightshow places it (lightshow #124). look(u, d, t)
+// gives [colour, level] at u, -1 to 1 across the front display, d the angle from the front's centre. A back LED shows
+// its mirror image on the front (operator, 2026-11-09: "a 'front' display and backside ambient"). Colour gamma 1.0.
+function ball(L, delay, look) {
+  const { front, span, backLevel } = LOOK.ball, half = Math.min(1, span) * Math.PI;
+  return { w: 20, h: 6, lampGamma: 1, L, delay, draw(g, t) {
+    for (let y = 0; y < 6; y++) for (let x = 0; x < 20; x++) {
+      let a = frac((x - front) / 20 + .5) * TAU - Math.PI;
+      const back = Math.abs(a) > half, lat = Math.PI * (.5 - (y + .5) / 6);
+      if (back) a = Math.sign(a) * (Math.PI - Math.abs(a));
+      const [c, v] = look(a / half, Math.acos(Math.cos(lat) * Math.cos(a)), t);
+      g.fillStyle = css(c, v * (back ? backLevel : 1)); g.fillRect(x, y, 1, 1);
+    }
+  } };
+}
+// The arm waves on the ball run out from the front's centre over the sphere, the gradient across the front.
+const ballArms = () => ball(LOOK.arms.L, LOOK.arms.delay, (u, d, t) => [grad((u + 1) / 2), .08 + .92 * Math.pow(.5 + .5
+  * Math.sin(d * TAU * LOOK.arms.waves / (Math.min(1, LOOK.ball.span) * Math.PI) - TAU * t / LOOK.arms.L), 3)]);
+const ballTyc = () => ball(LOOK.tyc.L, LOOK.tyc.delay, (u, d, t) => [poles((u + 1) / 4 - t / LOOK.tyc.L), 1]);
+
+// Files for fleet/squid/: per lamp the arm waves (the Squid looks) and TycStation (button 7); the cube (288 x 1) runs
+// colour gamma 1.0 like the GLORBs.
+const ROWS = { 'squid-arms-300x1': armWaves(300, 1), 'squid-arms-20x6': ballArms(), 'squid-arms-8x8': armWaves(8, 8),
+  'squid-arms-30x16': armWaves(30, 16), 'squid-arms-288x1': armWaves(288, 1, 1), 'tycstation-300x1': tycFlow(300, 1),
+  'tycstation-20x6': ballTyc(), 'tycstation-8x8': tycFlow(8, 8), 'tycstation-30x16': tycFlow(30, 16),
+  'tycstation-288x1': tycFlow(288, 1, 1) };

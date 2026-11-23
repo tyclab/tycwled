@@ -306,33 +306,34 @@
         "bri": 255,
         "cct": 127,
         "set": 0,
-        "n": "",
         "col": [
-          [0, 0, 255],
+          [0, 0, 0],
           [0, 0, 0],
           [0, 0, 0]
         ],
-        "fx": 142,
-        "sx": 60,
-        "ix": 60,
-        "pal": 199,
+        "fx": 53,
+        "sx": 128,
+        "ix": 0,
+        "pal": 0,
         "c1": 128,
         "c2": 128,
         "c3": 16,
         "sel": true,
         "rev": false,
         "mi": false,
-        "rY": false,
-        "mY": false,
-        "tp": false,
         "o1": false,
         "o2": false,
         "o3": false,
         "si": 0,
-        "m12": 0
+        "m12": 0,
+        "bm": 0,
+        "n": "tycstation-20x6.gif",
+        "rY": false,
+        "mY": false,
+        "tp": false
       }
     ],
-    "n": "Colorwaves - Analogous"
+    "n": "TycStation"
   },
   "8": {
     "on": true,
@@ -941,5 +942,52 @@
       }
     ],
     "n": "Colorwaves - Sunset"
+  },
+  "19": {
+    "on": true,
+    "bri": 45,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 20,
+        "startY": 0,
+        "stopY": 6,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "",
+        "col": [
+          [0, 0, 255],
+          [0, 0, 0],
+          [0, 0, 0]
+        ],
+        "fx": 142,
+        "sx": 60,
+        "ix": 60,
+        "pal": 199,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "rY": false,
+        "mY": false,
+        "tp": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      }
+    ],
+    "n": "Colorwaves - Analogous"
   }
 }

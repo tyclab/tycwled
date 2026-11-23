@@ -104,20 +104,39 @@ their presets come from tyclab/tycExoyWled, not from this repository.
 Pin, LED and mic settings live in each lamp's cfg.json, not in the build. OTA retains
 the filesystem, but a new WLED version can migrate its configuration schema on boot.
 
-## Squid arm waves
+## Squid arm waves and TycStation looks
 
-`squid/` holds the TycStation squid's arm waves as animated GIFs for the Image effect, one
-per lamp shape: `squid-arms-300x1.gif` (the couch strip as one 300-LED segment),
-`squid-arms-20x6.gif` (a GLORB's raster), `squid-arms-8x8.gif` (the Moon) and
-`squid-arms-30x16.gif` (an Exoy lamp's 30×16 matrix: X is the edge, so every edge shows one colour
-along its 16 LEDs and the waves run through the edges in wire order). Each matches its segment's
-size, so WLED plays it unscaled. `curtain/squid/mkgifs.py` draws them together
-with the curtain's loops. The Image effect plays on one segment per controller.
+`squid/` holds the looks the other lamps show with the curtain's themes, as animated GIFs for the
+Image effect, one per lamp shape: `squid-arms-<size>.gif`, the squid's arm waves, and
+`tycstation-<size>.gif`, the TycStation look: the website's gradient (`--blue`, `--violet` between,
+`--red`) running out and back along the lamp (operator, 2026-11-23: "THeme of tycstation follfolws the
+website theme", "red blue"). The sizes: `300x1` (the couch strip as one 300-LED segment), `20x6` (a
+GLORB's raster), `8x8` (the Moon), `30x16` (an Exoy lamp's 30×16 matrix: X is the edge, so every edge
+shows one colour along its 16 LEDs and the looks run through the edges in wire order) and `288x1` (the
+HyperCube's strip). Each matches its segment's size, so WLED plays it unscaled.
+`curtain/squid/mkgifs.py` draws them together with the curtain's loops; their loop times, speeds and
+the GLORB's front are the `LOOK` block at the top of `curtain/squid/draw.js`. The Image effect plays
+on one segment per controller.
+
+A GLORB's files are drawn on the ball: row y is a ring at latitude π(0.5 − (y + 0.5)/6), column x a
+longitude 2π(x + 0.5)/20, as the lightshow places it (lightshow #124). The front display covers
+`LOOK.ball.span` of each side round `LOOK.ball.front` (column 0 for now: which way a ball's column 0
+faces is not recorded); every LED behind shows its mirror image on the front at `LOOK.ball.backLevel`
+(operator, 2026-11-09: "a 'front' display and backside ambient"). The arm waves run out from the
+front's centre over the sphere.
+
+No look carries white or a pale colour (operator, 2026-11-18: "no white except it is white really
+selected"; pale as the lightshow's `isPale`: the lowest channel half the highest or more). Canvas and
+CSS mix the website's colours channel by channel and meet slightly below that line between blue and
+violet and between violet and red, so `mkgifs.py` holds every drawn colour at least as saturated as
+`--violet` and refuses a colour table with a pale entry; `tests/test_squid_gifs.py` checks every
+committed GIF on its lamp's gamma.
 
 The files are drawn for a lamp that applies WLED's output gamma of 2.8, as the curtain, the
-couch, the Moon and the Exoy lamps do. The GLORBs run gamma 1.0 (`glorb/wled16-port/cfg-overrides.json`), so
-`squid-arms-20x6.gif` holds the values that table gives the other lamps: every lamp then puts
-the same values on the wire. A lamp whose gamma setting changes needs its file regenerated.
+couch, the Moon and the Exoy lamps do. The GLORBs run gamma 1.0 (`glorb/wled16-port/cfg-overrides.json`)
+and the HyperCube colour gamma 1.0, so their `20x6` and `288x1` files hold the values that table gives
+the other lamps: every lamp then puts the same values on the wire. A lamp whose gamma setting changes
+needs its file regenerated.
 
 ## TycStation effects
 
@@ -402,16 +421,17 @@ Presets 1 to 7 are the remote's looks on every lamp. The curtain uses this order
 
 Squid Eyes stays available as preset 8 in WLED and Home Assistant. The old curtain presets 2
 and 3 were identical; their single remaining copy is 6. On the couch, the Moon, the GLORBs and
-the Exoys, slots 1–5 and 8 play the squid's arm waves with matching names; 6 and 7 show their
-own looks (on the Exoys Edge Twinklefox and Edge Colorwaves). The Exoys follow the rule since
-2026-11-18 (operator: "fully integrate both into house modes etc. also on remotes"): the looks
-that stood on their squid slots keep their names and fields in 23 to 28 (Exoy both from 1, Edge
-Flow from 2, Edge Aurora from 3, Edge Pacifica from 4, Edge Plasma from 5, Edge Comets from 8),
-and the boot playlist 20 plays the same ten looks in the same order.
+the Exoys, slots 1–5 and 8 play the squid's arm waves with matching names, 7 "TycStation" plays the
+lamp's `tycstation-<size>.gif` (since 2026-11-23), and 6 shows the lamp's own look (on the Exoys Edge
+Twinklefox). The Exoys follow the rule since 2026-11-18 (operator: "fully integrate both into house
+modes etc. also on remotes"): the looks that stood on their squid slots and on 7 keep their names and
+fields in 23 to 29 (Exoy both from 1, Edge Flow from 2, Edge Aurora from 3, Edge Pacifica from 4,
+Edge Plasma from 5, Edge Comets from 8, Edge Colorwaves from 7), and the boot playlist 20 plays the
+same ten looks in the same order.
 
 The GLORBs' installed presets are [`overlays/glorb-presets.json`](overlays/glorb-presets.json).
 Every port look (`glorb/wled16-port/presets.json`, the factory's field for field) is preserved:
-original slots 1, 2, 3, 4, 5 and 7 live in 7, 6, 18, 15, 16 and 17 respectively. Anything that
+original slots 1, 2, 3, 4, 5 and 7 live in 19, 6, 18, 15, 16 and 17 respectively. Anything that
 is not a look (a boot layout, a test pattern) belongs above 7. The couch's boot layout is
 preset 250; in slot 2 it switched the strip off from the remote (2026-11-10).
 
@@ -579,13 +599,11 @@ right side. The door glass spans about 20.5–38.5. In ledmap columns string 20 
 ### Logo
 
 [`tycstation.gif`](../curtain/tycstation.gif) is the TycStation Krake mark (the site's
-`favicon.svg` without its tile), 46 × 40 pixels placed at x 13, y 1 of a 68 × 42 frame, so it
-sits centred on the door in the ledmap grid. WLED's Image effect (fx 53) draws the GIF named
-by its segment, so the segment is named `tycstation.gif`;
-[`presets.json`](../curtain/presets.json) keeps that as preset 7 "TycStation", which Home
-Assistant's Evening look "TycStation" recalls. Both files upload like the ledmap
-(`curl -F "data=@curtain/tycstation.gif;filename=/tycstation.gif" http://<host>/upload`,
-the same for `/presets.json`). Rebuild the GIF with the tile removed from the SVG, then
-`rsvg-convert -w 840 -h 840 -b black krake.svg -o krake.png` and
-`magick krake.png -trim +repage -filter Box -resize 46x40! -modulate 100,140 -level 0%,80% m.png`,
-`magick -size 68x42 xc:black m.png -geometry +13+1 -composite -strip tycstation.gif`.
+`favicon.svg` without its tile), about 46 × 40 cells from x 13, y 1 of a 68 × 42 frame, so it
+sits centred on the door in the ledmap grid. Since 2026-11-23 `curtain/squid/mkgifs.py` draws it
+(`LOOPS.t` in `draw.js`, timing in `LOOK.mark`): the website's gradient drifts out and back across
+the mark, its arms sway and it blinks once per loop; the eyes take the gradient too, not the
+favicon's pale `#b48cf5`. WLED's Image effect (fx 53) draws the GIF named by its segment, so the
+segment is named `tycstation.gif`; [`presets.json`](../curtain/presets.json) keeps that as preset 7
+"TycStation", which Home Assistant's Evening look "TycStation" recalls. tycpve's `wled:install`
+puts both on the curtain.

@@ -106,9 +106,10 @@ class Buttons(unittest.TestCase):
                  "fleet/overlays/moon-presets.json": ("squid-arms-8x8.gif", 8, 8),
                  "fleet/overlays/glorb-presets.json": ("squid-arms-20x6.gif", 20, 6),
                  "fleet/overlays/exoy-presets.json": ("squid-arms-30x16.gif", 30, 16)}
-    # The Exoy looks that stood on the squid buttons until 2026-11-18, in the slots they moved to.
+    # The Exoy looks that stood on the squid buttons until 2026-11-18, and on button 7 until 2026-11-23, in the slots
+    # they moved to.
     EXOY_MOVED = {"23": "Exoy both", "24": "Edge Flow", "25": "Edge Aurora", "26": "Edge Pacifica", "27": "Edge Plasma",
-                  "28": "Edge Comets"}
+                  "28": "Edge Comets", "29": "Edge Colorwaves"}
 
     @staticmethod
     def load(path):
@@ -133,9 +134,13 @@ class Buttons(unittest.TestCase):
             waves = {"id": 0, "start": 0, "stop": stop, "n": gif, **image}
             if stop_y:
                 waves |= {"startY": 0, "stopY": stop_y, "rY": False, "mY": False, "tp": False}
-            for k, name in names.items():
+            # Button 7 is TycStation on every lamp (operator, 2026-11-23: "THeme of tycstation follfolws the website
+            # theme", "red blue"): the lamp's TycStation GIF in the same segment.
+            tycstation = waves | {"n": gif.replace("squid-arms-", "tycstation-")}
+            for k, name in names.items() | {("7", "TycStation")}:
                 self.assertEqual(presets[k]["n"], name, f"{path} preset {k}")
-                self.assertEqual([s for s in presets[k]["seg"] if s.get("stop") != 0], [waves], f"{path} preset {k}")
+                self.assertEqual([s for s in presets[k]["seg"] if s.get("stop") != 0], [tycstation if k == "7" else waves],
+                                 f"{path} preset {k}")
 
     def test_the_curtain_keeps_eight_unique_looks_with_the_approved_remote_order(self):
         curtain = self.load("curtain/presets.json")
@@ -144,34 +149,30 @@ class Buttons(unittest.TestCase):
                           "Squid Water", "PS Fuzzy Noise", "TycStation", "Squid Eyes"])
         self.assertEqual(set(curtain), set("012345678"))
 
-    def test_no_follower_plays_the_arm_waves_on_buttons_6_and_7(self):
+    def test_no_follower_plays_a_gif_on_button_6(self):
+        # PS Fuzzy Noise on the curtain: every other lamp shows a look of its own.
         for path in self.FOLLOWERS:
-            presets = self.load(path)
-            for k in "67":
-                live = effect_segments(presets[k])
-                self.assertTrue(live, f"{path} preset {k}")
-                self.assertEqual([s for s in live if s.get("fx") == 53 or str(s.get("n", "")).startswith("squid-")], [],
-                                 f"{path} preset {k} ({presets[k].get('n')})")
+            live = effect_segments(self.load(path)["6"])
+            self.assertTrue(live, path)
+            self.assertEqual([s for s in live if s.get("fx") == 53 or str(s.get("n", "")).endswith(".gif")], [], path)
 
-    def test_the_exoys_show_their_own_looks_on_buttons_6_and_7_and_keep_the_moved_ones(self):
+    def test_the_exoys_show_their_own_look_on_button_6_and_keep_the_moved_ones(self):
         presets = self.load("fleet/overlays/exoy-presets.json")
-        self.assertEqual((presets["6"]["n"], presets["7"]["n"]), ("Edge Twinklefox", "Edge Colorwaves"))
+        self.assertEqual(presets["6"]["n"], "Edge Twinklefox")
         self.assertEqual({k: presets[k].get("n") for k in self.EXOY_MOVED}, self.EXOY_MOVED)
         names = [p["n"] for p in presets.values() if p]
         self.assertEqual(sorted({n for n in names if names.count(n) > 1}), [], "a look left behind in its old slot")
 
-    def test_the_couch_and_the_moon_show_their_own_look_on_buttons_6_and_7(self):
+    def test_the_couch_and_the_moon_show_their_own_look_on_button_6(self):
         for path in ("fleet/overlays/couch-presets.json", "fleet/overlays/moon-presets.json"):
-            presets = self.load(path)
-            self.assertEqual(presets["6"], presets["7"], path)
-            self.assertEqual(presets["7"]["n"], "DJ Light" if "couch" in path else "Blurz")
+            self.assertEqual(self.load(path)["6"]["n"], "DJ Light" if "couch" in path else "Blurz")
 
     def test_the_glorbs_keep_every_port_look_off_the_squid_buttons(self):
         fleet = self.load("fleet/overlays/glorb-presets.json")
-        moved = {"1": "7", "2": "6", "3": "18", "4": "15", "5": "16", "7": "17"}
+        moved = {"1": "19", "2": "6", "3": "18", "4": "15", "5": "16", "7": "17"}
         for k, look in PORT.items():
             self.assertEqual(fleet[moved.get(k, k)], look, f"port preset {k}")
-        self.assertEqual(sorted(fleet, key=int), sorted(set(PORT) - set(moved) | set(moved.values()) | set("123458"), key=int))
+        self.assertEqual(sorted(fleet, key=int), sorted(set(PORT) - set(moved) | set(moved.values()) | set("1234578"), key=int))
 
 
 class Playlists(unittest.TestCase):

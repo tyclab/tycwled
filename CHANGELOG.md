@@ -9,6 +9,24 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- No look GIF carries white or a pale colour any more (operator, 2026-11-23: "why the fuck is white in
+  this?"; rule of 2026-11-18: "no white except it is white really selected"). Measured on each lamp's
+  gamma, the pale share of non-black pixels was Squid Eyes 100 %, Ink Burst 46 %, Breathing 26 %,
+  Chromatophores 13 %, Water 10 %, Deep Sea 2 %, the logo 4 % and the arm waves 3 to 15 %; now 0 %
+  in every file. The eyes and highlights take the mark's gradient instead of the lavender `#b48cf5`,
+  overlapping cells keep the brighter colour instead of adding up to white, and `mkgifs.py` holds every
+  colour at least as saturated as `--violet` and refuses a pale colour table; `tests/test_squid_gifs.py`
+  checks every committed GIF. Squid Plankton's third speck colour follows the drawing (red).
+- TycStation on every lamp is the website's theme (operator, 2026-11-23: "THeme of tycstation follfolws
+  the website theme", "red blue"): button 7 plays `fleet/squid/tycstation-<size>.gif` on the couch, the
+  Moon, the GLORBs and the Exoys, the gradient running out and back along the lamp, and the curtain's
+  logo is the mark animated in the same colours. `tycstation-288x1.gif` and `squid-arms-288x1.gif` are
+  the HyperCube's. Displaced looks moved: the GLORBs' port preset 1 from 7 to 19, the Exoys' Edge
+  Colorwaves from 7 to 29 (playlists 20 and 250 follow it).
+- The GLORBs' arm waves are drawn on the ball (operator, 2026-11-09: "a 'front' display and backside
+  ambient"): each LED by its ring and longitude, the front display on two thirds of the ball, the back
+  mirroring it at 35 %; their TycStation look the same way. Loop times, speeds and the ball's front are
+  one `LOOK` block in `curtain/squid/draw.js`.
 - A capture no longer carries the lamp's address or its Wi-Fi details: `wledlab.py capture` and
   `verify --save-captures` stamp firmware version, fps, power limit, palette count and state only.
   Scoring reads none of the dropped fields; older captures still load.

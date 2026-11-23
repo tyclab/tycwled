@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Render the squid loops in headless Chromium and write them as GIFs.
 
-draw.js holds the drawing: the curtain's five loops at the ledmap's 68x42 cells, and the arm
-waves for the other lamps at their own sizes (fleet/squid/). Each loop is reduced to one
-256-colour table and written as whole frames, the form WLED's Image effect plays from the
-controller's filesystem. Standard library only; Chromium does the drawing.
+draw.js holds the drawing: the curtain's loops at the ledmap's 68x42 cells, and the arm waves
+and TycStation looks for the other lamps at their own sizes (fleet/squid/). Each loop is reduced
+to one 256-colour table and written as whole frames, the form WLED's Image effect plays from the
+controller's filesystem. No colour may be pale (operator, 2026-11-18: "no white except it is white
+really selected"): the writer refuses a table with one. Standard library only; Chromium draws.
 """
 import argparse
 import base64
+import colorsys
 import json
 import os
 import re
@@ -18,13 +20,55 @@ from collections import Counter
 HERE = os.path.dirname(os.path.abspath(__file__))
 CURTAIN = os.path.dirname(HERE)
 ROWS = os.path.join(os.path.dirname(CURTAIN), "fleet", "squid")
-NAMES = {"a": "squid-breathing", "b": "squid-ink", "c": "squid-deepsea", "e": "squid-eyes", "f": "squid-skin", "w": "squid-skin-water"}
+NAMES = {"a": "squid-breathing", "b": "squid-ink", "c": "squid-deepsea", "e": "squid-eyes", "f": "squid-skin", "w": "squid-skin-water",
+         "t": "tycstation"}
 # A pixel whose channels all stay below this is stored as black: the controller's gamma leaves it dark anyway.
 BLACK_BELOW = 24
 # Lowest level the controller still lights with gamma 2.8 at the presets' brightness 160; used for the printed share only.
 ON_LEVEL = 41
 # WLED's own table for an output gamma of 2.8 (colour gamma on, as the curtain, the couch and the Moon run).
 GAMMA_28 = [int((i / 255) ** 2.8 * 255 + 0.5) for i in range(256)]
+# Pale as the lightshow defines it (src/shared/color.ts isPale): the lowest channel is half the highest or more.
+PALE = 0.5
+# Canvas mixes colours channel by channel, where the website's blue and violet, or violet and red, meet a little
+# below that line (CSS draws its own gradient the same way). Every drawn colour is held at least as saturated as
+# the website's violet, the least saturated of its three tokens; hue and brightness stay.
+FLOOR = 0.55
+
+
+def vivid(c):
+    """A drawn colour with its saturation raised to FLOOR, hue and brightness kept; black stays black."""
+    h, s, v = colorsys.rgb_to_hsv(*(x / 255 for x in c))
+    if not v or s >= FLOOR:
+        return c
+    return tuple(round(x * 255) for x in colorsys.hsv_to_rgb(h, FLOOR, v))
+
+
+def pale(c):
+    return max(c) > 0 and min(c) >= max(c) * PALE
+
+
+def drawn(wire):
+    """The most saturated drawn colour the 2.8 table turns into these wire values, as a lamp at gamma 1.0 shows them:
+    the table folds several drawn values into one at the bottom, and a colour is pale only if none of them is not."""
+    lo = [GAMMA_28.index(v) if v in GAMMA_28 else None for v in wire]
+    hi = [max(i for i, x in enumerate(GAMMA_28) if x == v) if v in GAMMA_28 else None for v in wire]
+    if None in lo:
+        return None
+    top = max(range(3), key=lambda i: hi[i])
+    return tuple(hi[i] if i == top else lo[i] for i in range(3))
+
+
+def pale_entries(table, lamp_gamma):
+    """The colours of a GIF's table (other than black) that are pale on the lamp the file is for."""
+    out = []
+    for c in table:
+        if c == (0, 0, 0):
+            continue
+        shown = c if lamp_gamma == 2.8 else drawn(c)
+        if shown is None or pale(shown):
+            out.append(c)
+    return out
 
 RENDER = """
 const SS = 4, res = {};
@@ -170,18 +214,21 @@ def main():
         name, out, cells = (NAMES[key], a.out, leds) if key in NAMES else (key, a.rows_out, range(r["w"] * r["h"]))
         raw, n, px = base64.b64decode(r["rgb"]), r["n"], r["w"] * r["h"]
         pixels = [(raw[i], raw[i + 1], raw[i + 2]) for i in range(0, len(raw), 3)]
-        pixels = [c if max(c) >= BLACK_BELOW else (0, 0, 0) for c in pixels]
-        if r["lampGamma"] == 1:
-            # This lamp sends the file's values to the LEDs as they are: store what 2.8 gives the other lamps.
-            pixels = [tuple(GAMMA_28[v] for v in c) for c in pixels]
-        elif r["lampGamma"] != 2.8:
+        pixels = [vivid(c) if max(c) >= BLACK_BELOW else (0, 0, 0) for c in pixels]
+        if r["lampGamma"] not in (1, 2.8):
             sys.exit(f"{name}: no encoding for a lamp gamma of {r['lampGamma']}")
         count = Counter(pixels)
         count.pop((0, 0, 0), None)
         pal, index = median_cut([c + (k,) for c, k in count.items()], 255)
-        pal = [(0, 0, 0)] + pal
+        # A table entry is the mean of its colours, which can be less saturated than any of them.
+        pal = [(0, 0, 0)] + [vivid(c) for c in pal]
+        if r["lampGamma"] == 1:
+            # This lamp sends the file's values to the LEDs as they are: store what 2.8 gives the other lamps.
+            pal = [tuple(GAMMA_28[v] for v in c) for c in pal]
         index = {c: i + 1 for c, i in index.items()}
         index[(0, 0, 0)] = 0
+        if pale_entries(pal, r["lampGamma"]):
+            sys.exit(f"{name}: pale colours {pale_entries(pal, r['lampGamma'])[:5]}")
         frames = [bytes(index[c] for c in pixels[f * px:(f + 1) * px]) for f in range(n)]
         path = os.path.join(out, name + ".gif")
         with open(path, "wb") as f:

@@ -282,7 +282,7 @@ class Install(unittest.TestCase):
         self.assertEqual(self.lamp.calls, [])
 
     def test_counts_the_images_of_a_gif(self):
-        for name, frames in (("tycstation.gif", 1), ("squid-eyes.gif", 200), ("squid-ink.gif", 120)):
+        for name, frames in (("tycstation.gif", 80), ("squid-eyes.gif", 200), ("squid-ink.gif", 120)):
             with open(os.path.join(ROOT, "curtain", name), "rb") as f:
                 self.assertEqual(wledlab.gif_frames(f.read()), frames, name)
         self.assertEqual(wledlab.gif_frames(b"not a gif"), 0)

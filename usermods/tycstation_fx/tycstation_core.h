@@ -85,10 +85,9 @@ inline Rgb gradient(float u) {
   auto mix = [&](int c) { return kStops[k + c] + (kStops[k + 4 + c] - kStops[k + c]) * f; };
   return {mix(1), mix(2), mix(3)};
 }
-// draw.js plankton colours: blue, violet, eye
+// draw.js plankton colours: blue, violet, red
 inline Rgb speckMark(int i) {
-  static const Rgb eye = {180, 140, 245};
-  return i % 3 == 2 ? eye : gradient(i % 3 ? float(kStops[4]) / kStops[8] : 0);
+  return gradient(i % 3 == 2 ? 1.f : i % 3 ? float(kStops[4]) / kStops[8] : 0);
 }
 
 // ---- Squid Arms: armWaves(), waves running outward from the middle of the row, one period per 2 s. perHalf

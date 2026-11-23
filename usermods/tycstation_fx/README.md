@@ -30,7 +30,7 @@ Without sound data (no AudioReactive, or it is disabled) the pulse is the drawin
 The effects default to palette 0, which draws the mark's gradient exactly from the
 TycStation stops (positions 0, 61, 128: blue, violet, red); so does the TycStation
 palette itself. Any other palette runs end to end. Plankton's specks take the drawn blue,
-violet and eye colours; with another palette they take its colours at 0, 1/3 and 2/3.
+violet and red; with another palette they take its colours at 0, 1/3 and 2/3.
 
 The usermod registers the mark's gradient ([`draw.js`](../../curtain/squid/draw.js): blue,
 violet at 48 %, red), mirrored back to blue so that an effect which runs round the palette
