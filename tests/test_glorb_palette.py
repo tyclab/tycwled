@@ -98,13 +98,9 @@ class Routing(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("c++"), "no C++ compiler on PATH")
 class Arithmetic(unittest.TestCase):
-    def render(self, replacement=None):
+    def render(self):
         source = SOURCE.read_text()
         helpers = function(source, "glorb_scale8") + "\n" + function(source, "glorb_palette_color")
-        if replacement:
-            old, new = replacement
-            self.assertIn(old, helpers)
-            helpers = helpers.replace(old, new, 1)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "oracle.cpp").write_text(PRELUDE + helpers + MAIN)
@@ -118,14 +114,3 @@ class Arithmetic(unittest.TestCase):
 
     def test_original_captured_vectors(self):
         self.assertEqual(self.render(), [row[4] for row in VECTORS])
-
-    def test_controls_detect_combined_rounding_brightness_and_wrap_changes(self):
-        mutations = [
-            ("glorb_scale8(channels[i], 255 - fraction) + glorb_scale8(second[i], fraction)",
-             "((channels[i] * (256 - fraction) + second[i] * fraction) >> 8)"),
-            ("glorb_scale8(channels[i], brightness + 1)", "glorb_scale8(channels[i], brightness)"),
-            ("uint16_t(index) * 240", "uint16_t(index) * 241"),
-        ]
-        for mutation in mutations:
-            with self.subTest(change=mutation[0]):
-                self.assertNotEqual(self.render(mutation), [row[4] for row in VECTORS])

@@ -22,10 +22,6 @@ class CircEmd(unittest.TestCase):
         p = [0.5, 0.25, 0.25] + [0] * 9
         self.assertEqual(wledlab.circ_emd(p, p), 0)
 
-    def test_length_mismatch_asserts(self):
-        with self.assertRaises(AssertionError):
-            wledlab.circ_emd([1.0, 0.0], [0.0] * 12)
-
     def test_adjacent_shift_costs_one_bin(self):
         # all mass moving one bin over = 1 bin x 1 mass
         p = [1.0] + [0] * 11

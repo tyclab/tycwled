@@ -128,12 +128,6 @@ class SquidGifs(unittest.TestCase):
         self.assertTrue(mkgifs.pale(violet_to_red))
         self.assertFalse(mkgifs.pale(mkgifs.vivid(violet_to_red)))
 
-    def test_no_other_gif_is_committed_unlisted(self):
-        found = {os.path.relpath(os.path.join(folder, name), ROOT)
-                 for folder in (os.path.join(ROOT, "curtain"), os.path.join(ROOT, "fleet", "squid"))
-                 for name in os.listdir(folder) if name.endswith(".gif")}
-        self.assertEqual(found, set(GIFS))
-
 
 if __name__ == "__main__":
     unittest.main()

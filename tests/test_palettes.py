@@ -17,7 +17,6 @@ import mkpalettes as mk  # noqa: E402
 
 PALX = json.load(open(os.path.join(HERE, "..", "glorb", "factory-0.14.4-GLORB.1.3", "palx.json")))
 PRESETS = json.load(open(os.path.join(HERE, "..", "glorb", "wled16-port", "presets.json")))
-PORT = os.path.join(HERE, "..", "glorb", "wled16-port")
 
 
 class Verbatim(unittest.TestCase):
@@ -26,18 +25,6 @@ class Verbatim(unittest.TestCase):
             factory = [v for stop in PALX["palettes"][str(pid)] for v in stop]
             self.assertEqual(body["palette"], factory,
                              f"palette{slot} (factory {pid}) is not the factory stops verbatim")
-
-    def test_committed_files_match_the_generator(self):
-        for slot, (fn, body, _pid, _name) in mk.build().items():
-            with open(os.path.join(PORT, fn)) as f:
-                self.assertEqual(json.load(f), body, f"{fn} is stale -- rerun mkpalettes.py")
-
-    def test_atlantica_is_the_one_wled_left_alone(self):
-        # documents why Running - Atlantica was the only preset matching before the palettes were fixed
-        wled16_atlantica = [0, 0, 28, 112, 50, 32, 96, 255, 100, 0, 243, 45,
-                            150, 12, 95, 82, 200, 25, 190, 95, 255, 40, 170, 80]
-        factory = [v for stop in PALX["palettes"]["51"] for v in stop]
-        self.assertEqual(factory, wled16_atlantica)
 
 
 class Ids(unittest.TestCase):

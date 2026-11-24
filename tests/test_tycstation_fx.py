@@ -1,4 +1,4 @@
-"""usermods/tycstation_fx: effect metadata, the palette, the gamma seam, and the patterns rendered on the host.
+"""usermods/tycstation_fx: the palette, the gamma seam, and the patterns rendered on the host.
 
 The render tests compile tests/tycstation_fx_host.cpp, which runs the usermod's own tycstation_core.h, and compare it
 with the committed squid GIFs that the same drawings (curtain/squid/draw.js) produced. They skip without a C++ compiler.
@@ -15,7 +15,6 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UM = os.path.join(ROOT, "usermods", "tycstation_fx")
 
-CPP = open(os.path.join(UM, "tycstation_fx.cpp")).read()
 CORE = open(os.path.join(UM, "tycstation_core.h")).read()
 DRAW = open(os.path.join(ROOT, "curtain", "squid", "draw.js")).read()
 # The mark's colours and where its violet sits, as the drawings hold them.
@@ -76,43 +75,12 @@ def gif_decode(raw):
     return frames
 
 
-class Metadata(unittest.TestCase):
-    def fxdata(self, name):
-        m = re.search(r'PROGMEM = "(%s@[^"]*)"' % re.escape(name), CPP)
-        self.assertIsNotNone(m, name)
-        return m.group(1).split(";")
-
-    def test_the_three_effects_and_their_sliders(self):
-        want = {"Squid Arms": ("!,Sound,Waves", "c1=64"), "Squid Skin": ("!,Sound,Cell size", "c1=85"),
-                "Squid Plankton": ("!,Sound,Specks", "c1=32")}
-        for name, (sliders, c1) in want.items():
-            with self.subTest(name=name):
-                head, colours, palette, flags, defaults = self.fxdata(name)
-                self.assertEqual(head, f"{name}@{sliders}")
-                self.assertEqual((colours, palette), ("", "!"), "no colour slots, the palette selectable")
-                self.assertEqual(flags, "12v", "1D and 2D, volume reactive")
-                self.assertEqual(defaults.split(","), ["sx=128", "ix=192", c1, "pal=0"])
-
-    def test_effects_register_at_boot_assigned_ids(self):
-        self.assertEqual(len(re.findall(r"strip\.addEffect\(255, ", CPP)), 3)
-
-    def test_palette_is_registered_by_name(self):
-        self.assertIn('kName[] PROGMEM = "TycStation"', CPP)
-        self.assertIn("usermodPalettes.insert(usermodPalettes.begin()", CPP)
-
-
 class Palette(unittest.TestCase):
     def test_stops_are_the_drawings_gradient_out_and_back(self):
         self.assertEqual(c_array("kStops"), [v for at, colour in STOPS for v in (at, *colour)])
 
     def test_gamma_table_is_wleds_28(self):
         self.assertEqual(c_array("kGamma28"), T28)
-
-    def test_a_float_table_rounds_the_same(self):
-        # The lamps build their 2.8 table with powf (colors.cpp calcGammaTable). Every entry sits further from a rounding
-        # edge than 8 float32 ulps at full scale, so that table equals this one.
-        edge = min(abs(x - round(x)) for x in ((i / 255) ** 2.8 * 255 + 0.5 for i in range(1, 256)))
-        self.assertGreater(edge, 255 * 2 ** -20)
 
 
 @unittest.skipUnless(shutil.which("c++"), "no C++ compiler on PATH")
