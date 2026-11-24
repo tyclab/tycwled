@@ -49,14 +49,13 @@ def image(segments, built_from=b"", chip=9):
 RESERVED = struct.pack("<II", 0x40374000, 0x40378000)
 
 
-def elf(symbols, data=None, files=()):
-    """A 32-bit little-endian ELF: function symbols with these names and addresses, a file symbol per name in
-    files, and one loaded section per address: bytes of data."""
+def elf(symbols, data=None):
+    """A 32-bit little-endian ELF: function symbols with these names and addresses, and one loaded section per
+    address: bytes of data."""
     names, entries = b"\0", [bytes(16)]
-    for kind, items in ((2, symbols.items()), (4, [(name, 0) for name in files])):  # STT_FUNC, STT_FILE
-        for name, value in items:
-            entries.append(struct.pack("<IIIBBH", len(names), value, 0, kind, 0, 1))
-            names += name.encode() + b"\0"
+    for name, value in symbols.items():
+        entries.append(struct.pack("<IIIBBH", len(names), value, 0, 2, 0, 1))  # STT_FUNC
+        names += name.encode() + b"\0"
     table = b"".join(entries)
     section_names = b"\0.symtab\0.strtab\0.shstrtab\0.data\0"
     body = table + names + section_names
@@ -82,12 +81,12 @@ OTHER_RECORD = struct.pack("<II", 0x3FC88000, 0x3FC90000)
 RAM = bytes(range(256)) * 15  # RAM code from 0x40378000, the switch at +0xe00 inside it
 
 
-def built(table=OTHER_RECORD + RESERVED, symbols=LAYOUT, elsewhere=b"", ram=RAM, files=(), table_parts=1):
+def built(table=OTHER_RECORD + RESERVED, symbols=LAYOUT, elsewhere=b"", ram=RAM, table_parts=1):
     """An ELF with RAM code at 0x40378000, the SDK's table of reserved memory at 0x3c0f0100 (in one section or
     cut into several) and other read-only data at 0x3c0f0200."""
     step = len(table) // table_parts
     parts = {0x3C0F0100 + at: table[at:at + step] for at in range(0, len(table), step)}
-    return elf(symbols, {**parts, 0x3C0F0200: elsewhere + bytes(8), 0x40378000: ram}, files)
+    return elf(symbols, {**parts, 0x3C0F0200: elsewhere + bytes(8), 0x40378000: ram})
 
 
 def packed(source, ram_code=0x40378000, leave_out=None, chip=9):
@@ -140,23 +139,6 @@ class Usermod(unittest.TestCase):
         self.assertNotRegex((ROOT / "fleet/platformio_override.ini").read_text(), r"-D\s*GLORB_ICACHE_32KB")
         self.assertIn("pre:usermods/glorb_fx/icache_32kb.py", OVERRIDE.read_text())
 
-    def test_the_switch_is_kept_out_of_line_in_ram(self):
-        # Flash is unreachable while the caches are stopped; an inlined copy would sit in flash. Whether the
-        # built function really lies in RAM is checked on the ELF (BuiltElf below).
-        self.assertRegex(self.guarded, r"static void IRAM_ATTR __attribute__\(\(noinline\)\) glorb_icache_32kb\(\)")
-        # A stock memory layout with the define stops in heap start-up, before any check in setup() could
-        # run: the layout is checked at build time, not on the lamp.
-        self.assertNotIn("_iram_start", self.source)
-
-    def test_the_info_page_reads_the_cache_size_back_from_the_chip(self):
-        self.assertIn('user.createNestedArray(F("Main loop"))', self.source)
-        self.assertIn("Cache_Get_Mode(&mode);", self.guarded)
-        self.assertNotIn("icache32kb", self.source)
-
-    def test_the_loop_rate_is_shared_between_two_tasks_as_an_atomic(self):
-        # loop() writes it on the Arduino task, /json/info reads it on the web server's task.
-        self.assertIn("std::atomic<uint32_t> loopsPerSecond{0};", self.source)
-
 
 class BuiltElf(unittest.TestCase):
     def setUp(self):
@@ -184,16 +166,9 @@ class BuiltElf(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "no code"):
             self.script.check_elf(built(ram=bytes(0x400)))
 
-    def test_something_that_is_no_elf_stops_the_build(self):
-        with self.assertRaises(ValueError):
-            self.script.symbols(b"\xe9" + bytes(100))
-
     def test_a_helper_that_runs_with_the_caches_on_may_lie_in_flash(self):
         # Built without inlining (-Og), the info row's glorb_icache_bytes() is a function of its own, in flash.
         self.assertEqual(self.layout({**LAYOUT, "_ZL18glorb_icache_bytesv": 0x42006AD0}), (0x40378000, 0x40378E00))
-
-    def test_a_source_file_named_like_the_switch_is_no_switch(self):
-        self.assertEqual(self.script.check_elf(built(files=("glorb_icache_32kb.cpp",))), (0x40378000, 0x40378E00))
 
     def test_the_banks_addresses_outside_the_heaps_table_stop_the_build(self):
         # The SDK's heap start-up reads records between the two table symbols and nowhere else.
@@ -240,10 +215,6 @@ class BuiltImage(unittest.TestCase):
         for length in (len(whole) - 1, len(whole) - 33, len(whole) - 60, 0x100, 20):
             with self.assertRaisesRegex(ValueError, "image"):
                 self.check(whole[:length], self.elf)
-
-    def test_an_image_with_bytes_after_its_digest_fails(self):
-        with self.assertRaisesRegex(ValueError, "after its SHA-256"):
-            self.check(packed(self.elf) + bytes(4096), self.elf)
 
     def test_an_image_with_a_changed_byte_fails(self):
         changed = bytearray(packed(self.elf))

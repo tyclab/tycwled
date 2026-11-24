@@ -58,7 +58,7 @@ registers first and they follow at 222 to 224.
 
 ## Tests
 
-`tests/test_tycstation_fx.py` checks the metadata strings, the stops against the colours
-in `draw.js` and the 2.8 table against WLED's formula, and compiles
+`tests/test_tycstation_fx.py` checks the stops against the colours in `draw.js` and the
+2.8 table against WLED's formula, and compiles
 `tests/tycstation_fx_host.cpp`, which renders [`tycstation_core.h`](tycstation_core.h) on
 the host, against the committed squid GIFs.

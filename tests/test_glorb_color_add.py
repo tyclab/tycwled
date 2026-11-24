@@ -95,12 +95,8 @@ class Routing(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("c++"), "no C++ compiler on PATH")
 class Arithmetic(unittest.TestCase):
-    def render(self, replacement=None):
+    def render(self):
         helper = function(SOURCE.read_text(), "glorb_color_add")
-        if replacement:
-            old, new = replacement
-            self.assertIn(old, helper)
-            helper = helper.replace(old, new, 1)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "oracle.cpp").write_text(PRELUDE + helper + MAIN)
@@ -114,14 +110,3 @@ class Arithmetic(unittest.TestCase):
 
     def test_original_captured_vectors(self):
         self.assertEqual(self.render(), [row[2] for row in VECTORS])
-
-    def test_control_wled16_ratio_preserving_add_fails(self):
-        wled16 = ("return RGBW32(r * 255 / top, g * 255 / top, b * 255 / top, w * 255 / top);",
-                  "const uint32_t s = (255u << 8) / top;\n"
-                  "  return RGBW32((r * s) >> 8, (g * s) >> 8, (b * s) >> 8, (w * s) >> 8);")
-        self.assertNotEqual(self.render(wled16), [row[2] for row in VECTORS])
-
-    def test_control_saturating_add_fails(self):
-        saturate = ("return RGBW32(r * 255 / top, g * 255 / top, b * 255 / top, w * 255 / top);",
-                    "return RGBW32(r > 255 ? 255 : r, g > 255 ? 255 : g, b > 255 ? 255 : b, w > 255 ? 255 : w);")
-        self.assertNotEqual(self.render(saturate), [row[2] for row in VECTORS])

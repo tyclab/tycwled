@@ -59,8 +59,8 @@ The format is based on [Keep a Changelog], and this project adheres to
   the couch's sound sync (mode 2). The couch no longer sends it (`sync.mode` 0 in its overlay, was 1);
   no other controller received it. The two DOM-WLE-As that drove the lamps become TycLedSpare5 and
   TycLedSpare6: new overlays `fleet/overlays/spare5-domraem.json` and `spare6-domraem.json` (name,
-  mDNS, syslog host, boots off at brightness 16, `ota.same-subnet` false), tested with the other
-  spares. Host table and Spares section in `fleet/README.md`.
+  mDNS, syslog host, boots off at brightness 16, `ota.same-subnet` false). Host table and Spares
+  section in `fleet/README.md`.
 - The HyperCube boots off: new overlay `fleet/overlays/cube-gl015.json` with `def` `{ps: 0, on: false,
 bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 when power returned.
 - The Exoy lamps boot off (operator, 2026-11-19: "if we have power outage this happens and this an
@@ -76,7 +76,7 @@ bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 
   Exoy overlays set `if.sync.recv.bri` false, so a WLED controller sending sync in group 1 does not
   set their brightness. After power-on a lamp shows its `def.bri` (128, unchanged) until someone
   sets another. The couch, the Moon, the GLORBs and the curtain keep their looks' 45 and 200.
-  `tests/test_presets.py` holds the presets' rules, `tests/test_cfg.py` the sync setting.
+  `tests/test_presets.py` holds the presets' rules.
 
 - Both Exoy lamps run at 40 FPS (`hw.led.fps` in both overlays, was 55), for image vid 2611190 and
   later (tyclab/tycExoyWled `293fde7`): that image asks WLED for a frame when the lamp's next one

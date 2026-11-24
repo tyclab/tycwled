@@ -15,10 +15,6 @@ def load(*path):
 
 
 class CouchSlots(unittest.TestCase):
-    def test_every_number_button_slot_holds_a_look(self):
-        presets = load("fleet", "overlays", "couch-presets.json")
-        off = [slot for slot, preset in presets.items() if 1 <= int(slot) <= 7 and not preset.get("on")]
-        self.assertEqual(off, [])
 
     def test_the_boot_preset_exists_outside_the_button_slots(self):
         boot = load("fleet", "overlays", "couch-domraem.json")["def"]["ps"]

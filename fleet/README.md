@@ -471,8 +471,8 @@ no sync at all). This holds while the lamp receives colour, effect or palette by
 off WLED takes the sender's brightness anyway (`udp.cpp`, `someSel`).
 
 `tests/test_presets.py` holds the presets' rules (power and brightness on every look of the other
-lamps; `"on": true` and no brightness on every Exoy preset), `tests/test_cfg.py` the Exoy overlays'
-sync setting, and tycpve's `wled:install` puts the files on the lamps.
+lamps; `"on": true` and no brightness on every Exoy preset), and tycpve's `wled:install` puts the
+files on the lamps.
 
 ## Curtain
 
