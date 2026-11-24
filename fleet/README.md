@@ -127,6 +127,15 @@ side round `LOOK.ball.front`, column 10, the one facing the room; one file serve
 LED behind shows its mirror image on the front at `LOOK.ball.backLevel` (operator, 2026-11-09: "a
 'front' display and backside ambient"). The arm waves run out from the front's centre over the sphere.
 
+The GLORBs' arm waves are timed for the lamp as it plays them (`LOOK.glorb`). The Image effect shows
+a GIF frame only when WLED draws, every 1000 / fps ms (fps 42: 23 ms), and at Speed 128 shows the next
+one on the first draw at least one frame delay after the last; a 50 ms frame therefore showed for 46 or
+69 ms. The file's 2 cs delay is under one draw, so each of its 86 frames shows for exactly one. At the
+presets' brightness 45 WLED's output scaling keeps an LED's brightest channel odd, so the lamp has 23
+levels: the level is set in light, never below a quarter of the crest, and every LED moves by at most
+one of those steps a frame. One colour table for the loop would round the levels by more than a step,
+so the file carries one table per frame (`frameTables` in draw.js; WLED's decoder reads them).
+
 No look carries white or a pale colour (operator, 2026-11-18: "no white except it is white really
 selected"; pale as the lightshow's `isPale`: the lowest channel half the highest or more). Canvas and
 CSS mix the website's colours channel by channel and meet slightly below that line between blue and
