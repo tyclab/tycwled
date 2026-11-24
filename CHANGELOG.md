@@ -9,6 +9,16 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The GLORBs' arm waves move in single output steps (operator, 2026-11-24: "make a better animation
+  for glorb"). Measured as the lamp plays the old file (WLED 16.0.1 Image effect on 23 ms draws,
+  brightness 45, gamma 1.0): its 50 ms frames showed for 46 or 69 ms; its crests, cubed and then put
+  through the 2.8 table, were lit above mid level for a fifth of each loop, under one LED wide; each
+  LED sat dark for half the loop and moved by up to 10 counts (5 of the lamp's steps; 16.8 ΔL*, median
+  10.1) a frame. Now: 86 frames of 2 cs, so the lamp shows each one for exactly one draw; a crest half
+  a wave wide set in light over a glow of a quarter; one colour table per frame, so no level is rounded
+  by the table; every LED moves by at most one step (2 counts; front 6.6 ΔL*, median 2.8). Same
+  colours, same 2 s wave, same front and mirror. `tests/test_squid_gifs.py` checks the frame time
+  against the lamp's draw time and the largest step on all 80 LEDs at the presets' brightness.
 - No look GIF carries white or a pale colour any more (operator, 2026-11-23: "why the fuck is white in
   this?"; rule of 2026-11-18: "no white except it is white really selected"). Measured on each lamp's
   gamma, the pale share of non-black pixels was Squid Eyes 100 %, Ink Burst 46 %, Breathing 26 %,

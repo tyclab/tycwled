@@ -3,9 +3,10 @@
 
 draw.js holds the drawing: the curtain's loops at the ledmap's 68x42 cells, and the arm waves
 and TycStation looks for the other lamps at their own sizes (fleet/squid/). Each loop is reduced
-to one 256-colour table and written as whole frames, the form WLED's Image effect plays from the
-controller's filesystem. No colour may be pale (operator, 2026-11-18: "no white except it is white
-really selected"): the writer refuses a table with one. Standard library only; Chromium draws.
+to one 256-colour table, or one per frame where a look asks for exact colours (frameTables), and
+written as whole frames, the form WLED's Image effect plays from the controller's filesystem. No
+colour may be pale (operator, 2026-11-18: "no white except it is white really selected"): the
+writer refuses a table with one. Standard library only; Chromium draws.
 """
 import argparse
 import base64
@@ -85,7 +86,7 @@ for (const [id, lp] of Object.entries({ ...LOOPS, ...ROWS })) {
     for (let i = 0; i < d.length; i += 4) { buf[o++] = d[i]; buf[o++] = d[i + 1]; buf[o++] = d[i + 2]; }
   }
   let s = ''; for (let i = 0; i < buf.length; i += 32768) s += String.fromCharCode.apply(null, buf.subarray(i, i + 32768));
-  res[id] = { n, delay: lp.delay, L: lp.L, w, h, lampGamma: lp.lampGamma || 2.8, rgb: btoa(s) };
+  res[id] = { n, delay: lp.delay, L: lp.L, w, h, lampGamma: lp.lampGamma || 2.8, frameTables: !!lp.frameTables, rgb: btoa(s) };
 }
 document.getElementById('out').textContent = JSON.stringify(res);
 """
@@ -178,19 +179,24 @@ def lzw(indices, mcs):
     return bytes(out)
 
 
-def gif(pal, frames, delay_cs, w, h):
-    bits = max(1, (len(pal) - 1).bit_length())
-    table = b"".join(bytes(c) for c in pal) + bytes(3 * ((1 << bits) - len(pal)))
+def gif(tables, frames, delay_cs, w, h):
+    """tables: one colour table for the whole loop, or one per frame (written as each frame's local table)."""
+    def table(pal):
+        bits = max(1, (len(pal) - 1).bit_length())
+        return bits, b"".join(bytes(c) for c in pal) + bytes(3 * ((1 << bits) - len(pal)))
 
     def le(v):
         return v.to_bytes(2, "little")
 
-    out = bytearray(b"GIF89a" + le(w) + le(h) + bytes([0xF0 | (bits - 1), 0, 0]) + table)
+    local = len(tables) > 1
+    bits, colours = table(tables[0])
+    out = bytearray(b"GIF89a" + le(w) + le(h) + (b"\x70\x00\x00" if local else bytes([0xF0 | (bits - 1), 0, 0]) + colours))
     out += b"\x21\xFF\x0BNETSCAPE2.0\x03\x01\x00\x00\x00"
-    mcs = max(2, bits)
-    for f in frames:
+    for k, f in enumerate(frames):
+        bits, colours = table(tables[k if local else 0])
+        mcs = max(2, bits)
         out += b"\x21\xF9\x04\x04" + le(delay_cs) + b"\x00\x00"
-        out += b"\x2C" + le(0) + le(0) + le(w) + le(h) + b"\x00" + bytes([mcs])
+        out += b"\x2C" + le(0) + le(0) + le(w) + le(h) + (bytes([0x80 | (bits - 1)]) + colours if local else b"\x00") + bytes([mcs])
         data = lzw(f, mcs)
         for i in range(0, len(data), 255):
             out += bytes([len(data[i:i + 255])]) + data[i:i + 255]
@@ -217,28 +223,38 @@ def main():
         pixels = [vivid(c) if max(c) >= BLACK_BELOW else (0, 0, 0) for c in pixels]
         if r["lampGamma"] not in (1, 2.8):
             sys.exit(f"{name}: no encoding for a lamp gamma of {r['lampGamma']}")
-        count = Counter(pixels)
-        count.pop((0, 0, 0), None)
-        pal, index = median_cut([c + (k,) for c, k in count.items()], 255)
-        # A table entry is the mean of its colours, which can be less saturated than any of them.
-        pal = [(0, 0, 0)] + [vivid(c) for c in pal]
+        shots = [pixels[f * px:(f + 1) * px] for f in range(n)]
+        if r.get("frameTables") and n > 1:
+            tables = [[(0, 0, 0)] + sorted(set(shot) - {(0, 0, 0)}) for shot in shots]
+            if max(map(len, tables)) > 256:
+                sys.exit(f"{name}: a frame draws more than 255 colours")
+            indexes = [{c: i for i, c in enumerate(t)} for t in tables]
+        else:
+            count = Counter(pixels)
+            count.pop((0, 0, 0), None)
+            pal, index = median_cut([c + (k,) for c, k in count.items()], 255)
+            # A table entry is the mean of its colours, which can be less saturated than any of them.
+            tables = [[(0, 0, 0)] + [vivid(c) for c in pal]]
+            index = {c: i + 1 for c, i in index.items()}
+            index[(0, 0, 0)] = 0
+            indexes = [index]
         if r["lampGamma"] == 1:
             # This lamp sends the file's values to the LEDs as they are: store what 2.8 gives the other lamps.
-            pal = [tuple(GAMMA_28[v] for v in c) for c in pal]
-        index = {c: i + 1 for c, i in index.items()}
-        index[(0, 0, 0)] = 0
-        if pale_entries(pal, r["lampGamma"]):
-            sys.exit(f"{name}: pale colours {pale_entries(pal, r['lampGamma'])[:5]}")
-        frames = [bytes(index[c] for c in pixels[f * px:(f + 1) * px]) for f in range(n)]
+            tables = [[tuple(GAMMA_28[v] for v in c) for c in pal] for pal in tables]
+        pales = [c for pal in tables for c in pale_entries(pal, r["lampGamma"])]
+        if pales:
+            sys.exit(f"{name}: pale colours {pales[:5]}")
+        frames = [bytes(indexes[f % len(indexes)][c] for c in shot) for f, shot in enumerate(shots)]
+        shown = [tables[f % len(tables)] for f in range(n)]
         path = os.path.join(out, name + ".gif")
         with open(path, "wb") as f:
-            f.write(gif(pal, frames, round(r["delay"] * 100), r["w"], r["h"]))
-        lit = [max(c) >= (GAMMA_28[ON_LEVEL] if r["lampGamma"] == 1 else ON_LEVEL) for c in pal]
-        on = [sum(lit[f[p]] for p in cells) / len(cells) for f in frames]
+            f.write(gif(tables, frames, round(r["delay"] * 100), r["w"], r["h"]))
+        on_level = GAMMA_28[ON_LEVEL] if r["lampGamma"] == 1 else ON_LEVEL
+        on = [sum(max(pal[f[p]]) >= on_level for p in cells) / len(cells) for f, pal in zip(frames, shown)]
         check = "not decoded"
         if a.magick:
             got = subprocess.run([a.magick, path, "-coalesce", "-depth", "8", "rgb:-"], capture_output=True, timeout=120).stdout
-            want = b"".join(bytes(pal[i]) for f in frames for i in f)
+            want = b"".join(bytes(pal[i]) for f, pal in zip(frames, shown) for i in f)
             check = "decodes to the rendered frames" if got == want else "DECODE MISMATCH"
             bad += got != want
         print(f"{name}.gif: {n} frames, {r['L']} s, {os.path.getsize(path)} bytes, "

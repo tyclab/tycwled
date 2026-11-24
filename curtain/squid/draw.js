@@ -14,6 +14,11 @@ const LOOK = {
   // round) and the back's level. Column 0 faces the wall behind both balls, so the front is 10, the column opposite
   // (operator, 2026-11-24 test: "green atz wall directly behuind", "blue circles straight up front").
   ball: { front: 10, span: 2 / 3, backLevel: .35 },
+  // The GLORBs' arm waves. delay: the lamp's own frame time (fps 42 in its cfg, 43 a second in /json/info); the file
+  // stores it as 2 cs, under one tick, so the Image effect shows each frame for exactly one tick. L: one wave, as
+  // LOOK.arms. floor: the glow between crests as a share of the crest in light; below it one output step at the
+  // presets' brightness 45 (2 counts) is more than a fifth of an LED's light.
+  glorb: { L: 2, delay: 1 / 43, floor: .25 },
 };
 const css = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 const mix = (a, b, u) => [0, 1, 2].map(i => a[i] + (b[i] - a[i]) * u);
@@ -299,9 +304,15 @@ function ball(L, delay, look) {
     }
   } };
 }
-// The arm waves on the ball run out from the front's centre over the sphere, the gradient across the front.
-const ballArms = () => ball(LOOK.arms.L, LOOK.arms.delay, (u, d, t) => [grad((u + 1) / 2), .08 + .92 * Math.pow(.5 + .5
-  * Math.sin(d * TAU * LOOK.arms.waves / (Math.min(1, LOOK.ball.span) * Math.PI) - TAU * t / LOOK.arms.L), 3)]);
+// The arm waves on the ball run out from the front's centre over the sphere, the gradient across the front. The level
+// is set in light, a crest half a wave wide over the floor, and drawn as its 2.8th root, which the file's 2.8 table
+// turns back into that light; every LED then moves by at most one output step a frame (tests/test_squid_gifs.py).
+// One colour table for the whole loop would round the levels by more than that step: each frame carries its own.
+const ballArms = () => {
+  const { L, delay, floor } = LOOK.glorb, k = TAU * LOOK.arms.waves / (Math.min(1, LOOK.ball.span) * Math.PI);
+  return { ...ball(L, delay, (u, d, t) => [grad((u + 1) / 2),
+    Math.pow(floor + (1 - floor) * (.5 + .5 * Math.sin(d * k - TAU * t / L)), 1 / 2.8)]), frameTables: true };
+};
 const ballTyc = () => ball(LOOK.tyc.L, LOOK.tyc.delay, (u, d, t) => [poles((u + 1) / 4 - t / LOOK.tyc.L), 1]);
 
 // Files for fleet/squid/: per lamp the arm waves (the Squid looks) and TycStation (button 7); the cube (288 x 1) runs

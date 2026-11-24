@@ -34,10 +34,10 @@ def c_array(name):
 
 
 def gif_decode(raw):
-    """Frames of a GIF as mkgifs.py writes them (global table, whole frames) -> [bytes of RGB]."""
+    """Frames of a GIF as mkgifs.py writes them (one table for the loop or one per frame, whole frames) -> [bytes of RGB]."""
     w, h, flags = int.from_bytes(raw[6:8], "little"), int.from_bytes(raw[8:10], "little"), raw[10]
-    size = 3 * (2 << (flags & 7))
-    table, pos, frames = raw[13:13 + size], 13 + size, []
+    size = 3 * (2 << (flags & 7)) if flags & 0x80 else 0
+    loop_table, pos, frames = raw[13:13 + size], 13 + size, []
     while raw[pos] != 0x3B:
         if raw[pos] == 0x21:
             pos += 2
@@ -45,7 +45,10 @@ def gif_decode(raw):
                 pos += raw[pos] + 1
             pos += 1
             continue
-        assert raw[pos] == 0x2C and not raw[pos + 9] & 0x80, "whole frames on the global table only"
+        assert raw[pos] == 0x2C and (raw[pos + 9] & 0x80 or loop_table), "whole frames, each with a table"
+        table, own = loop_table, 3 * (2 << (raw[pos + 9] & 7)) if raw[pos + 9] & 0x80 else 0
+        if own:
+            table, pos = raw[pos + 10:pos + 10 + own], pos + own
         mcs, pos, data = raw[pos + 10], pos + 11, bytearray()
         while raw[pos]:
             data += raw[pos + 1:pos + 1 + raw[pos]]
