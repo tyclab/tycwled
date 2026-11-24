@@ -1,5 +1,6 @@
 """The committed look GIFs: the size each lamp's Image effect plays unscaled, animated, looping, and never pale."""
 import os
+import re
 import sys
 import unittest
 
@@ -26,6 +27,9 @@ GIFS = {
     "fleet/squid/tycstation-8x8.gif": (8, 8, 80, 2.8), "fleet/squid/tycstation-30x16.gif": (30, 16, 80, 2.8),
     "fleet/squid/tycstation-288x1.gif": (288, 1, 80, 1),
 }
+# Column 0 faces the wall behind both GLORBs and column 10, opposite it, the room (operator, 2026-11-24 test:
+# "green atz wall directly behuind", "blue circles straight up front").
+ROOM_COLUMN = 10
 
 
 def read(path):
@@ -63,6 +67,21 @@ class SquidGifs(unittest.TestCase):
             with self.subTest(path=path):
                 shown = {tuple(frame[i:i + 3]) for frame in gif_decode(read(path)) for i in range(0, len(frame), 3)}
                 self.assertEqual(mkgifs.pale_entries(sorted(shown), gamma), [])
+
+    def test_a_glorbs_front_display_faces_the_room(self):
+        # The front display is the block of columns lit above half the brightest; the back mirrors it dimmed.
+        for path in ("fleet/squid/squid-arms-20x6.gif", "fleet/squid/tycstation-20x6.gif"):
+            with self.subTest(path=path):
+                light = [0] * 20
+                for frame in gif_decode(read(path)):
+                    for i in range(0, len(frame), 3):
+                        light[i // 3 % 20] += sum(frame[i:i + 3])
+                lit = [x for x in range(20) if light[x] > max(light) / 2]
+                self.assertEqual(lit, list(range(lit[0], lit[-1] + 1)), "one block, not round column 0")
+                self.assertEqual((lit[0] + lit[-1]) / 2, ROOM_COLUMN)
+        with open(os.path.join(ROOT, "curtain", "squid", "draw.js")) as f:
+            front = re.search(r"ball: \{ front: (\d+),", f.read())
+        self.assertEqual(int(front.group(1)), ROOM_COLUMN, "LOOK.ball.front in draw.js")
 
     def test_the_check_finds_white_lavender_and_a_pale_wire_value(self):
         self.assertEqual(mkgifs.pale_entries([(0, 0, 0), (255, 255, 255), (180, 140, 245), (90, 162, 255)], 2.8),

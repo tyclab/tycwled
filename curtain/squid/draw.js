@@ -10,9 +10,10 @@ const LOOK = {
   mark: { L: 8, delay: .1, sway: 5, blinkAt: 5.2 },
   // The arm waves: one wave period per loop, `waves` waves from the middle to each end.
   arms: { L: 2, delay: .05, waves: 2 },
-  // A GLORB: the column its front faces (0-19), the share of each side the front display covers (1 = all round),
-  // and the level the back mirrors the front at.
-  ball: { front: 0, span: 2 / 3, backLevel: .35 },
+  // A GLORB: the column at the centre of its front display, the share of each side that display covers (1 = all
+  // round) and the back's level. Column 0 faces the wall behind both balls, so the front is 10, the column opposite
+  // (operator, 2026-11-24 test: "green atz wall directly behuind", "blue circles straight up front").
+  ball: { front: 10, span: 2 / 3, backLevel: .35 },
 };
 const css = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 const mix = (a, b, u) => [0, 1, 2].map(i => a[i] + (b[i] - a[i]) * u);
@@ -282,15 +283,16 @@ function tycFlow(w, h, lampGamma = 2.8) {
 }
 
 // A GLORB: a 20 x 6 raster whose ledmap keeps rings of 5, 15, 20, 20, 15 and 5 LEDs, row y a ring at latitude
-// π(.5 - (y + .5) / 6), column x at longitude 2π(x + .5) / 20, as the lightshow places it (lightshow #124). look(u, d, t)
+// π((y + .5) / 6 - .5), row 0 at the bottom (operator, 2026-11-24: "red bottom blue top half fort both."), column x at
+// longitude 2π(x + .5) / 20, as the lightshow places it (lightshow #124). look(u, d, t)
 // gives [colour, level] at u, -1 to 1 across the front display, d the angle from the front's centre. A back LED shows
 // its mirror image on the front (operator, 2026-11-09: "a 'front' display and backside ambient"). Colour gamma 1.0.
 function ball(L, delay, look) {
   const { front, span, backLevel } = LOOK.ball, half = Math.min(1, span) * Math.PI;
   return { w: 20, h: 6, lampGamma: 1, L, delay, draw(g, t) {
     for (let y = 0; y < 6; y++) for (let x = 0; x < 20; x++) {
-      let a = frac((x - front) / 20 + .5) * TAU - Math.PI;
-      const back = Math.abs(a) > half, lat = Math.PI * (.5 - (y + .5) / 6);
+      let a = frac((x - front + 20) % 20 / 20 + .5) * TAU - Math.PI;
+      const back = Math.abs(a) > half, lat = Math.PI * ((y + .5) / 6 - .5);
       if (back) a = Math.sign(a) * (Math.PI - Math.abs(a));
       const [c, v] = look(a / half, Math.acos(Math.cos(lat) * Math.cos(a)), t);
       g.fillStyle = css(c, v * (back ? backLevel : 1)); g.fillRect(x, y, 1, 1);
