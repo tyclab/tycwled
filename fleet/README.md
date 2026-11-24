@@ -118,12 +118,14 @@ HyperCube's strip). Each matches its segment's size, so WLED plays it unscaled.
 the GLORB's front are the `LOOK` block at the top of `curtain/squid/draw.js`. The Image effect plays
 on one segment per controller.
 
-A GLORB's files are drawn on the ball: row y is a ring at latitude π(0.5 − (y + 0.5)/6), column x a
-longitude 2π(x + 0.5)/20, as the lightshow places it (lightshow #124). The front display covers
-`LOOK.ball.span` of each side round `LOOK.ball.front` (column 0 for now: which way a ball's column 0
-faces is not recorded); every LED behind shows its mirror image on the front at `LOOK.ball.backLevel`
-(operator, 2026-11-09: "a 'front' display and backside ambient"). The arm waves run out from the
-front's centre over the sphere.
+A GLORB's files are drawn on the ball: row y is a ring at latitude π((y + 0.5)/6 − 0.5), column x a
+longitude 2π(x + 0.5)/20, as the lightshow places it (lightshow #124). Row 0 is at the bottom and
+column 0 faces the wall behind the ball, on both GLORBs (operator, 2026-11-24, with column 0 green,
+column 10 blue and rows 0 to 2 red: "green atz wall directly behuind", "blue circles straight up
+front", "red bottom blue top half fort both."). The front display covers `LOOK.ball.span` of each
+side round `LOOK.ball.front`, column 10, the one facing the room; one file serves both balls. Every
+LED behind shows its mirror image on the front at `LOOK.ball.backLevel` (operator, 2026-11-09: "a
+'front' display and backside ambient"). The arm waves run out from the front's centre over the sphere.
 
 No look carries white or a pale colour (operator, 2026-11-18: "no white except it is white really
 selected"; pale as the lightshow's `isPale`: the lowest channel half the highest or more). Canvas and

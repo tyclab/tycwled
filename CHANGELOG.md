@@ -228,6 +228,12 @@ bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 
 
 ### Fixed
 
+- The GLORBs' looks face the room: their front display was centred on column 0, which faces the wall
+  behind both balls (operator's optical test, 2026-11-24: "green atz wall directly behuind", "blue
+  circles straight up front"), so the room saw the dimmed back. `LOOK.ball.front` is column 10 now;
+  `squid-arms-20x6.gif` and `tycstation-20x6.gif` are their previous frames turned by 10 columns, pixel
+  for pixel, and every other GIF is unchanged. Row 0 is the bottom ring ("red bottom blue top half fort
+  both."); the looks are the same both ways up, so only the docs change for it.
 - `wledlab.py install --cfg` restarts the lamp once when the write changes `nw.espnow`, `wifi.sleep`,
   `wifi.txpwr`, `id.mdns` or `id.inv`, which WLED 16 uses only when it connects, and puts back what the lamp
   showed. TycDodecaLinks and TycDodecaRechts came with ESP-NOW off, got it from their install on 2026-11-20
