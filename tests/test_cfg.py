@@ -72,7 +72,16 @@ class Overlays(unittest.TestCase):
         for path in sorted(CONTROLLERS):
             cfg = self.load(path)
             self.assertEqual(cfg["um"]["Syslog"]["hostname"], cfg["id"]["mdns"], path)
-            self.assertIs(cfg["ota"]["same-subnet"], False, path)
+        # The cube too: tycpve's flash uploads from another subnet, and WLED refuses that upload while this is true.
+        for path in sorted({*CONTROLLERS, CUBE}):
+            self.assertIs(self.load(path)["ota"]["same-subnet"], False, path)
+
+    def test_every_dodeca_output_is_limited_to_at_most_6_a(self):
+        # 6000 mA per lamp is the limit of 2026-11-18 (480 LEDs on one supply). A bound: a lower limit passes, none
+        # (0) and a higher one do not.
+        for path in DODECA:
+            for output in self.load(path)["hw"]["led"]["ins"]:
+                self.assertTrue(0 < output["maxpwr"] <= 6000, (path, output["maxpwr"]))
 
     def test_no_lamp_switches_itself_on_when_power_comes_back(self):
         # Operator, 2026-11-19, on a lamp lit after a power cut: "if we have power outage this happens and this an
