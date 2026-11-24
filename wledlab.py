@@ -1166,7 +1166,8 @@ def remap_restored_look(before, old, new):
 
 
 def restore_look(host, before):
-    """Put back power, brightness, segments and the preset marker as read before the presets were recalled; False when they do not read back."""
+    """Put back power, brightness, segments with their names and the preset marker as read before the presets were
+    recalled; False when they do not read back."""
     request = look_request(before)
     post(host, "/json/state", request)
     time.sleep(1.5)
@@ -1177,6 +1178,9 @@ def restore_look(host, before):
     if "seg" in request:
         same = same and after.get("bri") == before.get("bri") and all(
             now.get(seg.get("id"), {}).get(key) == seg.get(key) for seg in request["seg"] for key in SEGMENT_KEYS if key in seg)
+        # The name is the GIF an Image look plays, the only field two such looks differ in; WLED reports no "n" for a
+        # segment without a name (json.cpp serializeSegment), and look_request writes "" for it.
+        same = same and all(now.get(seg.get("id"), {}).get("n", "") == seg["n"] for seg in request["seg"])
         same = same and (before.get("ps", -1) <= 0 or after.get("ps") == before["ps"])
     print("look restored:", "OK" if same else "MISMATCH")
     return same

@@ -27,7 +27,7 @@ class Lamp:
 
     def __init__(self):
         self.files, self.calls, self.frozen, self.deaf, self.stuck, self.drops, self.mute = {}, [], False, False, False, 0, 0
-        self.live_stream, self.restarts = False, 0
+        self.live_stream, self.restarts, self.nameless = False, 0, False
         # Custom palettes as loadCustomPalettes (colors.cpp) left them, and how many deletes the filesystem loses.
         self.palettes, self.lost, self.keeps_list = 0, 0, False
         self.state = {"on": True, "bri": 100, "ps": -1, "pl": -1, "transition": 7, "seg": [segment(191)]}
@@ -134,7 +134,12 @@ class Lamp:
         elif "seg" in body and not self.deaf:
             if any("fx" in seg for seg in body["seg"]):
                 self.state["pl"] = -1
-            self.state.update(on=body["on"], bri=body["bri"], ps=body.get("pd", -1), seg=copy.deepcopy(body["seg"]),
+            segs = copy.deepcopy(body["seg"])
+            if self.nameless:
+                # The names do not take: each segment keeps the GIF it played.
+                for seg, old in zip(segs, self.state["seg"]):
+                    seg["n"] = old.get("n", "")
+            self.state.update(on=body["on"], bri=body["bri"], ps=body.get("pd", -1), seg=segs,
                               transition=body.get("transition", self.state["transition"]))
 
     def live(self, host, seconds):
@@ -421,6 +426,22 @@ class Install(unittest.TestCase):
         self.lamp.deaf = True
         with self.assertRaisesRegex(SystemExit, "did not come back"):
             wledlab._cmd_install(self.args)
+
+    def test_a_look_that_comes_back_with_another_gif_fails(self):
+        # Two Image looks differ only in the segment's name, the GIF it plays: the check of the look put back must
+        # read the name, or the last recalled preset's GIF stays on the lamp under "look restored: OK".
+        self.lamp.state["seg"], self.lamp.nameless = [segment(53, "tycstation.gif")], True
+        with self.assertRaisesRegex(SystemExit, "did not come back"):
+            wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.state["seg"][0]["n"], "squid-eyes.gif")
+
+    def test_a_look_without_a_name_comes_back_without_one(self):
+        # WLED reports no "n" for a segment without a name (json.cpp serializeSegment); the restore writes "" for it.
+        self.lamp.state["seg"] = [{k: v for k, v in segment(191).items() if k != "n"}]
+        before = copy.deepcopy(self.lamp.state)
+        wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.calls[-1][1]["seg"][0]["n"], "")
+        self.assertEqual(wledlab.get("lamp", "/json/state")["seg"], before["seg"])
 
     def test_files_and_presets_already_on_the_lamp_are_not_sent_or_recalled(self):
         wledlab._cmd_install(self.args)

@@ -238,6 +238,10 @@ bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 
 
 ### Fixed
 
+- `wledlab.py install` checks the name of every segment it puts back, the GIF an Image look plays. Two
+  Image looks differ only in that name, and the check compared the effect fields alone, so a lamp left on
+  the last recalled preset's GIF still read "look restored: OK" (reproduced with the repo's fake lamp).
+  WLED 16.0.1 writes and reports the name (json.cpp), though its own `differs()` does not compare it.
 - The GLORBs' looks face the room: their front display was centred on column 0, which faces the wall
   behind both balls (operator's optical test, 2026-11-24: "green atz wall directly behuind", "blue
   circles straight up front"), so the room saw the dimmed back. `LOOK.ball.front` is column 10 now;
