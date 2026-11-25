@@ -1341,14 +1341,27 @@ def _cmd_install(a, access=None):
     if a.palette and info.get("cpalcount", 0) < len(a.palette):
         sys.exit(f"custom palettes: lamp reports {info.get('cpalcount')}, uploaded {len(a.palette)}")
     if recall:
-        want = json.load(open(a.presets)); bad, off = [], []
+        want = json.load(open(a.presets)); bad, off, taken = [], [], []
         keys = SEGMENT_KEYS
+        shown = get(a.host, "/json/state").get("ps", -1)
         for k, v in want.items():
             if not v:
                 continue
-            post(a.host, "/json/state", {"on": True, "ps": int(k)}); time.sleep(1.5)  # outlast the preset's own transition
-            state = get(a.host, "/json/state"); segs = state["seg"]
+            # A lamp that names another preset than the one recalled gets the recall once more: something else may
+            # have recalled a look of its own in between, which says nothing about this preset (2026-11-25: Home
+            # Assistant's theme rule set an Exoy lamp to its theme look one second after the recall of preset 125).
+            before = shown
+            for _ in range(2):
+                post(a.host, "/json/state", {"on": True, "ps": int(k)}); time.sleep(1.5)  # outlast the preset's own transition
+                state = get(a.host, "/json/state"); shown = state.get("ps", -1)
+                if shown in (-1, int(k)) or state.get("pl") == int(k):
+                    break
+            segs = state["seg"]
             ok, note = not state.get("error"), f" error {state['error']}" if state.get("error") else ""
+            if shown not in (-1, int(k), before) and state.get("pl") != int(k):
+                # Neither this preset nor the one shown before it, twice: the lamp shows what something else recalls.
+                ok, note = False, note + f" preset {shown} was recalled by something else during the check"
+                taken.append(k)
             if not state.get("on") and v.get("on") is not False:
                 # The recall switched the lamp on and something else switched it off again: nothing moves on a lamp
                 # that is off, so the check below would measure that, not the preset. A preset that switches the lamp
@@ -1384,7 +1397,9 @@ def _cmd_install(a, access=None):
         if bad:
             sys.exit(f"presets {bad} do not show on the lamp as written" + (
                 f"; the lamp was switched off during the check of {off} (a home automation or a remote): run "
-                "again when nothing switches it off" if off else ""))
+                "again when nothing switches it off" if off else "") + (
+                f"; another look was recalled during the check of {taken} (a home automation or a remote): run "
+                "again when nothing changes the look" if taken else ""))
         if not restored:
             sys.exit("the look from before the install did not come back")
 
