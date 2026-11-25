@@ -121,12 +121,11 @@ class Host(unittest.TestCase):
                 for on, off in zip(self.render(fx, w, h, 0.3, 0.7, 6), self.render(fx, w, h, 0.3, 0.7, 6, gamma=False)):
                     self.assertEqual(off, bytes(T28[v] for v in on))
 
-    def assertFramesAlign(self, got, want, select=lambda frame: frame, encoded=False):
+    def assertFramesAlign(self, got, want, select=lambda frame: frame):
         # each rendered frame is closest to the drawing's frame of the same time, on the wire of a 2.8 lamp
-        table = range(256) if encoded else T28
-        wire = [[table[v] for v in select(f)] for f in want]
+        wire = [[T28[v] for v in select(f)] for f in want]
         for i, frame in enumerate(got):
-            mine = [table[v] for v in select(frame)]
+            mine = [T28[v] for v in select(frame)]
             dist = [sum(abs(a - b) for a, b in zip(mine, other)) for other in wire]
             self.assertEqual(dist.index(min(dist)), i, f"frame {i}")
 
@@ -149,13 +148,11 @@ class Host(unittest.TestCase):
                     self.assertLessEqual(max(abs(a - b) for a, b in zip(frame, want)), 1)
 
     def test_arms_follow_the_committed_gifs(self):
-        # The cube's 288x1 file holds wire values (it runs colour gamma 1.0), so its gamma-off render is compared as it
-        # is. The GLORBs' 20x6 file is drawn on the ball, which this effect does not do.
-        for path, w, h in (("squid-arms-300x1.gif", 300, 1), ("squid-arms-8x8.gif", 8, 8), ("squid-arms-288x1.gif", 288, 1),
-                           ("squid-arms-30x16.gif", 30, 16)):
+        # The GLORBs' 20x6 file is drawn on the ball, which this effect does not do.
+        for path, w, h in (("squid-arms-300x1.gif", 300, 1), ("squid-arms-8x8.gif", 8, 8), ("squid-arms-30x16.gif", 30, 16)):
             with self.subTest(path=path), open(os.path.join(ROOT, "fleet", "squid", path), "rb") as f:
-                want, wire = gif_decode(f.read()), w == 288
-                self.assertFramesAlign(self.render("arms", w, h, 0, 0.05, len(want), gamma=not wire), want, encoded=wire)
+                want = gif_decode(f.read())
+                self.assertFramesAlign(self.render("arms", w, h, 0, 0.05, len(want)), want)
 
     def test_skin_follows_the_committed_gif_where_the_squid_is_absent(self):
         # squid-skin.gif draws the squid from 2.6 s to 10.6 s of its 12; before and after, the frames are the skin alone

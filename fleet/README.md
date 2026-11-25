@@ -110,10 +110,11 @@ the filesystem, but a new WLED version can migrate its configuration schema on b
 Image effect, one per lamp shape: `squid-arms-<size>.gif`, the squid's arm waves, and
 `tycstation-<size>.gif`, the TycStation look: the website's gradient (`--blue`, `--violet` between,
 `--red`) running out and back along the lamp (operator, 2026-11-23: "THeme of tycstation follfolws the
-website theme", "red blue"). The sizes: `300x1` (the couch strip as one 300-LED segment), `20x6` (a
-GLORB's raster), `8x8` (the Moon), `30x16` (an Exoy lamp's 30×16 matrix: X is the edge, so every edge
-shows one colour along its 16 LEDs and the looks run through the edges in wire order) and `288x1` (the
-HyperCube's strip). Each matches its segment's size, so WLED plays it unscaled.
+website theme", "red blue"). The arm waves come in `300x1` (the couch strip as one 300-LED segment),
+`20x6` (a GLORB's raster), `8x8` (the Moon) and `30x16` (an Exoy lamp's 30×16 matrix: X is the edge, so
+every edge shows one colour along its 16 LEDs and the waves run through the edges in wire order);
+TycStation in `20x6` and `8x8`, on the GLORBs' and the Moon's button 7 (the couch and the Exoys keep
+their own looks there). Each matches its segment's size, so WLED plays it unscaled.
 `curtain/squid/mkgifs.py` draws them together with the curtain's loops; their loop times, speeds and
 the GLORB's front are the `LOOK` block at the top of `curtain/squid/draw.js`. The Image effect plays
 on one segment per controller.
@@ -144,10 +145,9 @@ violet and between violet and red, so `mkgifs.py` holds every drawn colour at le
 committed GIF on its lamp's gamma.
 
 The files are drawn for a lamp that applies WLED's output gamma of 2.8, as the curtain, the
-couch, the Moon and the Exoy lamps do. The GLORBs run gamma 1.0 (`glorb/wled16-port/cfg-overrides.json`)
-and the HyperCube colour gamma 1.0, so their `20x6` and `288x1` files hold the values that table gives
-the other lamps: every lamp then puts the same values on the wire. A lamp whose gamma setting changes
-needs its file regenerated.
+couch, the Moon and the Exoy lamps do. The GLORBs run gamma 1.0 (`glorb/wled16-port/cfg-overrides.json`),
+so their `20x6` files hold the values that table gives the other lamps: every lamp then puts the same
+values on the wire. A lamp whose gamma setting changes needs its file regenerated.
 
 ## TycStation effects
 
@@ -432,13 +432,13 @@ Presets 1 to 7 are the remote's looks on every lamp. The curtain uses this order
 
 Squid Eyes stays available as preset 8 in WLED and Home Assistant. The old curtain presets 2
 and 3 were identical; their single remaining copy is 6. On the couch, the Moon, the GLORBs and
-the Exoys, slots 1–5 and 8 play the squid's arm waves with matching names, 7 "TycStation" plays the
-lamp's `tycstation-<size>.gif` (since 2026-11-23), and 6 shows the lamp's own look (on the Exoys Edge
-Twinklefox). The Exoys follow the rule since 2026-11-18 (operator: "fully integrate both into house
-modes etc. also on remotes"): the looks that stood on their squid slots and on 7 keep their names and
-fields in 23 to 29 (Exoy both from 1, Edge Flow from 2, Edge Aurora from 3, Edge Pacifica from 4,
-Edge Plasma from 5, Edge Comets from 8, Edge Colorwaves from 7), and the boot playlist 20 plays the
-same ten looks in the same order.
+the Exoys, slots 1–5 and 8 play the squid's arm waves with matching names and 6 shows the lamp's own
+look (on the Exoys Edge Twinklefox). On the Moon and the GLORBs 7 "TycStation" plays the lamp's
+`tycstation-<size>.gif` (since 2026-11-23); the couch and the Exoys keep their own look on 7 (DJ Light,
+Edge Colorwaves). The Exoys follow the rule since 2026-11-18 (operator: "fully integrate both into house
+modes etc. also on remotes"): the looks that stood on their squid slots keep their names and fields in
+23 to 28 (Exoy both from 1, Edge Flow from 2, Edge Aurora from 3, Edge Pacifica from 4, Edge Plasma
+from 5, Edge Comets from 8), and the boot playlist 20 plays the same ten looks in the same order.
 
 The GLORBs' installed presets are [`overlays/glorb-presets.json`](overlays/glorb-presets.json).
 Every port look (`glorb/wled16-port/presets.json`, the factory's field for field) is preserved:
@@ -612,9 +612,9 @@ right side. The door glass spans about 20.5–38.5. In ledmap columns string 20 
 [`tycstation.gif`](../curtain/tycstation.gif) is the TycStation Krake mark (the site's
 `favicon.svg` without its tile), about 46 × 40 cells from x 13, y 1 of a 68 × 42 frame, so it
 sits centred on the door in the ledmap grid. Since 2026-11-23 `curtain/squid/mkgifs.py` draws it
-(`LOOPS.t` in `draw.js`, timing in `LOOK.mark`): the website's gradient drifts out and back across
-the mark, its arms sway and it blinks once per loop; the eyes take the gradient too, not the
-favicon's pale `#b48cf5`. WLED's Image effect (fx 53) draws the GIF named by its segment, so the
+(`LOOPS.t` in `draw.js`): one still frame, the mark's own arms in the website's gradient (`MARK`:
+`--blue`, `--violet` at 48 %, `--red`) from left to right; the eyes take the gradient too, not the
+favicon's pale `#b48cf5`. It has no frame delay and does not move. WLED's Image effect (fx 53) draws the GIF named by its segment, so the
 segment is named `tycstation.gif`; [`presets.json`](../curtain/presets.json) keeps that as preset 7
 "TycStation", which Home Assistant's Evening look "TycStation" recalls. tycpve's `wled:install`
 puts both on the curtain.

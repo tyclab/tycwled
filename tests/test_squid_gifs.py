@@ -1,4 +1,4 @@
-"""The committed look GIFs: the size each lamp's Image effect plays unscaled, animated, looping, and never pale."""
+"""The committed look GIFs: the size each lamp's Image effect plays unscaled, the frame count, looping, and never pale."""
 import json
 import os
 import re
@@ -13,20 +13,17 @@ import mkgifs  # noqa: E402
 import wledlab  # noqa: E402
 from test_tycstation_fx import gif_decode  # noqa: E402
 
-# file -> (width, height, frames, the lamp's colour gamma): the curtain's ledmap, the couch strip, a GLORB's raster,
-# the Moon's matrix, an Exoy lamp's matrix (30 edges of 16 LEDs), the cube's strip. A lamp at gamma 1.0 (the GLORBs,
-# the cube) gets the 2.8 table's values in the file.
+# file -> (width, height, frames, the lamp's colour gamma): the curtain's ledmap (its TycStation logo one still frame),
+# the couch strip, a GLORB's raster, the Moon's matrix, an Exoy lamp's matrix (30 edges of 16 LEDs). A lamp at gamma
+# 1.0 (the GLORBs) gets the 2.8 table's values in the file.
 GIFS = {
     "curtain/squid-breathing.gif": (68, 42, 200, 2.8), "curtain/squid-ink.gif": (68, 42, 120, 2.8),
     "curtain/squid-deepsea.gif": (68, 42, 200, 2.8), "curtain/squid-eyes.gif": (68, 42, 200, 2.8),
     "curtain/squid-skin.gif": (68, 42, 120, 2.8), "curtain/squid-skin-water.gif": (68, 42, 128, 2.8),
-    "curtain/tycstation.gif": (68, 42, 80, 2.8),
+    "curtain/tycstation.gif": (68, 42, 1, 2.8),
     "fleet/squid/squid-arms-300x1.gif": (300, 1, 40, 2.8), "fleet/squid/squid-arms-20x6.gif": (20, 6, 86, 1),
     "fleet/squid/squid-arms-8x8.gif": (8, 8, 40, 2.8), "fleet/squid/squid-arms-30x16.gif": (30, 16, 40, 2.8),
-    "fleet/squid/squid-arms-288x1.gif": (288, 1, 40, 1),
-    "fleet/squid/tycstation-300x1.gif": (300, 1, 80, 2.8), "fleet/squid/tycstation-20x6.gif": (20, 6, 80, 1),
-    "fleet/squid/tycstation-8x8.gif": (8, 8, 80, 2.8), "fleet/squid/tycstation-30x16.gif": (30, 16, 80, 2.8),
-    "fleet/squid/tycstation-288x1.gif": (288, 1, 80, 1),
+    "fleet/squid/tycstation-20x6.gif": (20, 6, 80, 1), "fleet/squid/tycstation-8x8.gif": (8, 8, 80, 2.8),
 }
 # Column 0 faces the wall behind both GLORBs and column 10, opposite it, the room (operator, 2026-11-24 test:
 # "green atz wall directly behuind", "blue circles straight up front").
