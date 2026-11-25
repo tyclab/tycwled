@@ -140,7 +140,9 @@ class Lamp:
             if "playlist" in preset and not self.stuck:
                 playlist, preset = body["ps"], presets[str(preset["playlist"]["ps"][0])]
             if "seg" in preset:
-                self.state.update(on=True, ps=body["ps"] if playlist < 0 else presets[str(playlist)]["playlist"]["ps"][0],
+                # A preset is applied as a state body of its own (presets.cpp, json.cpp deserializeState): its "on"
+                # wins over the recall's.
+                self.state.update(on=preset.get("on", True), ps=body["ps"] if playlist < 0 else presets[str(playlist)]["playlist"]["ps"][0],
                                   seg=copy.deepcopy(preset["seg"]))
             self.state["pl"] = playlist
             self.drew(changed)
@@ -507,6 +509,16 @@ class Install(unittest.TestCase):
         self.lamp.switched_off_again = True
         with self.assertRaisesRegex(SystemExit, "switched off during the check"):
             wledlab._cmd_install(self.args)
+
+    def test_a_preset_that_switches_the_lamp_off_is_not_taken_for_a_lamp_switched_off(self):
+        # 2026-11-25: the couch's preset 250 "Boot layout (off)" carries "on": false and failed the check above.
+        presets = json.load(open(self.presets)) | {"250": {"n": "Boot layout (off)", "on": False, "seg": [segment(191)]}}
+        with open(self.presets, "w") as f:
+            json.dump(presets, f)
+        before = copy.deepcopy(self.lamp.state)
+        wledlab._cmd_install(self.args)
+        self.assertIn(("post", {"on": True, "ps": 250}), self.lamp.calls)
+        self.assertEqual(self.lamp.state, before)
 
     def test_files_and_presets_already_on_the_lamp_are_not_sent_or_recalled(self):
         wledlab._cmd_install(self.args)

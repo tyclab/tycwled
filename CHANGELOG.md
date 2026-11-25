@@ -244,7 +244,8 @@ bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 
   library). A segment that plays a file about to change now gets another effect with no transition before
   the upload, which resets it also on a lamp that is off, and its look back afterwards. A preset check on
   a lamp that something else switched off again now fails with that reason instead of "1 different
-  liveview frames": on 2026-11-24 a home automation switched a GLORB off about 70 ms after each recall.
+  liveview frames": on 2026-11-24 a home automation switched a GLORB off about 70 ms after each recall. A
+  preset that switches the lamp off itself (`"on": false`, the couch's boot layout) is left out of that.
 - `wledlab.py install` checks the name of every segment it puts back, the GIF an Image look plays. Two
   Image looks differ only in that name, and the check compared the effect fields alone, so a lamp left on
   the last recalled preset's GIF still read "look restored: OK" (reproduced with the repo's fake lamp).
