@@ -23,11 +23,22 @@ class Lamp:
     does (json.cpp, led.cpp, presets.cpp, playlist.cpp): "ps" names the preset shown unchanged, a segment write clears
     it unless "pd" names it, and "transition" stays as the lamp's setting while "tt" applies once. A preset that holds
     a playlist starts it: the lamp reports its id as "pl" and shows the playlist's first entry. Recalling a preset or
-    writing a segment with an effect ends a running playlist."""
+    writing a segment with an effect ends a running playlist. A segment write sets the fields it names on the segment
+    with its id.
+
+    The Image effect as WLED 16.0.1 runs it (wled.cpp, FX_fcn.cpp, image_loader.cpp, AnimatedGIF 1.4.7 on littlefs):
+    the lamp draws while it is on, or once after a write that changed the state; a new effect resets the segment and
+    ends the playback; a draw of the Image effect opens its file when the segment's name differs from the open one and
+    otherwise reads on through the open handle. A file replaced under that handle keeps its old bytes for it, while
+    the decoder's size comes from the path: at the old end it reads short, fails, and the segment stands still until
+    its name changes or it is reset."""
 
     def __init__(self):
         self.files, self.calls, self.frozen, self.deaf, self.stuck, self.drops, self.mute = {}, [], False, False, False, 0, 0
         self.live_stream, self.restarts, self.nameless = False, 0, False
+        # The Image effect's open file: its name, the bytes its handle reads, and whether decoding has failed. Also
+        # a house rule that switches the lamp off again whenever something switches it on.
+        self.decoder, self.switched_off_again = None, False
         # Custom palettes as loadCustomPalettes (colors.cpp) left them, and how many deletes the filesystem loses.
         self.palettes, self.lost, self.keeps_list = 0, 0, False
         self.state = {"on": True, "bri": 100, "ps": -1, "pl": -1, "transition": 7, "seg": [segment(191)]}
@@ -122,6 +133,7 @@ class Lamp:
             if not self.keeps_list:
                 self.load_palettes()
         elif "ps" in body:
+            changed = self.look()
             presets = json.loads(self.files["/presets.json"])
             preset, playlist = presets[str(body["ps"])], -1
             self.state.update(on=body.get("on", self.state["on"]), bri=body.get("bri", self.state["bri"]))
@@ -131,20 +143,53 @@ class Lamp:
                 self.state.update(on=True, ps=body["ps"] if playlist < 0 else presets[str(playlist)]["playlist"]["ps"][0],
                                   seg=copy.deepcopy(preset["seg"]))
             self.state["pl"] = playlist
+            self.drew(changed)
         elif "seg" in body and not self.deaf:
+            changed = self.look()
             if any("fx" in seg for seg in body["seg"]):
                 self.state["pl"] = -1
-            segs = copy.deepcopy(body["seg"])
-            if self.nameless:
-                # The names do not take: each segment keeps the GIF it played.
-                for seg, old in zip(segs, self.state["seg"]):
-                    seg["n"] = old.get("n", "")
-            self.state.update(on=body["on"], bri=body["bri"], ps=body.get("pd", -1), seg=segs,
-                              transition=body.get("transition", self.state["transition"]))
+            segs = copy.deepcopy(self.state["seg"])
+            for n, write in enumerate(body["seg"]):
+                old = next((seg for seg in segs if seg.get("id") == write.get("id", n)), None)
+                if old is None:
+                    segs.append(copy.deepcopy(write))
+                else:
+                    name = old.get("n", "")
+                    old.update(copy.deepcopy(write))
+                    if self.nameless:
+                        # The names do not take: each segment keeps the GIF it played.
+                        old["n"] = name
+            self.state.update(on=body.get("on", self.state["on"]), bri=body.get("bri", self.state["bri"]),
+                              ps=body.get("pd", -1), seg=segs, transition=body.get("transition", self.state["transition"]))
+            self.drew(changed)
+
+    def look(self):
+        return copy.deepcopy((self.state["on"], self.state["bri"], [seg.get("fx") for seg in self.state["seg"]]))
+
+    def drew(self, before):
+        """After a write: a house rule may switch the lamp off again; the lamp draws if it is on or the write changed
+        its power, brightness or an effect (stateUpdated triggers a draw)."""
+        if self.switched_off_again and self.state["on"]:
+            self.state["on"] = False
+        if self.state["on"] or self.look() != before:
+            self.draw()
+
+    def draw(self):
+        seg = self.state["seg"][0] if self.state["seg"] else {}
+        if seg.get("fx") != 53:  # FX_MODE_IMAGE (FX.h)
+            self.decoder = None
+            return
+        name = "/" + seg.get("n", "")
+        if self.decoder is None or self.decoder["name"] != name:
+            self.decoder = {"name": name, "bytes": self.files.get(name, b""), "failed": False}
+        elif len(self.files.get(name, b"")) != len(self.decoder["bytes"]):
+            self.decoder["failed"] = True
 
     def live(self, host, seconds):
-        name = "/" + self.state["seg"][0].get("n", "")
-        frames = 1 if self.frozen else wledlab.gif_frames(self.files.get(name, b""))
+        self.drew(self.look())
+        d = self.decoder
+        moving = self.state["on"] and d and not d["failed"] and not self.frozen
+        frames = wledlab.gif_frames(d["bytes"]) if moving else 1
         return [(i / 10, [f"{i % max(frames, 1):06x}"]) for i in range(10)]
 
 
@@ -442,6 +487,40 @@ class Install(unittest.TestCase):
         wledlab._cmd_install(self.args)
         self.assertEqual(self.lamp.calls[-1][1]["seg"][0]["n"], "")
         self.assertEqual(wledlab.get("lamp", "/json/state")["seg"], before["seg"])
+
+    def playing_an_older_squid_eyes(self, on):
+        # The lamp plays an earlier squid-eyes.gif of another length, the first preset walked shows the same file, and
+        # nothing between the upload and that preset changes the segment's name or effect (2026-11-24 21:11).
+        with open(os.path.join(ROOT, "curtain", "squid-ink.gif"), "rb") as f:
+            self.lamp.files["/squid-eyes.gif"] = f.read()
+        self.lamp.state.update(on=on, seg=[segment(53, "squid-eyes.gif")])
+        self.lamp.draw()
+        presets = json.load(open(self.presets))
+        with open(self.presets, "w") as f:
+            json.dump({"0": {}, "4": presets["4"], "1": presets["1"]}, f)
+
+    def assert_replaced_with_its_playback_ended(self, on):
+        self.playing_an_older_squid_eyes(on)
+        before = copy.deepcopy(self.lamp.state)
+        wledlab._cmd_install(self.args)
+        with open(os.path.join(ROOT, "curtain", "squid-eyes.gif"), "rb") as f:
+            self.assertEqual(self.lamp.decoder["bytes"], f.read())
+        self.assertFalse(self.lamp.decoder["failed"])
+        self.assertEqual(self.lamp.state, before)
+        upload = self.lamp.calls.index(("upload", "/squid-eyes.gif"))
+        self.assertIn(("post", {"tt": 0, "seg": [{"id": 0, "fx": 0}]}), self.lamp.calls[:upload])
+
+    def test_a_gif_a_lit_lamp_plays_is_not_replaced_under_its_decoder(self):
+        self.assert_replaced_with_its_playback_ended(on=True)
+
+    def test_a_gif_a_lamp_that_is_off_holds_open_is_not_replaced_under_its_decoder(self):
+        self.assert_replaced_with_its_playback_ended(on=False)
+
+    def test_a_lamp_switched_off_during_the_check_says_so(self):
+        # 2026-11-24 21:11: Home Assistant's Away rule switched the GLORB off about 70 ms after each recall.
+        self.lamp.switched_off_again = True
+        with self.assertRaisesRegex(SystemExit, "switched off during the check"):
+            wledlab._cmd_install(self.args)
 
     def test_files_and_presets_already_on_the_lamp_are_not_sent_or_recalled(self):
         wledlab._cmd_install(self.args)

@@ -238,6 +238,14 @@ bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 
 
 ### Fixed
 
+- `wledlab.py install` no longer replaces a GIF under WLED's Image effect. The effect keeps the file it
+  plays open (image_loader.cpp); a file replaced under that handle keeps its old bytes for it while its
+  size is read from the path, so the decoder reads short at the old end, fails, and the segment stands on
+  one frame until its name changes or it is reset (replayed on the host with the GLORB image's GIF
+  library). A segment that plays a file about to change now gets another effect with no transition before
+  the upload, which resets it also on a lamp that is off, and its look back afterwards. A preset check on
+  a lamp that something else switched off again now fails with that reason instead of "1 different
+  liveview frames": on 2026-11-24 a home automation switched a GLORB off about 70 ms after each recall.
 - `wledlab.py install` checks the name of every segment it puts back, the GIF an Image look plays. Two
   Image looks differ only in that name, and the check compared the effect fields alone, so a lamp left on
   the last recalled preset's GIF still read "look restored: OK" (reproduced with the repo's fake lamp).
