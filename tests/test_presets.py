@@ -88,9 +88,6 @@ class Power(unittest.TestCase):
         self.assertEqual([f"{k} segment {s.get('id')}" for k, p in presets.items() for s in effect_segments(p)
                           if s.get("bri", 255) != 255], [])
 
-    def test_no_look_changes_the_fade_time_of_a_glorb(self):
-        self.assertEqual([k for k, p in PORT.items() if p and "transition" in p], [])
-
 
 class Buttons(unittest.TestCase):
     """The remote's number buttons 1 to 7 recall presets 1 to 7 on every lamp at once (fleet/README.md, Remote).

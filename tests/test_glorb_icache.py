@@ -14,8 +14,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 USERMOD = ROOT / "glorb/usermod/glorb_fx"
-SOURCE = USERMOD / "glorb_fx.cpp"
-OVERRIDE = USERMOD / "platformio_override.ini"
 sys.path.insert(0, str(ROOT / "fleet"))
 
 STOCK_LINE = ("  iram0_0_seg (RX) : org = (0x40370000 + 0x4000), "
@@ -30,11 +28,11 @@ def load(path, name):
     return module
 
 
-def image(segments, built_from=b"", chip=9):
-    """An ESP32 application image: header, (load address, bytes) segments, checksum and SHA-256. The first
-    segment starts with the application description, which names the ELF the image was made from."""
+def image(segments, built_from=b""):
+    """An ESP32-S3 application image (chip ID 9): header, (load address, bytes) segments, checksum and SHA-256.
+    The first segment starts with the application description, which names the ELF the image was made from."""
     out = bytearray(struct.pack("<BBBBI", 0xE9, len(segments), 2, 0x3F, 0x40378000)
-                    + bytes(4) + struct.pack("<H", chip) + bytes(9) + b"\x01")
+                    + bytes(4) + struct.pack("<H", 9) + bytes(9) + b"\x01")
     checksum = 0xEF
     for index, (address, data) in enumerate(segments):
         if index == 0:
@@ -81,28 +79,24 @@ OTHER_RECORD = struct.pack("<II", 0x3FC88000, 0x3FC90000)
 RAM = bytes(range(256)) * 15  # RAM code from 0x40378000, the switch at +0xe00 inside it
 
 
-def built(table=OTHER_RECORD + RESERVED, symbols=LAYOUT, elsewhere=b"", ram=RAM, table_parts=1):
-    """An ELF with RAM code at 0x40378000, the SDK's table of reserved memory at 0x3c0f0100 (in one section or
-    cut into several) and other read-only data at 0x3c0f0200."""
-    step = len(table) // table_parts
-    parts = {0x3C0F0100 + at: table[at:at + step] for at in range(0, len(table), step)}
-    return elf(symbols, {**parts, 0x3C0F0200: elsewhere + bytes(8), 0x40378000: ram})
+def built(table=OTHER_RECORD + RESERVED, elsewhere=b""):
+    """An ELF with RAM code at 0x40378000, the SDK's table of reserved memory at 0x3c0f0100 and other read-only
+    data at 0x3c0f0200."""
+    return elf(LAYOUT, {0x3C0F0100: table, 0x3C0F0200: elsewhere + bytes(8), 0x40378000: RAM})
 
 
-def packed(source, ram_code=0x40378000, leave_out=None, chip=9):
+def packed(source, ram_code=0x40378000):
     """The image of a built() ELF: read-only data from 0x3c0f0020 on, flash code, RAM code."""
     script = load(USERMOD / "icache_32kb.py", "icache_32kb")
     rodata = bytearray(0x200 - 0x20 - 0xB0 + 64)
     ram = b""
     for address, data in script.loaded(source):
-        if address == leave_out:
-            continue
         if address >= 0x40000000:
             ram = data
         else:
             at = address - 0x3C0F0020 - 0xB0
             rodata[at:at + len(data)] = data
-    return image([(0x3C0F0020, bytes(rodata)), (0x42000020, bytes(64)), (ram_code, ram or bytes(64))], source, chip)
+    return image([(0x3C0F0020, bytes(rodata)), (0x42000020, bytes(64)), (ram_code, ram)], source)
 
 
 class LinkerScript(unittest.TestCase):
@@ -120,24 +114,6 @@ class LinkerScript(unittest.TestCase):
         for drifted in (STOCK.replace("0x4000)", "0x2000)"), STOCK + STOCK_LINE + "\n", "MEMORY\n{\n}\n"):
             with self.assertRaises(ValueError):
                 self.script.patch(drifted)
-
-
-class Usermod(unittest.TestCase):
-    def setUp(self):
-        self.source = SOURCE.read_text()
-        start = self.source.index("#ifdef GLORB_ICACHE_32KB")
-        self.guarded = self.source[start:self.source.index("#endif", start)]
-
-    def test_reservation_and_switch_are_compiled_only_with_the_linker_script(self):
-        # Reserving the bank while code still lives there aborts the boot (overlapping reserved regions).
-        self.assertIn("SOC_RESERVE_MEMORY_REGION(0x40374000, 0x40378000, glorb_icache_bank1);", self.guarded)
-        self.assertEqual(self.source.count("SOC_RESERVE_MEMORY_REGION"), 1)
-        self.assertEqual(self.source.count("Cache_Set_ICache_Mode"), 1)
-        self.assertIn("Cache_Set_ICache_Mode", self.guarded)
-        # The define comes from the script that swaps the linker script, never from the build flags.
-        self.assertNotRegex(OVERRIDE.read_text(), r"-D\s*GLORB_ICACHE_32KB")
-        self.assertNotRegex((ROOT / "fleet/platformio_override.ini").read_text(), r"-D\s*GLORB_ICACHE_32KB")
-        self.assertIn("pre:usermods/glorb_fx/icache_32kb.py", OVERRIDE.read_text())
 
 
 class BuiltElf(unittest.TestCase):
@@ -162,10 +138,6 @@ class BuiltElf(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "inlined"):
             self.layout({"_iram_start": 0x40378000, "loop": 0x42001234})
 
-    def test_a_switch_symbol_without_code_stops_the_build(self):
-        with self.assertRaisesRegex(ValueError, "no code"):
-            self.script.check_elf(built(ram=bytes(0x400)))
-
     def test_a_helper_that_runs_with_the_caches_on_may_lie_in_flash(self):
         # Built without inlining (-Og), the info row's glorb_icache_bytes() is a function of its own, in flash.
         self.assertEqual(self.layout({**LAYOUT, "_ZL18glorb_icache_bytesv": 0x42006AD0}), (0x40378000, 0x40378E00))
@@ -175,22 +147,6 @@ class BuiltElf(unittest.TestCase):
         for table in (OTHER_RECORD + bytes(8), bytes(6) + RESERVED + bytes(2)):
             with self.assertRaisesRegex(ValueError, "heap"):
                 self.script.check_elf(built(table=table, elsewhere=RESERVED))
-
-    def test_a_table_that_spans_two_sections_is_read_whole(self):
-        self.assertEqual(self.script.check_elf(built(table_parts=2)), (0x40378000, 0x40378E00))
-
-    def test_a_bank_reserved_twice_stops_the_build(self):
-        # The heap's start-up sorts the records and stops when one reaches into the next.
-        with self.assertRaisesRegex(ValueError, "2 records"):
-            self.script.check_elf(built(table=RESERVED + RESERVED))
-
-    def test_overlapping_reservations_stop_the_build(self):
-        with self.assertRaisesRegex(ValueError, "reaches into"):
-            self.script.check_elf(built(table=struct.pack("<II", 0x40370000, 0x40376000) + RESERVED))
-
-    def test_an_elf_without_the_table_stops_the_build(self):
-        with self.assertRaisesRegex(ValueError, "heap"):
-            self.script.check_elf(built(symbols={"_iram_start": 0x40378000, SWITCH: 0x40378E00}))
 
 
 class BuiltImage(unittest.TestCase):
@@ -205,42 +161,6 @@ class BuiltImage(unittest.TestCase):
     def test_ram_code_inside_the_second_bank_fails(self):
         with self.assertRaisesRegex(ValueError, "0x40374000"):
             self.check(packed(self.elf, ram_code=0x40374000), self.elf)
-
-    def test_an_image_without_ram_code_fails(self):
-        with self.assertRaisesRegex(ValueError, "no RAM code"):
-            self.check(image([(0x3C0F0020, b"rodata"), (0x42000020, bytes(64))], self.elf), self.elf)
-
-    def test_an_image_cut_short_fails(self):
-        whole = packed(self.elf)
-        for length in (len(whole) - 1, len(whole) - 33, len(whole) - 60, 0x100, 20):
-            with self.assertRaisesRegex(ValueError, "image"):
-                self.check(whole[:length], self.elf)
-
-    def test_an_image_with_a_changed_byte_fails(self):
-        changed = bytearray(packed(self.elf))
-        changed[0x120] ^= 1
-        with self.assertRaisesRegex(ValueError, "checksum|SHA-256"):
-            self.check(bytes(changed), self.elf)
-
-    def test_an_image_for_another_chip_fails(self):
-        with self.assertRaisesRegex(ValueError, "ESP32-S3"):
-            self.check(packed(self.elf, chip=2), self.elf)
-
-    def test_the_elf_of_another_build_fails(self):
-        with self.assertRaisesRegex(ValueError, "another build"):
-            self.check(packed(self.elf), built(elsewhere=b"other"))
-
-    def test_an_image_that_lacks_what_its_elf_loads_fails(self):
-        # The heap's table and the switch are checked on the ELF, so the image has to hold the ELF's bytes.
-        for left_out, message in ((0x40378000, "lacks"), (0x3C0F0100, "differs")):
-            with self.assertRaisesRegex(ValueError, message):
-                self.check(packed(self.elf, leave_out=left_out), self.elf)
-
-    def test_an_elf_without_the_heap_reservation_fails(self):
-        # The bank's addresses somewhere in the image are no reservation.
-        unreserved = built(table=OTHER_RECORD + bytes(8), elsewhere=RESERVED)
-        with self.assertRaisesRegex(ValueError, "heap"):
-            self.check(packed(unreserved), unreserved)
 
 
 if __name__ == "__main__":

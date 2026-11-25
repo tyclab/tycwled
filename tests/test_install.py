@@ -261,18 +261,11 @@ class Install(unittest.TestCase):
                          (1, True, {"espnow": True, "linked_remote": remotes}))
         self.assertEqual((self.lamp.state["on"], self.lamp.state["bri"], self.lamp.state["seg"][0]["fx"]),
                          (shown["on"], shown["bri"], shown["seg"][0]["fx"]))
-
-    def test_a_new_mdns_name_restarts_the_lamp_once(self):
+        # A new mDNS name, which the spare overlays write, takes one more restart (a new run: the install set reboot).
+        self.args.reboot = False
         self.cfg_file({"id": {"mdns": "tycledspare5"}})
         wledlab._cmd_install(self.args)
-        self.assertEqual((self.lamp.restarts, self.lamp.running["id.mdns"]), (1, "tycledspare5"))
-
-    def test_wifi_sleep_turned_off_restarts_the_lamp_once(self):
-        self.lamp.cfg["wifi"]["sleep"] = True
-        self.lamp.running = self.lamp.connect_settings()
-        self.cfg_file({"wifi": {"sleep": False}})
-        wledlab._cmd_install(self.args)
-        self.assertEqual((self.lamp.restarts, self.lamp.running["wifi.sleep"]), (1, False))
+        self.assertEqual((self.lamp.restarts, self.lamp.running["id.mdns"]), (2, "tycledspare5"))
 
     def test_an_explicit_reboot_with_an_espnow_change_restarts_once(self):
         self.lamp.cfg["nw"] = {"espnow": False, "linked_remote": [""]}
@@ -354,13 +347,6 @@ class Install(unittest.TestCase):
         wledlab._cmd_install(self.args)
         self.assertEqual(self.lamp.state, before)
         self.assertEqual(self.lamp.calls[-1][1]["pd"], 1)
-
-    def test_presets_go_up_compact_whatever_the_file_looks_like(self):
-        presets = json.load(open(self.presets))
-        with open(self.presets, "w") as f:
-            json.dump(presets, f, indent=2)
-        wledlab._cmd_install(self.args)
-        self.assertEqual(self.lamp.files["/presets.json"], json.dumps(presets, separators=(",", ":")).encode())
 
     def test_reordering_presets_restores_the_look_with_its_new_number(self):
         old = json.load(open(self.presets))

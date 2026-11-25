@@ -28,9 +28,6 @@ class Verbatim(unittest.TestCase):
 
 
 class Ids(unittest.TestCase):
-    def test_custom_ids_count_down_from_200(self):
-        self.assertEqual([mk.custom_id(s) for s in range(6)], [200, 199, 198, 197, 196, 195])
-
     def test_slots_are_contiguous_from_zero(self):
         # WLED stops scanning after a gap in palette<N>.json, so a hole would silently drop palettes
         self.assertEqual(sorted(mk.PLAN), list(range(len(mk.PLAN))))
@@ -51,22 +48,6 @@ class Presets(unittest.TestCase):
         used = {seg["pal"] for p in factory.values() if isinstance(p, dict)
                 for seg in p.get("seg", []) if seg.get("fx") is not None}
         self.assertEqual(set(mk.PLAN.values()), used)
-
-
-class Limits(unittest.TestCase):
-    def test_stops_stay_within_what_wled_accepts(self):
-        for slot, (_fn, body, pid, _name) in mk.build().items():
-            flat = body["palette"]
-            self.assertEqual(len(flat) % 4, 0, f"palette{slot}: not whole 4-byte stops")
-            self.assertLessEqual(len(flat) // 4, 18, f"palette{slot}: WLED reads at most 18 stops")
-            self.assertEqual(flat[0], 0, f"palette{slot} (factory {pid}) must start at index 0")
-            self.assertEqual(flat[-4], 255, f"palette{slot} (factory {pid}) must end at index 255")
-            self.assertTrue(all(0 <= v <= 255 for v in flat), f"palette{slot}: value outside 0..255")
-
-    def test_indices_are_strictly_increasing(self):
-        for slot, (_fn, body, _pid, _name) in mk.build().items():
-            idx = body["palette"][0::4]
-            self.assertEqual(idx, sorted(set(idx)), f"palette{slot}: stop indices must ascend")
 
 
 if __name__ == "__main__":

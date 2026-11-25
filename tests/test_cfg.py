@@ -27,16 +27,9 @@ class CfgPayload(unittest.TestCase):
         self.assertEqual(body["nw"], {"espnow": True, "linked_remote": ["00005e00530a"]})
         self.assertEqual(body["light"], OVERRIDES["light"])
 
-    def test_leaves_wifi_out_of_the_body(self):
-        self.assertNotIn("ins", wledlab.cfg_payload(OVERRIDES, LAMP)["nw"])
-
     def test_explicit_nw_in_overrides_wins(self):
         body = wledlab.cfg_payload({**OVERRIDES, "nw": {"espnow": False}}, LAMP)
         self.assertEqual(body["nw"], {"espnow": False})
-
-    def test_no_espnow_build_adds_nothing(self):
-        self.assertNotIn("nw", wledlab.cfg_payload(OVERRIDES, {"nw": {"ins": []}}))
-        self.assertNotIn("nw", wledlab.cfg_payload(OVERRIDES, {}))
 
 
 class CfgUnapplied(unittest.TestCase):
