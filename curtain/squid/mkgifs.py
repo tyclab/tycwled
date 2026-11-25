@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Render the squid loops in headless Chromium and write them as GIFs.
 
-draw.js holds the drawing: the curtain's loops at the ledmap's 68x42 cells, and the arm waves
-and TycStation looks for the other lamps at their own sizes (fleet/squid/). Each loop is reduced
+draw.js holds the drawing: the curtain's loops at the ledmap's 68x42 cells (its TycStation logo one
+still frame, delay 0), and the arm waves and TycStation looks for the other lamps at their own sizes
+(fleet/squid/). Each loop is reduced
 to one 256-colour table, or one per frame where a look asks for exact colours (frameTables), and
 written as whole frames, the form WLED's Image effect plays from the controller's filesystem. No
 colour may be pale (operator, 2026-11-18: "no white except it is white really selected"): the
@@ -77,7 +78,7 @@ for (const [id, lp] of Object.entries({ ...LOOPS, ...ROWS })) {
   const w = lp.w || W, h = lp.h || H, hi = document.createElement('canvas'), lo = document.createElement('canvas');
   hi.width = w * SS; hi.height = h * SS; lo.width = w; lo.height = h;
   const g = hi.getContext('2d'), l = lo.getContext('2d', { willReadFrequently: true });
-  const n = Math.round(lp.L / lp.delay), buf = new Uint8Array(n * w * h * 3); let o = 0;
+  const n = lp.delay ? Math.round(lp.L / lp.delay) : 1, buf = new Uint8Array(n * w * h * 3); let o = 0;
   for (let f = 0; f < n; f++) {
     g.setTransform(SS, 0, 0, SS, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
     g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.save(); lp.draw(g, f * lp.delay); g.restore();

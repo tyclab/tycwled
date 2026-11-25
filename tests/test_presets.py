@@ -103,6 +103,9 @@ class Buttons(unittest.TestCase):
                  "fleet/overlays/moon-presets.json": ("squid-arms-8x8.gif", 8, 8),
                  "fleet/overlays/glorb-presets.json": ("squid-arms-20x6.gif", 20, 6),
                  "fleet/overlays/exoy-presets.json": ("squid-arms-30x16.gif", 30, 16)}
+    # Button 7 on the followers: the Moon and the GLORBs play their TycStation GIF there (operator, 2026-11-23: "THeme
+    # of tycstation follfolws the website theme", "red blue"); the couch and the Exoys keep their own look.
+    SEVEN = {"fleet/overlays/couch-presets.json": "DJ Light", "fleet/overlays/exoy-presets.json": "Edge Colorwaves"}
 
     @staticmethod
     def load(path):
@@ -127,13 +130,14 @@ class Buttons(unittest.TestCase):
             waves = {"id": 0, "start": 0, "stop": stop, "n": gif, **image}
             if stop_y:
                 waves |= {"startY": 0, "stopY": stop_y, "rY": False, "mY": False, "tp": False}
-            # Button 7 is TycStation on every lamp (operator, 2026-11-23: "THeme of tycstation follfolws the website
-            # theme", "red blue"): the lamp's TycStation GIF in the same segment.
             tycstation = waves | {"n": gif.replace("squid-arms-", "tycstation-")}
-            for k, name in names.items() | {("7", "TycStation")}:
+            for k, name in names.items() | ({("7", "TycStation")} if path not in self.SEVEN else set()):
                 self.assertEqual(presets[k]["n"], name, f"{path} preset {k}")
                 self.assertEqual([s for s in presets[k]["seg"] if s.get("stop") != 0], [tycstation if k == "7" else waves],
                                  f"{path} preset {k}")
+            if path in self.SEVEN:
+                self.assertEqual(presets["7"]["n"], self.SEVEN[path], f"{path} preset 7")
+                self.assertNotIn(53, [s.get("fx") for s in presets["7"]["seg"]], f"{path} preset 7 plays no GIF")
 
     def test_the_glorbs_keep_every_port_look_off_the_squid_buttons(self):
         fleet = self.load("fleet/overlays/glorb-presets.json")

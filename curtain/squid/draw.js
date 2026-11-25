@@ -6,8 +6,6 @@ const B = [90, 162, 255], V = [139, 108, 240], R = [255, 74, 61];
 const LOOK = {
   // TycStation on the lamps: the gradient blue, violet, red and back runs `turns` times along the lamp per loop.
   tyc: { L: 8, delay: .1, turns: 1 },
-  // TycStation on the curtain: the mark, its gradient drifting across it once per loop, its arms swaying.
-  mark: { L: 8, delay: .1, sway: 5, blinkAt: 5.2 },
   // The arm waves: one wave period per loop, `waves` waves from the middle to each end.
   arms: { L: 2, delay: .05, waves: 2 },
   // A GLORB: the column at the centre of its front display, the share of each side that display covers (1 = all
@@ -257,21 +255,17 @@ const LOOPS = {
   } },
 
   // TycStation: the mark where the logo sat, 46 x 40 cells from x 13, y 1, centred on the door (fleet/README.md,
-  // Logo); its gradient drifts out and back across it, its arms sway, it blinks once.
-  t: { L: LOOK.mark.L, delay: LOOK.mark.delay, stages: ['drift', 'blink'], draw(g, t) {
-    const { L, sway, blinkAt } = LOOK.mark, n = 24;
-    const stops = Array.from({ length: n + 1 }, (_, k) => [k / n, poles(k / n / 2 - t / L)]);
-    squid(g, { x: 36, y: 15.2, s: .196, pa: TAU * 2 * t / L, pb: TAU * t / L, sway, stops, blink: pulse(t, blinkAt, .3) });
+  // Logo), one still frame in the website's gradient (MARK): no delay, no drift, no sway, no blink.
+  t: { L: 0, delay: 0, stages: ['still'], draw(g) {
+    squid(g, { x: 36, y: 15.2, s: .196, sway: 0 });
   } },
 };
 
 // The other lamps (a strip, a small matrix): the mark's gradient along the row, blue end to red end, with arm waves
-// running outward from the middle; half the waves on rows under 16 wide.
-// lampGamma: the output gamma of the lamp the file is for. The loops are drawn for a lamp that applies WLED's 2.8;
-// mkgifs.py applies that table itself for a lamp that runs 1.0, so every lamp puts the same values on the wire.
-function armWaves(w, h, lampGamma = 2.8) {
+// running outward from the middle; half the waves on rows under 16 wide. Drawn for a lamp that applies WLED's 2.8.
+function armWaves(w, h) {
   const { L, delay, waves } = LOOK.arms, k = TAU * (w >= 16 ? waves : waves / 2) / (w / 2);
-  return { w, h, lampGamma, L, delay, draw(g, t) {
+  return { w, h, L, delay, draw(g, t) {
     for (let x = 0; x < w; x++) {
       const v = .08 + .92 * Math.pow(.5 + .5 * Math.sin(Math.abs(x - (w - 1) / 2) * k - TAU * t / L), 3);
       g.fillStyle = css(grad(x / (w - 1)), v); g.fillRect(x, 0, 1, h);
@@ -280,9 +274,9 @@ function armWaves(w, h, lampGamma = 2.8) {
 }
 
 // TycStation on a strip or a matrix: the gradient out and back, running along the row.
-function tycFlow(w, h, lampGamma = 2.8) {
+function tycFlow(w, h) {
   const { L, delay, turns } = LOOK.tyc;
-  return { w, h, lampGamma, L, delay, draw(g, t) {
+  return { w, h, L, delay, draw(g, t) {
     for (let x = 0; x < w; x++) { g.fillStyle = css(poles(turns * x / w - t / L)); g.fillRect(x, 0, 1, h); }
   } };
 }
@@ -315,9 +309,7 @@ const ballArms = () => {
 };
 const ballTyc = () => ball(LOOK.tyc.L, LOOK.tyc.delay, (u, d, t) => [poles((u + 1) / 4 - t / LOOK.tyc.L), 1]);
 
-// Files for fleet/squid/: per lamp the arm waves (the Squid looks) and TycStation (button 7); the cube (288 x 1) runs
-// colour gamma 1.0 like the GLORBs.
+// Files for fleet/squid/: per lamp the arm waves (the Squid looks), and TycStation (button 7) on the Moon and the
+// GLORBs.
 const ROWS = { 'squid-arms-300x1': armWaves(300, 1), 'squid-arms-20x6': ballArms(), 'squid-arms-8x8': armWaves(8, 8),
-  'squid-arms-30x16': armWaves(30, 16), 'squid-arms-288x1': armWaves(288, 1, 1), 'tycstation-300x1': tycFlow(300, 1),
-  'tycstation-20x6': ballTyc(), 'tycstation-8x8': tycFlow(8, 8), 'tycstation-30x16': tycFlow(30, 16),
-  'tycstation-288x1': tycFlow(288, 1, 1) };
+  'squid-arms-30x16': armWaves(30, 16), 'tycstation-20x6': ballTyc(), 'tycstation-8x8': tycFlow(8, 8) };
