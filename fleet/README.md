@@ -110,7 +110,7 @@ Image effect, one per lamp shape: `squid-arms-<size>.gif`, the squid's arm waves
 `tycstation-<size>.gif`, the TycStation look: the website's gradient (`--blue`, `--violet` between,
 `--red`) running out and back along the lamp (operator, 2026-11-23: "THeme of tycstation follfolws the
 website theme", "red blue"). The arm waves come in `300x1` (the couch strip as one 300-LED segment),
-`20x6` (a GLORB's raster), `8x8` (the Moon) and `30x16` (an Exoy lamp's 30×16 matrix: X is the edge, so
+`links-20x6` and `rechts-20x6` (a GLORB's raster, one file per ball), `8x8` (the Moon) and `30x16` (an Exoy lamp's 30×16 matrix: X is the edge, so
 every edge shows one colour along its 16 LEDs and the waves run through the edges in wire order);
 TycStation in `20x6` and `8x8`, on the GLORBs' and the Moon's button 7 (the couch and the Exoys keep
 their own looks there). Each matches its segment's size, so WLED plays it unscaled.
@@ -123,14 +123,22 @@ longitude 2π(x + 0.5)/20, as the lightshow places it (lightshow #124). Row 0 is
 column 0 faces the wall behind the ball, on both GLORBs (operator, 2026-11-24, with column 0 green,
 column 10 blue and rows 0 to 2 red: "green atz wall directly behuind", "blue circles straight up
 front", "red bottom blue top half fort both."). The front display covers `LOOK.ball.span` of each
-side round `LOOK.ball.front`, column 10, the one facing the room; one file serves both balls. Every
+side round `LOOK.ball.front`, column 10, the one facing the room, on both balls. Every
 LED behind shows its mirror image on the front at `LOOK.ball.backLevel` (operator, 2026-11-09: "a
 'front' display and backside ambient"). The arm waves run out from the front's centre over the sphere.
+Their colour is the gradient out to red and back to blue laid once round the ball, turning round it once
+a loop: one way on TycGlorbRechts (`squid-arms-rechts-20x6.gif`, the ball by the window), the other way
+on TycGlorbLinks (`squid-arms-links-20x6.gif`), which is the same file seen in a mirror (operator,
+2026-11-25, on the lamps: "window sided with colour turning animation should 1/2 speed", "No both
+glorbs ship window side", "clour should rotate in the other direction on left one"). TycStation is one
+file for both balls.
 
 The GLORBs' arm waves are timed for the lamp as it plays them (`LOOK.glorb`). The Image effect shows
 a GIF frame only when WLED draws, every 1000 / fps ms (fps 42: 23 ms), and at Speed 128 shows the next
 one on the first draw at least one frame delay after the last; a 50 ms frame therefore showed for 46 or
-69 ms. The file's 2 cs delay is under one draw, so each of its 86 frames shows for exactly one. At the
+69 ms. The file's 2 cs delay is under one draw, so each frame shows for exactly one: a wave takes 172
+frames (4 s, half the other lamps' speed) and the loop is one turn of the colour, 10 waves, 1720 frames
+(40 s, about 510 kB of the ball's 4 MB filesystem). At the
 presets' brightness 45 WLED's output scaling keeps an LED's brightest channel odd, so the lamp has 23
 levels: the level is set in light, never below a quarter of the crest, and every LED moves by at most
 one of those steps a frame. One colour table for the loop would round the levels by more than a step,
@@ -439,7 +447,9 @@ modes etc. also on remotes"): the looks that stood on their squid slots keep the
 23 to 28 (Exoy both from 1, Edge Flow from 2, Edge Aurora from 3, Edge Pacifica from 4, Edge Plasma
 from 5, Edge Comets from 8), and the boot playlist 20 plays the same ten looks in the same order.
 
-The GLORBs' installed presets are [`overlays/glorb-presets.json`](overlays/glorb-presets.json).
+The GLORBs' installed presets are [`overlays/glorb-links-presets.json`](overlays/glorb-links-presets.json)
+and [`overlays/glorb-rechts-presets.json`](overlays/glorb-rechts-presets.json): the same presets, each
+naming its ball's arm-wave file (`tests/test_presets.py` keeps them equal otherwise).
 Every port look (`glorb/wled16-port/presets.json`, the factory's field for field) is preserved:
 original slots 1, 2, 3, 4, 5 and 7 live in 19, 6, 18, 15, 16 and 17 respectively. Anything that
 is not a look (a boot layout, a test pattern) belongs above 7. The couch's boot layout is
@@ -449,7 +459,8 @@ Every look of the curtain, the couch, the Moon and the GLORBs carries power and 
 (`"on": true` and `"bri"`: 45, and 200 on the Moon, the operator's values of 2026-11-10): a preset
 without them leaves both as they were, so two lamps on the same button stayed apart (the GLORBs at 6
 and 255 after one of them rebooted). The files are
-[`overlays/glorb-presets.json`](overlays/glorb-presets.json),
+[`overlays/glorb-links-presets.json`](overlays/glorb-links-presets.json),
+[`overlays/glorb-rechts-presets.json`](overlays/glorb-rechts-presets.json),
 [`curtain/presets.json`](../curtain/presets.json),
 [`overlays/couch-presets.json`](overlays/couch-presets.json) and
 [`overlays/moon-presets.json`](overlays/moon-presets.json).

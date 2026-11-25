@@ -13,10 +13,12 @@ const LOOK = {
   // (operator, 2026-11-24 test: "green atz wall directly behuind", "blue circles straight up front").
   ball: { front: 10, span: 2 / 3, backLevel: .35 },
   // The GLORBs' arm waves. delay: the lamp's own frame time (fps 42 in its cfg, 43 a second in /json/info); the file
-  // stores it as 2 cs, under one tick, so the Image effect shows each frame for exactly one tick. L: one wave, as
-  // LOOK.arms. floor: the glow between crests as a share of the crest in light; below it one output step at the
-  // presets' brightness 45 (2 counts) is more than a fifth of an LED's light.
-  glorb: { L: 2, delay: 1 / 43, floor: .25 },
+  // stores it as 2 cs, under one tick, so the Image effect shows each frame for exactly one tick. wave: one wave, half
+  // the speed of LOOK.arms; L: the loop, one turn of the colour round the ball, 10 waves (operator, 2026-11-25, on the
+  // lamps: "window sided with colour turning animation should 1/2 speed", "No both glorbs ship window side"). floor:
+  // the glow between crests as a share of the crest in light; below it one output step at the presets' brightness 45
+  // (2 counts) is more than a fifth of an LED's light.
+  glorb: { L: 40, wave: 4, delay: 1 / 43, floor: .25 },
 };
 const css = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 const mix = (a, b, u) => [0, 1, 2].map(i => a[i] + (b[i] - a[i]) * u);
@@ -284,32 +286,38 @@ function tycFlow(w, h) {
 // A GLORB: a 20 x 6 raster whose ledmap keeps rings of 5, 15, 20, 20, 15 and 5 LEDs, row y a ring at latitude
 // π((y + .5) / 6 - .5), row 0 at the bottom (operator, 2026-11-24: "red bottom blue top half fort both."), column x at
 // longitude 2π(x + .5) / 20, as the lightshow places it (lightshow #124). look(u, d, t)
-// gives [colour, level] at u, -1 to 1 across the front display, d the angle from the front's centre. A back LED shows
-// its mirror image on the front (operator, 2026-11-09: "a 'front' display and backside ambient"). Colour gamma 1.0.
+// gives [colour, level] at u, -1 to 1 across the front display, d the angle from the front's centre, lon the column's
+// longitude in turns from the front, -.5 to .5. A back LED shows its mirror image on the front (operator, 2026-11-09:
+// "a 'front' display and backside ambient"). Colour gamma 1.0.
 function ball(L, delay, look) {
   const { front, span, backLevel } = LOOK.ball, half = Math.min(1, span) * Math.PI;
   return { w: 20, h: 6, lampGamma: 1, L, delay, draw(g, t) {
     for (let y = 0; y < 6; y++) for (let x = 0; x < 20; x++) {
+      const lon = frac((x - front + 20) % 20 / 20 + .5) - .5;
       let a = frac((x - front + 20) % 20 / 20 + .5) * TAU - Math.PI;
       const back = Math.abs(a) > half, lat = Math.PI * ((y + .5) / 6 - .5);
       if (back) a = Math.sign(a) * (Math.PI - Math.abs(a));
-      const [c, v] = look(a / half, Math.acos(Math.cos(lat) * Math.cos(a)), t);
+      const [c, v] = look(a / half, Math.acos(Math.cos(lat) * Math.cos(a)), t, lon);
       g.fillStyle = css(c, v * (back ? backLevel : 1)); g.fillRect(x, y, 1, 1);
     }
   } };
 }
-// The arm waves on the ball run out from the front's centre over the sphere, the gradient across the front. The level
-// is set in light, a crest half a wave wide over the floor, and drawn as its 2.8th root, which the file's 2.8 table
-// turns back into that light; every LED then moves by at most one output step a frame (tests/test_squid_gifs.py).
-// One colour table for the whole loop would round the levels by more than that step: each frame carries its own.
-const ballArms = () => {
-  const { L, delay, floor } = LOOK.glorb, k = TAU * LOOK.arms.waves / (Math.min(1, LOOK.ball.span) * Math.PI);
-  return { ...ball(L, delay, (u, d, t) => [grad((u + 1) / 2),
-    Math.pow(floor + (1 - floor) * (.5 + .5 * Math.sin(d * k - TAU * t / L)), 1 / 2.8)]), frameTables: true };
+// The arm waves on the ball run out from the front's centre over the sphere, a crest half a wave wide over the floor,
+// and the gradient out to red and back to blue (poles) lies once round the ball and turns round it once a loop: `dir`
+// 1 towards higher columns (TycGlorbRechts, by the window), -1 the other way (TycGlorbLinks; operator, 2026-11-25:
+// "clour should rotate in the other direction on left one"). The level is set in light and drawn as its 2.8th root,
+// which the file's 2.8 table turns back into that light; every LED then moves by at most one output step a frame
+// (tests/test_squid_gifs.py). One colour table for the whole loop would round the levels by more than that step: each
+// frame carries its own.
+const ballArms = dir => {
+  const { L, wave, delay, floor } = LOOK.glorb, k = TAU * LOOK.arms.waves / (Math.min(1, LOOK.ball.span) * Math.PI);
+  return { ...ball(L, delay, (u, d, t, lon) => [poles(lon + .25 - dir * t / L),
+    Math.pow(floor + (1 - floor) * (.5 + .5 * Math.sin(d * k - TAU * t / wave)), 1 / 2.8)]), frameTables: true };
 };
 const ballTyc = () => ball(LOOK.tyc.L, LOOK.tyc.delay, (u, d, t) => [poles((u + 1) / 4 - t / LOOK.tyc.L), 1]);
 
-// Files for fleet/squid/: per lamp the arm waves (the Squid looks), and TycStation (button 7) on the Moon and the
-// GLORBs.
-const ROWS = { 'squid-arms-300x1': armWaves(300, 1), 'squid-arms-20x6': ballArms(), 'squid-arms-8x8': armWaves(8, 8),
-  'squid-arms-30x16': armWaves(30, 16), 'tycstation-20x6': ballTyc(), 'tycstation-8x8': tycFlow(8, 8) };
+// Files for fleet/squid/: per lamp the arm waves (the Squid looks), one for each GLORB, and TycStation (button 7) on
+// the Moon and the GLORBs.
+const ROWS = { 'squid-arms-300x1': armWaves(300, 1), 'squid-arms-links-20x6': ballArms(-1),
+  'squid-arms-rechts-20x6': ballArms(1), 'squid-arms-8x8': armWaves(8, 8), 'squid-arms-30x16': armWaves(30, 16),
+  'tycstation-20x6': ballTyc(), 'tycstation-8x8': tycFlow(8, 8) };

@@ -27,7 +27,8 @@ TRANSLATED = {"fx", "pal"}
 POWER = {"on": True, "bri": 45}
 EXOY = "fleet/overlays/exoy-presets.json"
 # Every preset file the fleet installs: its brightness (None: it sets none) and the presets that are not looks.
-FLEET = {"fleet/overlays/glorb-presets.json": (45, ()), "curtain/presets.json": (45, ()),
+FLEET = {"fleet/overlays/glorb-links-presets.json": (45, ()), "fleet/overlays/glorb-rechts-presets.json": (45, ()),
+         "curtain/presets.json": (45, ()),
          "fleet/overlays/moon-presets.json": (200, ()),
          "fleet/overlays/couch-presets.json": (45, ("250",)),  # the couch's boot layout, which starts off
          # The Exoys' looks turn the lamp on and keep its brightness (operator, 2026-11-19: "exoy brightness is
@@ -101,7 +102,8 @@ class Buttons(unittest.TestCase):
     # gets tycExoyWled's one-lamp conversion of it, which keeps the parts on X 0-29: the waves play there.
     FOLLOWERS = {"fleet/overlays/couch-presets.json": ("squid-arms-300x1.gif", 300, None),
                  "fleet/overlays/moon-presets.json": ("squid-arms-8x8.gif", 8, 8),
-                 "fleet/overlays/glorb-presets.json": ("squid-arms-20x6.gif", 20, 6),
+                 "fleet/overlays/glorb-links-presets.json": ("squid-arms-links-20x6.gif", 20, 6),
+                 "fleet/overlays/glorb-rechts-presets.json": ("squid-arms-rechts-20x6.gif", 20, 6),
                  "fleet/overlays/exoy-presets.json": ("squid-arms-30x16.gif", 30, 16)}
     # Button 7 on the followers: the Moon and the GLORBs play their TycStation GIF there (operator, 2026-11-23: "THeme
     # of tycstation follfolws the website theme", "red blue"); the couch and the Exoys keep their own look.
@@ -130,7 +132,8 @@ class Buttons(unittest.TestCase):
             waves = {"id": 0, "start": 0, "stop": stop, "n": gif, **image}
             if stop_y:
                 waves |= {"startY": 0, "stopY": stop_y, "rY": False, "mY": False, "tp": False}
-            tycstation = waves | {"n": gif.replace("squid-arms-", "tycstation-")}
+            # One TycStation file per lamp shape; the GLORBs' arm waves are one file per ball.
+            tycstation = waves | {"n": f"tycstation-{stop}x{stop_y}.gif"}
             for k, name in names.items() | ({("7", "TycStation")} if path not in self.SEVEN else set()):
                 self.assertEqual(presets[k]["n"], name, f"{path} preset {k}")
                 self.assertEqual([s for s in presets[k]["seg"] if s.get("stop") != 0], [tycstation if k == "7" else waves],
@@ -140,11 +143,19 @@ class Buttons(unittest.TestCase):
                 self.assertNotIn(53, [s.get("fx") for s in presets["7"]["seg"]], f"{path} preset 7 plays no GIF")
 
     def test_the_glorbs_keep_every_port_look_off_the_squid_buttons(self):
-        fleet = self.load("fleet/overlays/glorb-presets.json")
         moved = {"1": "19", "2": "6", "3": "18", "4": "15", "5": "16", "7": "17"}
-        for k, look in PORT.items():
-            self.assertEqual(fleet[moved.get(k, k)], look, f"port preset {k}")
-        self.assertEqual(sorted(fleet, key=int), sorted(set(PORT) - set(moved) | set(moved.values()) | set("1234578"), key=int))
+        for side in ("links", "rechts"):
+            fleet = self.load(f"fleet/overlays/glorb-{side}-presets.json")
+            for k, look in PORT.items():
+                self.assertEqual(fleet[moved.get(k, k)], look, f"{side}: port preset {k}")
+            self.assertEqual(sorted(fleet, key=int),
+                             sorted(set(PORT) - set(moved) | set(moved.values()) | set("1234578"), key=int), side)
+
+    def test_the_two_glorbs_presets_differ_only_in_the_arm_wave_file(self):
+        # One file per ball since 2026-11-25 (the colour turns opposite ways); every other field stays one set.
+        links, rechts = (json.dumps(self.load(f"fleet/overlays/glorb-{side}-presets.json")) for side in ("links", "rechts"))
+        self.assertIn("squid-arms-links-20x6.gif", links)
+        self.assertEqual(links.replace("squid-arms-links-20x6.gif", "squid-arms-rechts-20x6.gif"), rechts)
 
 
 class Playlists(unittest.TestCase):

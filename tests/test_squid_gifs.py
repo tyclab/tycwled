@@ -21,7 +21,8 @@ GIFS = {
     "curtain/squid-deepsea.gif": (68, 42, 200, 2.8), "curtain/squid-eyes.gif": (68, 42, 200, 2.8),
     "curtain/squid-skin.gif": (68, 42, 120, 2.8), "curtain/squid-skin-water.gif": (68, 42, 128, 2.8),
     "curtain/tycstation.gif": (68, 42, 1, 2.8),
-    "fleet/squid/squid-arms-300x1.gif": (300, 1, 40, 2.8), "fleet/squid/squid-arms-20x6.gif": (20, 6, 86, 1),
+    "fleet/squid/squid-arms-300x1.gif": (300, 1, 40, 2.8),
+    "fleet/squid/squid-arms-links-20x6.gif": (20, 6, 1720, 1), "fleet/squid/squid-arms-rechts-20x6.gif": (20, 6, 1720, 1),
     "fleet/squid/squid-arms-8x8.gif": (8, 8, 40, 2.8), "fleet/squid/squid-arms-30x16.gif": (30, 16, 40, 2.8),
     "fleet/squid/tycstation-20x6.gif": (20, 6, 80, 1), "fleet/squid/tycstation-8x8.gif": (8, 8, 80, 2.8),
 }
@@ -32,7 +33,8 @@ ROOM_COLUMN = 10
 # Speed 128) shows the next GIF frame on the first draw at least one GIF delay after the last; the bus scales each colour
 # by the preset's brightness with color_fade(c, bri, video) (colors.cpp), which keeps the lowest bit of every channel
 # above a quarter of the brightest + 1, so the brightest channel shows odd values only: one output step is 2.
-GLORB_ARMS, ONE_STEP = "fleet/squid/squid-arms-20x6.gif", 2
+# Each ball has its own file: the colour turns one way round TycGlorbRechts and the other way round TycGlorbLinks.
+GLORB_ARMS, ONE_STEP = {side: f"fleet/squid/squid-arms-{side}-20x6.gif" for side in ("links", "rechts")}, 2
 
 
 def glorb_fade(colour, bri):
@@ -77,7 +79,7 @@ class SquidGifs(unittest.TestCase):
 
     def test_a_glorbs_front_display_faces_the_room(self):
         # The front display is the block of columns lit above half the brightest; the back mirrors it dimmed.
-        for path in ("fleet/squid/squid-arms-20x6.gif", "fleet/squid/tycstation-20x6.gif"):
+        for path in (*GLORB_ARMS.values(), "fleet/squid/tycstation-20x6.gif"):
             with self.subTest(path=path):
                 light = [0] * 20
                 for frame in gif_decode(read(path)):
@@ -94,23 +96,46 @@ class SquidGifs(unittest.TestCase):
         # A delay above the draw time shows each frame for two or three draws, unevenly (50 ms on 23 ms: 46 or 69 ms).
         with open(os.path.join(ROOT, "glorb", "wled16-port", "cfg-overrides.json")) as f:
             fps = json.load(f)["hw"]["led"]["fps"]
-        raw = read(GLORB_ARMS)
-        delay = int.from_bytes(raw[raw.index(b"\x21\xF9\x04") + 4:][:2], "little") * 10
-        self.assertLessEqual(delay, 1000 // fps)
+        for path in GLORB_ARMS.values():
+            raw = read(path)
+            delay = int.from_bytes(raw[raw.index(b"\x21\xF9\x04") + 4:][:2], "little") * 10
+            self.assertLessEqual(delay, 1000 // fps, path)
 
     def test_no_glorb_led_moves_more_than_one_output_step_a_frame(self):
         # Every lit LED of the ledmap, each frame to the next and the last back to the first, at the brightness of each
         # preset that plays the file: no channel moves by more than one output step.
         with open(os.path.join(ROOT, "glorb", "wled16-port", "ledmap.json")) as f:
             leds = [i for i, v in enumerate(json.load(f)["map"]) if v >= 0]
-        with open(os.path.join(ROOT, "fleet", "overlays", "glorb-presets.json")) as f:
-            bris = {p["bri"] for p in json.load(f).values() if os.path.basename(GLORB_ARMS) in json.dumps(p)}
-        frames = gif_decode(read(GLORB_ARMS))
-        self.assertTrue(bris)
-        for bri in bris:
-            shown = [[glorb_fade(frame[3 * i:3 * i + 3], bri) for i in leds] for frame in frames]
-            step = max(abs(a - b) for f in range(len(shown)) for p, q in zip(shown[f - 1], shown[f]) for a, b in zip(p, q))
-            self.assertLessEqual(step, ONE_STEP, f"brightness {bri}")
+        for side, path in GLORB_ARMS.items():
+            with open(os.path.join(ROOT, "fleet", "overlays", f"glorb-{side}-presets.json")) as f:
+                bris = {p["bri"] for p in json.load(f).values() if os.path.basename(path) in json.dumps(p)}
+            frames = gif_decode(read(path))
+            self.assertTrue(bris, path)
+            for bri in bris:
+                shown = [[glorb_fade(frame[3 * i:3 * i + 3], bri) for i in leds] for frame in frames]
+                step = max(abs(a - b) for f in range(len(shown)) for p, q in zip(shown[f - 1], shown[f])
+                           for a, b in zip(p, q))
+                self.assertLessEqual(step, ONE_STEP, f"{path} at brightness {bri}")
+
+    def test_the_colour_turns_opposite_ways_round_the_two_glorbs(self):
+        # Operator, 2026-11-25: "clour should rotate in the other direction on left one". The left ball's file is the
+        # right ball's seen in a mirror standing in the front column: the same waves, the colour coming the other way.
+        # The gradient lies a quarter turn off the front, so the mirror image is half a colour turn (5 waves) on. The
+        # canvas rounds each drawn channel to 8 bits, so a value drawn the two ways may land on neighbouring counts; the
+        # file stores what the 2.8 table makes of them, so two such bytes are neighbours in that table.
+        links, rechts = (gif_decode(read(GLORB_ARMS[side])) for side in ("links", "rechts"))
+        n = len(rechts)
+        self.assertEqual(len(links), n)
+        mirror = [(2 * ROOM_COLUMN - x) % 20 for x in range(20)]
+        rank = {v: i for i, v in enumerate(sorted({int((i / 255) ** 2.8 * 255 + 0.5) for i in range(256)}))}
+
+        def apart(a, b):
+            return max(abs(rank[p] - rank[q]) for p, q in zip(a, b))
+        for f in range(n):
+            other = rechts[(f + n // 2) % n]
+            want = b"".join(other[3 * (20 * y + mirror[x]):][:3] for y in range(6) for x in range(20))
+            self.assertLessEqual(apart(links[f], want), 1, f"frame {f}")
+        self.assertGreater(apart(links[n // 4], rechts[n // 4]), 1, "the two files are not the same")
 
     def test_the_check_finds_white_lavender_and_a_pale_wire_value(self):
         self.assertEqual(mkgifs.pale_entries([(0, 0, 0), (255, 255, 255), (180, 140, 245), (90, 162, 255)], 2.8),
