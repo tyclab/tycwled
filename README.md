@@ -110,7 +110,12 @@ python3 wledlab.py install --host <lamp> \
 
 `--file <path>` (repeatable) stores any other file under its own name, such as a GIF
 for the Image effect; an animated GIF a preset names must then show at least three
-different liveview frames in three seconds. `--restore` puts back the power,
+different liveview frames in three seconds. WLED's Image effect keeps the GIF it plays
+open, and a file replaced under it stops the effect on one frame until the segment is
+reset, so a segment that plays a file about to change gets another effect for the
+upload and its look back afterwards, also on a lamp that is off. A lamp that something
+else switches off during the check (a home automation, a remote) fails it with that
+reason. `--restore` puts back the power,
 brightness and segments the lamp had before the presets were recalled. If that preset moves,
 its marker follows the unchanged look to its new slot; if removed, the marker is cleared.
 An active playlist that changes or disappears is refused before uploading: stop it first. A preset that

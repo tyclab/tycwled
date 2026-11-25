@@ -1165,6 +1165,25 @@ def remap_restored_look(before, old, new):
     return restored
 
 
+# WLED 16.0.1's Image effect keeps the GIF it plays open and reads on through that handle (image_loader.cpp). A file
+# replaced under it keeps its old blocks for that handle (littlefs), while File::size() asks the path and reports the
+# new length; at the old end the decoder reads short, fails, and the segment stands on its last frame until its name
+# changes or it is reset. A new effect resets it and ends the playback (FX_fcn.cpp resetIfRequired); with "tt": 0 the
+# write triggers a draw even on a lamp that is off (json.cpp stateUpdated, led.cpp applyFinalBri, wled.cpp).
+IMAGE_FX = 53
+
+
+def end_image_playback(host, state, names):
+    """Switch off the Image effect on every segment of `state` that plays one of `names`; returns those segments."""
+    held = [seg for seg in state.get("seg", []) if seg.get("fx") == IMAGE_FX and seg.get("n") in names]
+    if held:
+        # A frozen segment is not reset until it thaws (FX_fcn.cpp service): it thaws for the upload too.
+        post(host, "/json/state", {"tt": 0, "seg": [{"id": seg.get("id", 0), "fx": 0} | ({"frz": False} if seg.get("frz") else {})
+                                                   for seg in held]})
+        time.sleep(1)  # the reset runs on the next draw (23 ms at 42 fps); a second leaves room for a busy loop
+    return held
+
+
 def restore_look(host, before):
     """Put back power, brightness, segments with their names and the preset marker as read before the presets were
     recalled; False when they do not read back."""
@@ -1210,19 +1229,29 @@ def _cmd_install(a, access=None):
             post(a.host, "/json/state", {"ledmap": 0})
     for n, f in enumerate(a.palette or []):
         print(f"palette{n}:", upload(a.host, f"/palette{n}.json", f), "| readback ok:", readback(a.host, f"/palette{n}.json") == open(f, "rb").read())
+    pending = []
     for path in getattr(a, "file", None) or []:
         name, raw = "/" + os.path.basename(path), open(path, "rb").read()
         if readback(a.host, name, timeout=60) == raw:
             print(f"file {name}: already on the lamp")
             continue
-        changed.add(name[1:])
-        sent = upload(a.host, name, path, timeout=120)
-        same = readback(a.host, name, timeout=60) == raw
-        print(f"file {name}:", sent, "| readback ok:", same)
-        if not same:
-            sys.exit(f"{name}: the lamp does not read back the uploaded bytes")
-        if gif_frames(raw) > 1:
-            animated[name[1:]] = gif_frames(raw)
+        pending.append((path, name, raw))
+    # A file the Image effect plays must not change under it: its playback ends first and starts again afterwards.
+    shown = get(a.host, "/json/state") if pending else {}
+    stopped = end_image_playback(a.host, shown, {name[1:] for _, name, _ in pending})
+    try:
+        for path, name, raw in pending:
+            changed.add(name[1:])
+            sent = upload(a.host, name, path, timeout=120)
+            same = readback(a.host, name, timeout=60) == raw
+            print(f"file {name}:", sent, "| readback ok:", same)
+            if not same:
+                sys.exit(f"{name}: the lamp does not read back the uploaded bytes")
+            if gif_frames(raw) > 1:
+                animated[name[1:]] = gif_frames(raw)
+    finally:
+        if stopped and not restore_look(a.host, shown):
+            sys.exit("the look from before the upload did not come back")
     for slot in getattr(a, "remove_palette", None) or []:
         failed = remove_palette(a.host, slot)
         if failed:
@@ -1312,7 +1341,7 @@ def _cmd_install(a, access=None):
     if a.palette and info.get("cpalcount", 0) < len(a.palette):
         sys.exit(f"custom palettes: lamp reports {info.get('cpalcount')}, uploaded {len(a.palette)}")
     if recall:
-        want = json.load(open(a.presets)); bad = []
+        want = json.load(open(a.presets)); bad, off = [], []
         keys = SEGMENT_KEYS
         for k, v in want.items():
             if not v:
@@ -1320,6 +1349,11 @@ def _cmd_install(a, access=None):
             post(a.host, "/json/state", {"on": True, "ps": int(k)}); time.sleep(1.5)  # outlast the preset's own transition
             state = get(a.host, "/json/state"); segs = state["seg"]
             ok, note = not state.get("error"), f" error {state['error']}" if state.get("error") else ""
+            if not state.get("on"):
+                # The recall switched the lamp on and something else switched it off again: nothing moves on a lamp
+                # that is off, so the check below would measure that, not the preset.
+                ok, note = False, note + " switched off by something else during the check"
+                off.append(k)
             if "playlist" in v:
                 # A playlist holds no segments of its own (its entries are presets checked above or below): the lamp
                 # must report it as the playlist it plays.
@@ -1329,7 +1363,7 @@ def _cmd_install(a, access=None):
                 continue
             # An animated GIF that this run uploaded must move on the lamp: liveview shows what the Image effect draws.
             moving = next((ws["n"] for ws in v["seg"] if ws.get("n") in animated), None)
-            if moving:
+            if moving and state.get("on"):
                 distinct = len({"".join(leds) for _, leds in live(a.host, 3)})
                 ok &= distinct >= 3
                 note += f" {distinct} different liveview frames in 3 s"
@@ -1347,7 +1381,9 @@ def _cmd_install(a, access=None):
         print("preset verification:", "all OK" if not bad else f"MISMATCH {bad}")
         restored = restore_look(a.host, look) if look else True
         if bad:
-            sys.exit(f"presets {bad} do not show on the lamp as written")
+            sys.exit(f"presets {bad} do not show on the lamp as written" + (
+                f"; the lamp was switched off during the check of {off} (a home automation or a remote): run "
+                "again when nothing switches it off" if off else ""))
         if not restored:
             sys.exit("the look from before the install did not come back")
 
