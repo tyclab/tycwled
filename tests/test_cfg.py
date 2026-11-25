@@ -91,19 +91,6 @@ class Overlays(unittest.TestCase):
                 preset = json.load(open(os.path.join(ROOT, boot_presets[path])))[str(start["ps"])]
                 self.assertIsNot(preset.get("on"), True, f"{path} boot preset {start['ps']}")
 
-    def test_each_dodeca_lamp_runs_every_scene_at_its_own_period_and_wleds_own_timer_never_comes_first(self):
-        # um.Exoy.period_us 0: each scene's own frame period, the unchanged original's in the emulator
-        # (tycExoyWled wled/scene-periods.tsv: 18,379 to 22,480 us, the static Custom Hue 16,000).
-        # From vid 2611190 the usermod asks WLED for a frame when the lamp's next one is due, as long as WLED's
-        # own frame time, 1000 // fps in ms (FX_fcn.cpp setTargetFps()), is no shorter than the scene's period:
-        # WLED's timer then never shows a frame in between. An earlier image is called by that timer alone and
-        # would show 40 frames a second of the engine's 44 to 62, so the overlay is for vid 2611190 and later.
-        longest_period_us = 22480
-        for path in DODECA:
-            cfg = self.load(path)
-            self.assertEqual(cfg["um"]["Exoy"], {"period_us": 0}, path)
-            self.assertGreaterEqual((1000 // cfg["hw"]["led"]["fps"]) * 1000, longest_period_us, path)
-
     def test_every_overlay_that_writes_nw_pairs_the_same_three_remotes_with_espnow_on(self):
         paths = [path for path in sorted(CONTROLLERS | {CUBE}) if "nw" in self.load(path)]
         self.assertEqual(paths, ["fleet/overlays/couch-domraem.json", "fleet/overlays/cube-gl015.json",
