@@ -1349,9 +1349,10 @@ def _cmd_install(a, access=None):
             post(a.host, "/json/state", {"on": True, "ps": int(k)}); time.sleep(1.5)  # outlast the preset's own transition
             state = get(a.host, "/json/state"); segs = state["seg"]
             ok, note = not state.get("error"), f" error {state['error']}" if state.get("error") else ""
-            if not state.get("on"):
+            if not state.get("on") and v.get("on") is not False:
                 # The recall switched the lamp on and something else switched it off again: nothing moves on a lamp
-                # that is off, so the check below would measure that, not the preset.
+                # that is off, so the check below would measure that, not the preset. A preset that switches the lamp
+                # off itself ("on": false, the couch's boot layout) leaves it off as written.
                 ok, note = False, note + " switched off by something else during the check"
                 off.append(k)
             if "playlist" in v:
