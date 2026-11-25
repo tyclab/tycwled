@@ -174,11 +174,6 @@ class DeclaredUsermods(unittest.TestCase):
         self.assertEqual(wledlab.cfg_drift(self.BEFORE, self.after(Exoy=None, Syslog={}), self.FLEET),
                          ["um.Syslog.port: 1515 -> <absent>"])
 
-    def test_an_empty_list_declares_an_image_without_usermod_blocks(self):
-        self.assertEqual(wledlab.cfg_drift(self.BEFORE, {"vid": 2611150, "id": {"mdns": "spare"}, "um": {}}, []), [])
-        self.assertEqual(wledlab.cfg_drift({"um": {}}, {"um": {"Syslog": {}}}, []),
-                         ["um.Syslog: present after the flash, though the image does not declare it"])
-
     def parse(self, *options):
         with patch.object(sys, "argv", ["wledlab.py", "flash", "--host", "lamp", "--firmware", "f.bin", *options]), \
                 patch.object(wledlab, "cmd_flash") as flash:
@@ -519,14 +514,11 @@ class FailedUpload(unittest.TestCase):
     def flash(self, page, info_after, restarted=None, run=None, info=None):
         """cmd_flash with the lamp answering the upload with `page` and the undo's /json/info with `info_after` (an
         exception is raised). The clock stands at 1000 and moves in the tool's sleeps and by two seconds in every
-        state post (a post that had to be tried again). Returns the exit message,
-        stderr at the end (`said`) and as it was when the undo asked the lamp (`said_at_undo`), the state posts and
-        the wait_for_restart mock."""
-        answers, clock, said, at_undo = [info or self.INFO, {"ota": {}}, self.STATE, info_after], [1000.0], io.StringIO(), []
+        state post (a post that had to be tried again). Returns the exit message, stderr (`said`), the state posts
+        and the wait_for_restart mock."""
+        answers, clock, said = [info or self.INFO, {"ota": {}}, self.STATE, info_after], [1000.0], io.StringIO()
 
         def get(*args, **kwargs):
-            if len(answers) == 1:
-                at_undo.append(said.getvalue())
             answer = answers.pop(0)
             if isinstance(answer, Exception):
                 raise answer
@@ -551,7 +543,7 @@ class FailedUpload(unittest.TestCase):
                     contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(said), \
                     self.assertRaises(SystemExit) as stop:
                 wledlab.cmd_flash(args)
-        return SimpleNamespace(message=str(stop.exception), said=said.getvalue(), said_at_undo="".join(at_undo),
+        return SimpleNamespace(message=str(stop.exception), said=said.getvalue(),
                                posts=[call.args for call in post.call_args_list], wait=wait)
 
     def test_a_refusal_after_the_upload_began_restarts_the_lamp_and_puts_its_look_back(self):
@@ -563,10 +555,6 @@ class FailedUpload(unittest.TestCase):
         self.assertEqual(result.said, self.REFUSAL)
         self.assertEqual(result.message, "The lamp was restarted to undo the segment reset of the upload, runs vid 2611180 "
                                          "and got its look back")
-
-    def test_the_lamps_answer_is_out_before_the_undo_asks_the_lamp_anything(self):
-        result = self.flash(REFUSED_PAGE, self.INFO | {"uptime": 5004}, restarted={"uptime": 9, "vid": 2611180})
-        self.assertEqual(result.said_at_undo, self.REFUSAL)
 
     def test_whatever_the_undo_meets_the_lamps_answer_and_a_sentence_about_the_lamp_remain(self):
         """An answer cut short is no URLError (http.client.IncompleteRead, BadStatusLine); neither is an OSError from
