@@ -246,6 +246,9 @@ bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 
   a lamp that something else switched off again now fails with that reason instead of "1 different
   liveview frames": on 2026-11-24 a home automation switched a GLORB off about 70 ms after each recall. A
   preset that switches the lamp off itself (`"on": false`, the couch's boot layout) is left out of that.
+- `wledlab.py install` recalls a preset once more when the lamp names another preset after the recall, and
+  fails with that reason when it does so twice: on 2026-11-25 Home Assistant's theme rule set an Exoy lamp
+  to its theme look one second after the recall of preset 125, and the reading was taken for that preset.
 - `wledlab.py install` checks the name of every segment it puts back, the GIF an Image look plays. Two
   Image looks differ only in that name, and the check compared the effect fields alone, so a lamp left on
   the last recalled preset's GIF still read "look restored: OK" (reproduced with the repo's fake lamp).

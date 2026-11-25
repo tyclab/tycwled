@@ -39,6 +39,8 @@ class Lamp:
         # The Image effect's open file: its name, the bytes its handle reads, and whether decoding has failed. Also
         # a house rule that switches the lamp off again whenever something switches it on.
         self.decoder, self.switched_off_again = None, False
+        # A house rule that recalls a look of its own right after a recall: (the preset recalled, the preset it sets).
+        self.intrusions = []
         # Custom palettes as loadCustomPalettes (colors.cpp) left them, and how many deletes the filesystem loses.
         self.palettes, self.lost, self.keeps_list = 0, 0, False
         self.state = {"on": True, "bri": 100, "ps": -1, "pl": -1, "transition": 7, "seg": [segment(191)]}
@@ -146,6 +148,9 @@ class Lamp:
                                   seg=copy.deepcopy(preset["seg"]))
             self.state["pl"] = playlist
             self.drew(changed)
+            if self.intrusions and self.intrusions[0][0] == body["ps"]:
+                self.post(host, path, {"ps": self.intrusions.pop(0)[1]})
+                del self.calls[-1]  # not a call of the tool
         elif "seg" in body and not self.deaf:
             changed = self.look()
             if any("fx" in seg for seg in body["seg"]):
@@ -519,6 +524,28 @@ class Install(unittest.TestCase):
         wledlab._cmd_install(self.args)
         self.assertIn(("post", {"on": True, "ps": 250}), self.lamp.calls)
         self.assertEqual(self.lamp.state, before)
+
+    def with_a_theme_look(self):
+        presets = json.load(open(self.presets)) | {"7": {"n": "Theme", "seg": [segment(191)]}}
+        with open(self.presets, "w") as f:
+            json.dump(presets, f)
+
+    def test_a_look_recalled_by_something_else_during_a_check_gets_the_recall_once_more(self):
+        # 2026-11-25 08:29:11.8 the install recalled an Exoy lamp's preset 125, at 08:29:12.9 Home Assistant's theme
+        # rule set the lamp to preset 7 and the reading at 08:29:13.3 was taken for preset 125.
+        self.with_a_theme_look()
+        self.lamp.intrusions = [(4, 7)]
+        before = copy.deepcopy(self.lamp.state)
+        wledlab._cmd_install(self.args)
+        self.assertEqual(self.lamp.calls.count(("post", {"on": True, "ps": 4})), 2)
+        self.assertEqual(self.lamp.calls.count(("post", {"on": True, "ps": 1})), 1)
+        self.assertEqual(self.lamp.state, before)
+
+    def test_a_look_recalled_by_something_else_twice_says_so(self):
+        self.with_a_theme_look()
+        self.lamp.intrusions = [(4, 7), (4, 7)]
+        with self.assertRaisesRegex(SystemExit, r"another look was recalled during the check of \['4'\]"):
+            wledlab._cmd_install(self.args)
 
     def test_files_and_presets_already_on_the_lamp_are_not_sent_or_recalled(self):
         wledlab._cmd_install(self.args)
