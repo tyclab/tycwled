@@ -9,6 +9,15 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
+- The GLORBs' arm waves run at half speed with the colour turning round the ball, and the two balls
+  turn it opposite ways (operator, 2026-11-25, with the frames streamed to the lamps: "window sided
+  with colour turning animation should 1/2 speed", "No both glorbs ship window side", "clour should
+  rotate in the other direction on left one", "looks good ship it"). A wave takes 4 s instead of 2; the
+  gradient lies once round the ball and turns once in 40 s. `squid-arms-20x6.gif` is replaced by
+  `squid-arms-rechts-20x6.gif` (TycGlorbRechts, by the window) and `squid-arms-links-20x6.gif`
+  (TycGlorbLinks, its mirror image), 1720 frames each, and `overlays/glorb-presets.json` by one presets
+  file per ball that names its file. Both files decode to the bytes that were streamed. Still one frame
+  per draw and at most one output step per LED and frame.
 - The GLORBs' arm waves move in single output steps (operator, 2026-11-24: "make a better animation
   for glorb"). Measured as the lamp plays the old file (WLED 16.0.1 Image effect on 23 ms draws,
   brightness 45, gamma 1.0): its 50 ms frames showed for 46 or 69 ms; its crests, cubed and then put
