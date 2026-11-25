@@ -167,6 +167,9 @@ bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 
   the couch and the Moon, slot 6 for the GLORBs) with their generator, their `check-palettes`
   step and `install`'s slot check for a palette sent with `--file`. Every lamp runs a build whose
   usermod registers the same stops as palette 255 ("TycStation 0"), and no preset used the files.
+- `wledlab.py install --remove-palette <slot>`, which took those files off the five lamps on
+  2026-11-11 (`/palette0.json` off the curtain, the couch and the Moon, `/palette6.json` off both
+  GLORBs); nothing passes it any more.
 
 ### Added
 
@@ -200,9 +203,6 @@ bri: 150}`, for tycpve `wled:install`. Until now it came up lit on its preset 1 
   of 1.0, so all lamps put the same values on the wire.
 - `install` skips files and presets the lamp already holds and recalls presets only when they or a
   file they show changed, so adding a file leaves the look alone.
-- `wledlab.py install --remove-palette <slot>` takes a custom palette off a lamp with WLED's
-  `rmcpal` request, repeats it until the file is gone and checks that the lamp's palette list
-  followed.
 - `wledlab.py install --file` uploads other files (GIFs) and reads them back, checks that an
   uploaded animated GIF moves in liveview, and `--restore` puts the lamp's look back afterwards.
   A preset mismatch now makes `install` exit non-zero.
