@@ -5,6 +5,7 @@ WLED 16 clears every paired ESP-NOW remote on a /json/cfg write without an "nw" 
 builder carries the lamp's own espnow flag and remote list; the read-back check reports
 every override the lamp did not take.
 """
+import glob
 import json
 import os
 import re
@@ -44,37 +45,55 @@ class CfgUnapplied(unittest.TestCase):
                          ["light.gc.col: wanted 1.0, lamp has 2.8", "hw.led.maxpwr: wanted 2800, lamp has <absent>"])
 
 
-SPARES = {"fleet/overlays/spare3-gledopto.json": 3, "fleet/overlays/spare4-gledopto.json": 4,
-          "fleet/overlays/spare5-domraem.json": 5, "fleet/overlays/spare6-domraem.json": 6}
 # One Exoy ONE lamp per controller since 2026-11-18.
 DODECA = {"fleet/overlays/exoy-links-domraem.json": "TycDodecaLinks",
           "fleet/overlays/exoy-rechts-domraem.json": "TycDodecaRechts"}
-CONTROLLERS = {"curtain/h70b5-gledopto.json", "fleet/overlays/couch-domraem.json", *DODECA, *SPARES}
-# The HyperCube: its boot state only.
-CUBE = "fleet/overlays/cube-gl015.json"
+CURTAIN = "curtain/h70b5-gledopto.json"
 
 
 class Overlays(unittest.TestCase):
-    """Every controller's `install --cfg` overlay (fleet/README.md, Flash and Spares)."""
+    """Every `install --cfg` overlay: the curtain's and fleet/overlays/*.json (fleet/README.md, Flash and Spares)."""
 
     def load(self, path):
         with open(os.path.join(ROOT, path)) as f:
             return json.load(f)
 
+    def overlays(self):
+        # One that sets only the lamp's name (the Moon's, the GLORBs') writes nothing a rule reads.
+        found = sorted(os.path.relpath(p, ROOT) for p in glob.glob(os.path.join(ROOT, "fleet", "overlays", "*.json"))
+                       if not p.endswith("-presets.json"))
+        self.assertTrue(found, "no overlay in fleet/overlays")
+        cfgs = [(path, self.load(path)) for path in [CURTAIN, *found]]
+        return [(path, cfg) for path, cfg in cfgs if cfg != {"id": {"name": cfg.get("id", {}).get("name")}}]
+
     def test_syslog_host_is_the_mdns_name_and_ota_crosses_subnets(self):
-        for path in sorted(CONTROLLERS):
-            cfg = self.load(path)
-            self.assertEqual(cfg["um"]["Syslog"]["hostname"], cfg["id"]["mdns"], path)
-        # The cube too: tycpve's flash uploads from another subnet, and WLED refuses that upload while this is true.
-        for path in sorted({*CONTROLLERS, CUBE}):
-            self.assertIs(self.load(path)["ota"]["same-subnet"], False, path)
+        # An overlay that sets the lamp's identity names its mDNS name and the same syslog host; the cube's sets none.
+        # tycpve's flash uploads from another subnet, and WLED refuses that upload while same-subnet is true.
+        for path, cfg in self.overlays():
+            if "id" in cfg:
+                self.assertEqual(cfg["um"]["Syslog"]["hostname"], cfg["id"]["mdns"], path)
+            self.assertIs(cfg.get("ota", {}).get("same-subnet"), False, path)
 
     def test_every_dodeca_output_is_limited_to_at_most_6_a(self):
-        # 6000 mA per lamp is the limit of 2026-11-18 (480 LEDs on one supply). A bound: a lower limit passes, none
-        # (0) and a higher one do not.
+        # 6000 mA per lamp at 55 mA per LED is the limit of 2026-11-18 (480 LEDs on one supply, fleet/README.md). WLED
+        # 16.0.1 scales its estimate by the LED current (255: its 12 mA WS2815 model), and a global limit above 0 takes
+        # the place of the per-output ones. Bounds: a lower limit or a higher LED current passes; none (0), a higher
+        # limit, a lower LED current and 255 do not.
         for path in DODECA:
-            for output in self.load(path)["hw"]["led"]["ins"]:
+            led = self.load(path)["hw"]["led"]
+            self.assertLessEqual(led["maxpwr"], 6000, path)
+            for output in led["ins"]:
                 self.assertTrue(0 < output["maxpwr"] <= 6000, (path, output["maxpwr"]))
+                self.assertTrue(55 <= output["ledma"] < 255, (path, output["ledma"]))
+
+    def test_every_output_an_overlay_writes_limits_its_current(self):
+        # WLED 16.0.1 (bus_manager.cpp): an LED current of 0 turns an output's limiter off, and a global limit above 0
+        # takes the place of the per-output ones. So each output has an LED current above 0 and a limit above 0, its
+        # own or the global one.
+        for path, cfg in self.overlays():
+            led = cfg.get("hw", {}).get("led", {})
+            for output in led.get("ins", []):
+                self.assertTrue(output["ledma"] > 0 and max(led["maxpwr"], output["maxpwr"]) > 0, (path, output))
 
     def test_no_lamp_switches_itself_on_when_power_comes_back(self):
         # Operator, 2026-11-19, on a lamp lit after a power cut: "if we have power outage this happens and this an
@@ -84,22 +103,24 @@ class Overlays(unittest.TestCase):
         boot_presets = {"fleet/overlays/couch-domraem.json": "fleet/overlays/couch-presets.json",
                         **{path: "fleet/overlays/exoy-presets.json" for path in DODECA}}
         # The cube's overlay holds its boot state and its OTA switch; outputs and presets come from tyclab/tycHyperWled.
-        for path in sorted(CONTROLLERS | {CUBE}):
-            start = self.load(path)["def"]
-            self.assertIs(start["on"], False, path)
-            if start["ps"]:
+        for path, cfg in self.overlays():
+            start = cfg.get("def", {})
+            self.assertIs(start.get("on"), False, path)
+            if start.get("ps"):
                 preset = json.load(open(os.path.join(ROOT, boot_presets[path])))[str(start["ps"])]
                 self.assertIsNot(preset.get("on"), True, f"{path} boot preset {start['ps']}")
 
     def test_every_overlay_that_writes_nw_pairs_the_same_three_remotes_with_espnow_on(self):
-        paths = [path for path in sorted(CONTROLLERS | {CUBE}) if "nw" in self.load(path)]
+        # Which lamps carry the remotes in their overlay is a fact of the hardware; no pairing list lives here.
+        overlays = dict(self.overlays())
+        paths = [path for path in sorted(overlays) if "nw" in overlays[path]]
         self.assertEqual(paths, ["fleet/overlays/couch-domraem.json", "fleet/overlays/cube-gl015.json",
                                  "fleet/overlays/exoy-links-domraem.json", "fleet/overlays/exoy-rechts-domraem.json"])
-        remotes = self.load(paths[0])["nw"]["linked_remote"]
+        remotes = overlays[paths[0]]["nw"]["linked_remote"]
         self.assertEqual(len(set(remotes)), 3)
         self.assertTrue(all(re.fullmatch("[0-9a-f]{12}", remote) for remote in remotes), paths[0])
         for path in paths:
-            self.assertEqual(self.load(path)["nw"], {"espnow": True, "linked_remote": remotes}, path)
+            self.assertEqual(overlays[path]["nw"], {"espnow": True, "linked_remote": remotes}, path)
 
 
 if __name__ == "__main__":
