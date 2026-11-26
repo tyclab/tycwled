@@ -1,4 +1,5 @@
 """The committed look GIFs: the size each lamp's Image effect plays unscaled, the frame count, looping, and never pale."""
+import glob
 import json
 import os
 import re
@@ -71,9 +72,14 @@ class SquidGifs(unittest.TestCase):
                 self.assertTrue(ratio < 0.12 if gamma == 1 else ratio > 0.25, ratio)
 
     def test_no_pixel_is_pale_on_its_lamp(self):
-        # Operator, 2026-11-18: "no white except it is white really selected"; none of these looks selects white.
-        for path, (_, _, _, gamma) in GIFS.items():
+        # Operator, 2026-11-18: "no white except it is white really selected"; none of these looks selects white. Every
+        # GIF committed in the table's folders: one the table gives no lamp gamma fails here.
+        found = sorted({os.path.relpath(gif, ROOT) for path in GIFS
+                        for gif in glob.glob(os.path.join(ROOT, os.path.dirname(path), "*.gif"))})
+        self.assertTrue(found, "no committed GIF")
+        for path in found:
             with self.subTest(path=path):
+                gamma = GIFS[path][3]
                 shown = {tuple(frame[i:i + 3]) for frame in gif_decode(read(path)) for i in range(0, len(frame), 3)}
                 self.assertEqual(mkgifs.pale_entries(sorted(shown), gamma), [])
 
